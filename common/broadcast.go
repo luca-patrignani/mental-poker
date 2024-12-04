@@ -4,17 +4,17 @@ type Player struct {
 	MyRank int
 }
 
-func (p Player) BroadcastAllToAll(bufferSend []interface{}) (bufferRecv []interface{}) {
+func (p Player) BroadcastAllToAll(bufferSend string) (bufferRecv []string) {
 	bufferRecv = nil
 	return
 }
 
-func (p Player) Broadcast(bufferSend interface{}, root int) (bufferRecv interface{}, err error) {
+func (p Player) Broadcast(bufferSend string, root int) (bufferRecv string, err error) {
 	if root == p.MyRank {
 		bufferRecv = bufferSend
 		// send
 	} else {
-		bufferRecv = nil
+		bufferRecv = ""
 		// receive
 	}
 	return
