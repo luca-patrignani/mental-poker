@@ -3,6 +3,7 @@ package common
 import (
 	"strconv"
 	"testing"
+	"sync"
 )
 
 func Test(t *testing.T) {
@@ -38,17 +39,26 @@ func Test3(t *testing.T) {
 
 func Test4(t *testing.T) {
 	root := 0
+	fatal := make(chan error, 10)
+	var wg sync.WaitGroup
+	wg.Add(10)
 	for i := 0; i < 10; i++ {
 		go func(i int) {
+			defer wg.Done()
 			b := Player{MyRank: i}
 			a := strconv.Itoa(10 * i)
 			recv, err := b.Broadcast(a, root)
 			if err != nil {
-				t.Fatal()
+				fatal <- err
 			}
 			if recv != strconv.Itoa(root*10) {
-				t.Fatal()
+				fatal <- err
 			}
 		}(i)
+	}
+	wg.Wait()
+	close(fatal)
+	for err := range fatal {
+		t.Error(err)
 	}
 }
