@@ -148,3 +148,43 @@ func TestBroadcastBarrier(t *testing.T) {
 		}
 	}
 }
+
+func TestAllToAllBarrier(t *testing.T) {
+	addresses := []string{}
+	for i := 0; i < 10; i++ {
+		addresses = append(addresses, fmt.Sprintf("127.0.0.1:111%d", i))
+	}
+	fatal := make(chan error, 10)
+	clocks := make(chan int, 20)
+	var wg sync.WaitGroup
+	wg.Add(10)
+	for i := 0; i < 10; i++ {
+		go func(i int) {
+			defer wg.Done()
+			p := Player{Rank: i, Addresses: addresses}
+			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+			clocks <- 0
+			_, err := p.AllToAll("")
+			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+			clocks <- 1
+			if err != nil {
+				fatal <- err
+				return
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(fatal)
+	for err := range fatal {
+		t.Error(err)
+	}
+	close(clocks)
+	prev := 0
+	for time := range clocks {
+		if prev > time {
+			t.Fatalf("clocks out of sync: prev %d, time %d", prev, time)
+		} else {
+			prev = time
+		}
+	}
+}

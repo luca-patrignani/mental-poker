@@ -14,7 +14,7 @@ type Player struct {
 func (p Player) AllToAll(bufferSend string) (bufferRecv []string, err error) {
 	bufferRecv = make([]string, len(p.Addresses))
 	for i := 0; i < len(p.Addresses); i++ {
-		recv, err := p.Broadcast(bufferSend, i)
+		recv, err := p.broadcastNoBarrier(bufferSend, i)
 		if err != nil {
 			return nil, err
 		}
@@ -24,6 +24,26 @@ func (p Player) AllToAll(bufferSend string) (bufferRecv []string, err error) {
 }
 
 func (p Player) Broadcast(bufferSend string, root int) (string, error) {
+	bufferRecv, err := p.broadcastNoBarrier(bufferSend, root)
+	if err != nil {
+		return "", err
+	}
+	err = p.barrier()
+	if err != nil {
+		return "", nil
+	}
+	return bufferRecv, nil
+}
+
+func (p Player) barrier() error {
+	_, err := p.AllToAll("")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p Player) broadcastNoBarrier(bufferSend string, root int) (string, error) {
 	const delim byte = 0x0
 	if root == p.Rank {
 		for i, addr := range p.Addresses {
