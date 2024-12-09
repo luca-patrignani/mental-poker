@@ -6,11 +6,17 @@ import (
 	"time"
 )
 
+// Player is an helper struct for communication between nodes.
+// the Rank is an identifier of the Player.
+// Addresses[i] contains the address to reach the Player with Rank i.
 type Player struct {
 	Rank      int
 	Addresses []string
 }
 
+// Each caller of AllToAll sends the content of bufferSend to every node.
+// bufferRecv[i] will contain the value sent by the Player with Rank i.
+// This function will implicitly synchronize the players.
 func (p Player) AllToAll(bufferSend string) (bufferRecv []string, err error) {
 	bufferRecv = make([]string, len(p.Addresses))
 	for i := 0; i < len(p.Addresses); i++ {
@@ -23,6 +29,9 @@ func (p Player) AllToAll(bufferSend string) (bufferRecv []string, err error) {
 	return
 }
 
+// The Player with Rank root sends the content of bufferSend to every node.
+// bufferRecv will contain the value sent by the Player with Rank root.
+// This function will implicitly synchronize the players.
 func (p Player) Broadcast(bufferSend string, root int) (string, error) {
 	bufferRecv, err := p.broadcastNoBarrier(bufferSend, root)
 	if err != nil {
@@ -35,6 +44,9 @@ func (p Player) Broadcast(bufferSend string, root int) (string, error) {
 	return bufferRecv, nil
 }
 
+// barrier sychronizes the players.
+// In particular this method guarantees that no Player's control flow will 
+// leave this function until every player has entered this function.
 func (p Player) barrier() error {
 	_, err := p.AllToAll("")
 	if err != nil {
@@ -43,6 +55,8 @@ func (p Player) barrier() error {
 	return nil
 }
 
+// The Player with Rank root sends the content of bufferSend to every node.
+// bufferRecv will contain the value sent by the Player with Rank root.
 func (p Player) broadcastNoBarrier(bufferSend string, root int) (string, error) {
 	const delim byte = 0x0
 	if root == p.Rank {
