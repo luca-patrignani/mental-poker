@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bufio"
 	"net"
 	"time"
 )
@@ -23,6 +24,7 @@ func (p Player) AllToAll(bufferSend string) (bufferRecv []string, err error) {
 }
 
 func (p Player) Broadcast(bufferSend string, root int) (string, error) {
+	const delim byte = 0x0
 	if root == p.Rank {
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
@@ -32,7 +34,7 @@ func (p Player) Broadcast(bufferSend string, root int) (string, error) {
 					conn, err = net.Dial("tcp", addr)
 				}
 				defer conn.Close()
-				_, err = conn.Write([]byte(bufferSend))
+				_, err = conn.Write(append([]byte(bufferSend), delim))
 				if err != nil {
 					return "", err
 				}
@@ -50,11 +52,11 @@ func (p Player) Broadcast(bufferSend string, root int) (string, error) {
 	}
 	listener.Close()
 	defer conn.Close()
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadString(delim)
 	if err != nil {
 		return "", err
 	}
-	buffer = buffer[:n]
-	return string(buffer), nil
+	line = line[:len(line)-1]
+	return line, nil
 }
