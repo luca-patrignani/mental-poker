@@ -47,29 +47,6 @@ func TestAllToAll(t *testing.T) {
 	}
 }
 
-func Test3(t *testing.T) {
-	n := 3
-	addresses := []string{}
-	for i := 0; i < n; i++ {
-		addresses = append(addresses, fmt.Sprintf("127.0.0.1:111%d", i))
-	}
-	b1 := Player{Rank: 0, Addresses: addresses}
-	b2 := Player{Rank: 1, Addresses: addresses}
-	b3 := Player{Rank: 2, Addresses: addresses}
-	go b1.AllToAll("a1")
-	go b3.AllToAll("a3")
-	actual, err := b2.AllToAll("a2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(actual) != 3 {
-		t.Fatal()
-	}
-	if actual[0] != "a1" || actual[2] != "a3" {
-		t.Fatal()
-	}
-}
-
 func TestBroadcast(t *testing.T) {
 	addresses := []string{}
 	for i := 0; i < 10; i++ {
