@@ -6,12 +6,19 @@ import (
 )
 
 type Player struct {
-	Rank int
+	Rank      int
 	Addresses []string
 }
 
-func (p Player) BroadcastAllToAll(bufferSend string) (bufferRecv []string, err error) {
-	bufferRecv = nil
+func (p Player) AllToAll(bufferSend string) (bufferRecv []string, err error) {
+	bufferRecv = make([]string, len(p.Addresses))
+	for i := 0; i < len(p.Addresses); i++ {
+		recv, err := p.Broadcast(bufferSend, i)
+		if err != nil {
+			return nil, err
+		}
+		bufferRecv[i] = recv
+	}
 	return
 }
 
@@ -24,6 +31,7 @@ func (p Player) Broadcast(bufferSend string, root int) (string, error) {
 					time.Sleep(time.Millisecond)
 					conn, err = net.Dial("tcp", addr)
 				}
+				defer conn.Close()
 				_, err = conn.Write([]byte(bufferSend))
 				if err != nil {
 					return "", err
@@ -40,6 +48,8 @@ func (p Player) Broadcast(bufferSend string, root int) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	listener.Close()
+	defer conn.Close()
 	buffer := make([]byte, 1024)
 	n, err := conn.Read(buffer)
 	if err != nil {
