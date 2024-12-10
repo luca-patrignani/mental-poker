@@ -45,7 +45,7 @@ func (p Player) Broadcast(bufferSend string, root int) (string, error) {
 }
 
 // barrier sychronizes the players.
-// In particular this method guarantees that no Player's control flow will 
+// In particular this method guarantees that no Player's control flow will
 // leave this function until every player has entered this function.
 func (p Player) barrier() error {
 	_, err := p.AllToAll("")

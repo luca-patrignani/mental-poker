@@ -2,7 +2,6 @@ package common
 
 import (
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,7 +33,7 @@ func TestAllToAll(t *testing.T) {
 			}
 			for j := 0; j < n; j++ {
 				if strings.Compare(strconv.Itoa(j), actual[j]) != 0 {
-					fatal <-fmt.Errorf("expected %d, actual %v", j, actual[j])
+					fatal <- fmt.Errorf("expected %d, actual %v", j, actual[j])
 					return
 				}
 			}
@@ -61,9 +60,9 @@ func TestBroadcast(t *testing.T) {
 			defer wg.Done()
 			p := Player{Rank: i, Addresses: addresses}
 			a := strconv.Itoa(10 * i)
-			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			recv, err := p.Broadcast(a, root)
-			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			if err != nil {
 				fatal <- err
 				return
@@ -99,10 +98,10 @@ func TestBroadcastBarrier(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			p := Player{Rank: i, Addresses: addresses}
-			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
 			_, err := p.Broadcast("", 0)
-			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 1
 			if err != nil {
 				fatal <- err
@@ -139,10 +138,10 @@ func TestAllToAllBarrier(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			p := Player{Rank: i, Addresses: addresses}
-			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
 			_, err := p.AllToAll("")
-			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 1
 			if err != nil {
 				fatal <- err
