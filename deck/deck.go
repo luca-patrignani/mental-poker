@@ -1,6 +1,7 @@
 package deck
 
 import (
+	"github.com/luca-patrignani/mental-poker/common"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/suites"
 )
@@ -8,27 +9,31 @@ import (
 type Deck struct {
 	DeckSize       int
 	CardCollection []kyber.Point
+	player         common.Player
 }
 
 var suite suites.Suite = suites.MustFind("Ed25519")
 
 // Protocol 1: Deck Preparation
 // Generate the deck as a set of encrypted values in a cyclic group
-func (d *Deck) PrepareDeck() []kyber.Point {
+func (d *Deck) PrepareDeck() ([]kyber.Point, error) {
 	// Initialize deck
 	deck := make([]kyber.Point, d.DeckSize)
 	// Generate encrypted values for each card
-	for i := 0; i < d.DeckSize; i++ {
-		card := d.generateRandomElement() // Encrypt card as a^(i)
+	for i := 0; i <= d.DeckSize; i++ {
+		card, err := d.generateRandomElement() // Encrypt card as a^(i)
+		if err != nil {
+			return deck, err
+		}
 		deck[i] = card
 	}
 
-	return deck
+	return deck, nil
 }
 
 // Protocol 2: Generate Random Element
 // Generation of a random element in a distributed way to ensure secretness
-func (d *Deck) generateRandomElement() kyber.Point {
+func (d *Deck) generateRandomElement() (kyber.Point, error) {
 	// initialize random generator of cyclic group G
 	gj := suite.Point().Mul(suite.Scalar().Pick(suite.RandomStream()), nil)
 	hj := suite.Point().Mul(suite.Scalar().Pick(suite.RandomStream()), nil)
@@ -40,17 +45,37 @@ func (d *Deck) generateRandomElement() kyber.Point {
 	lambda := suite.Scalar().Pick(suite.RandomStream()) // random lambda 0 < lambda < n
 
 	gPrime := suite.Point().Mul(lambda, gj)
-	_ = gPrime
 
-	//TODO: broadcast gPrime All to ALL
-	//gArray := BroadcastAlltoALl(g,gPrime,h)
+	dataG, err := gPrime.MarshalBinary()
+	if err != nil {
+		return suite.Point(), err
+	}
+	// TODO: remove _ once done and remove string()
+	gArray, err := d.player.AllToAll(string(dataG))
+	_ = gArray
+	if err != nil {
+		return suite.Point(), err
+	}
 
 	hPrime := suite.Point().Mul(lambda, hj)
-	_ = hPrime
+	dataH, err := hPrime.MarshalBinary()
+	if err != nil {
+		return suite.Point(), err
+	}
+	// TODO: remove _ once done and remove string()
+	ataResponse, err := d.player.AllToAll(string(dataH))
+	if err != nil {
+		return suite.Point(), err
+	}
 
-	//TODO: broadcast hPrime All to ALL
-	var hArray []kyber.Point
-	//hArray := BroadcastAlltoALl(hPrime)
+	hArray := make([]kyber.Point, len(d.player.Addresses))
+	for i := 0; i < len(ataResponse); i++ {
+		hArray[i] = suite.Point()
+		err := hArray[i].UnmarshalBinary([]byte(ataResponse[i]))
+		if err != nil {
+			return suite.Point(), err
+		}
+	}
 
 	//TODO: ZKA (optional)
 
@@ -59,5 +84,5 @@ func (d *Deck) generateRandomElement() kyber.Point {
 		hResult.Add(hResult, hArray[i])
 	}
 
-	return hResult
+	return hResult, nil
 }
