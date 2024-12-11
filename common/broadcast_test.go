@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -9,12 +10,23 @@ import (
 	"time"
 )
 
+func createAddresses(n int) []net.TCPAddr {
+	addresses := []net.TCPAddr{}
+	for i := 0; i < n; i++ {
+		addresses = append(addresses, net.TCPAddr{
+			IP: net.ParseIP("127.0.0.1"),
+			Port: 50000+i,
+		})
+		if addresses[i].IP == nil {
+			panic(addresses[i].IP)
+		}
+	}
+	return addresses
+}
+
 func TestAllToAll(t *testing.T) {
 	n := 10
-	addresses := []string{}
-	for i := 0; i < n; i++ {
-		addresses = append(addresses, fmt.Sprintf("127.0.0.1:111%d", i))
-	}
+	addresses := createAddresses(n)
 	fatal := make(chan error, 3*n)
 	var wg sync.WaitGroup
 	wg.Add(n)
@@ -47,10 +59,7 @@ func TestAllToAll(t *testing.T) {
 }
 
 func TestBroadcast(t *testing.T) {
-	addresses := []string{}
-	for i := 0; i < 10; i++ {
-		addresses = append(addresses, fmt.Sprintf("127.0.0.1:1111%d", i))
-	}
+	addresses := createAddresses(10)
 	root := 3
 	fatal := make(chan error, 10)
 	var wg sync.WaitGroup
@@ -86,10 +95,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func TestBroadcastBarrier(t *testing.T) {
-	addresses := []string{}
-	for i := 0; i < 10; i++ {
-		addresses = append(addresses, fmt.Sprintf("127.0.0.1:111%d", i))
-	}
+	addresses := createAddresses(10)
 	fatal := make(chan error, 10)
 	clocks := make(chan int, 20)
 	var wg sync.WaitGroup
@@ -126,10 +132,7 @@ func TestBroadcastBarrier(t *testing.T) {
 }
 
 func TestAllToAllBarrier(t *testing.T) {
-	addresses := []string{}
-	for i := 0; i < 10; i++ {
-		addresses = append(addresses, fmt.Sprintf("127.0.0.1:111%d", i))
-	}
+	addresses := createAddresses(10)
 	fatal := make(chan error, 10)
 	clocks := make(chan int, 20)
 	var wg sync.WaitGroup
@@ -142,6 +145,11 @@ func TestAllToAllBarrier(t *testing.T) {
 			clocks <- 0
 			_, err := p.AllToAll("")
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
+			if err != nil {
+				fatal <- err
+				return
+			}
+			_, err = p.AllToAll("")
 			clocks <- 1
 			if err != nil {
 				fatal <- err
@@ -162,5 +170,12 @@ func TestAllToAllBarrier(t *testing.T) {
 		} else {
 			prev = time
 		}
+	}
+}
+
+func TestAllToAllBarrierRepeated(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		t.Log(i)
+		TestAllToAllBarrier(t)
 	}
 }
