@@ -51,7 +51,7 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 		return suite.Point(), err
 	}
 	// TODO: remove _ once done and remove string()
-	gArray, err := d.player.AllToAll(string(dataG))
+	gArray, err := d.player.AllToAll(dataG)
 	_ = gArray
 	if err != nil {
 		return suite.Point(), err
@@ -63,7 +63,7 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 		return suite.Point(), err
 	}
 	// TODO: remove _ once done and remove string()
-	ataResponse, err := d.player.AllToAll(string(dataH))
+	ataResponse, err := d.player.AllToAll(dataH)
 	if err != nil {
 		return suite.Point(), err
 	}

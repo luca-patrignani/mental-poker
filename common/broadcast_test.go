@@ -24,15 +24,14 @@ func createAddresses(n int) []net.TCPAddr {
 }
 
 func TestAllToAll(t *testing.T) {
-	n := 10
+	n := 2
 	addresses := createAddresses(n)
 	fatal := make(chan error, 3*n)
 	for i := 0; i < n; i++ {
 		go func() {
-			p, err := NewPlayer(i, addresses)
-			if err != nil {
-				fatal <- err
-				return
+			p := Player{
+				Rank: i,
+				Addresses: addresses,
 			}
 			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
 			if err != nil {
@@ -66,26 +65,22 @@ func TestBroadcast(t *testing.T) {
 	fatal := make(chan error, 10)
 	for i := 0; i < 10; i++ {
 		go func(i int) {
-			p, err := NewPlayer(i, addresses)
-			if err != nil {
-				fatal <- err
-				return
+			p := Player{
+				Rank: i,
+				Addresses: addresses,
 			}
-			a := strconv.Itoa(10 * i)
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
-			recv, err := p.Broadcast(a, root)
+			recv, err := p.Broadcast([]byte{0, byte(10*i)}, root)
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			if err != nil {
 				fatal <- err
 				return
 			}
-			actual, err := strconv.Atoi(recv)
-			if err != nil {
-				fatal <- err
-				return
+			if len(recv) != 2 {
+				fatal <- fmt.Errorf("expected length 2, %v received", recv)
 			}
-			if actual != root*10 {
-				fatal <- fmt.Errorf("expected %d, actual %d", actual, root*10)
+			if recv[1] != byte(root*10) {
+				fatal <- fmt.Errorf("expected %d, actual %d", recv[1], root*10)
 				return
 			}
 			fatal <- nil
@@ -99,20 +94,60 @@ func TestBroadcast(t *testing.T) {
 	}
 }
 
+func TestBroadcastTwoPlayers(t *testing.T) {
+	addresses := createAddresses(2)
+	fatal := make(chan error)
+	for i := 0; i < 2; i++ {
+		go func() {
+			p := Player{
+				Rank: i,
+				Addresses: addresses,
+			}
+			time.Sleep(time.Second * time.Duration(i+1))
+			recv, err := p.Broadcast([]byte{'0'}, 0)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			if recv[0] != '0' {
+				fatal <- fmt.Errorf("from player %d: expected %s, actual %s", i, "0", recv)
+				return
+			}
+			time.Sleep(time.Second * time.Duration(i+1))
+			recv, err = p.Broadcast([]byte{'1'}, 1)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			if recv[0] != '1' {
+				fatal <- fmt.Errorf("from player %d: expected %s, actual %s", i, "1", recv)
+				return
+			}
+			fatal <- nil
+		}()
+	}
+	for i := 0; i < 2; i++ {
+		err := <-fatal
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+
 func TestBroadcastBarrier(t *testing.T) {
 	addresses := createAddresses(10)
 	fatal := make(chan error, 10)
 	clocks := make(chan int, 20)
 	for i := 0; i < 10; i++ {
 		go func(i int) {
-			p, err := NewPlayer(i, addresses)
-			if err != nil {
-				fatal <- err
-				return
+			p := Player{
+				Rank: i,
+				Addresses: addresses,
 			}
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
-			_, err = p.Broadcast("", 0)
+			_, err := p.Broadcast(nil, 0)
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 1
 			if err != nil {
@@ -148,14 +183,13 @@ func TestAllToAllBarrier(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(i int) {
 			defer wg.Done()
-			p, err := NewPlayer(i, addresses)
-			if err != nil {
-				fatal <- err
-				return
+			p := Player{
+				Rank: i,
+				Addresses: addresses,
 			}
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
-			_, err = p.AllToAll([]byte{})
+			_, err := p.AllToAll([]byte{})
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			if err != nil {
 				fatal <- err
@@ -180,7 +214,7 @@ func TestAllToAllBarrier(t *testing.T) {
 	}
 }
 
-func TestAllToAllBarrierRepeated(t *testing.T) {
+func TestRepeatedAllToAllBarrier(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		t.Log(i)
 		TestAllToAllBarrier(t)

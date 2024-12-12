@@ -6,8 +6,8 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"slices"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -20,79 +20,13 @@ type Player struct {
 	// listener net.Listener
 }
 
-func NewPlayer(rank int, addresses []net.TCPAddr) (Player, error) {
-	// listener, err := net.Listen("tcp", addresses[rank])
-	// if err != nil {
-	// 	return Player{}, err
-	// }
-	p := Player{
-		Rank:      rank,
-		Addresses: addresses,
-		// listener: listener,
-	}
-	return p, nil
-}
-
-// Each caller of AllToAll sends the content of bufferSend to every node.
-// bufferRecv[i] will contain the value sent by the Player with Rank i.
-// This function will implicitly synchronize the players.
-func (p Player) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
-	bufferRecv = make([][]byte, len(p.Addresses))
-	bufferRecv[p.Rank] = bufferSend
-	s := http.ServeMux{}
-	fatal := make(chan error)
-	s.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		remoteAddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
-		if err != nil {
-			fatal <- err
-			return
-		}
-		i := -1
-		for j := 0; j < len(p.Addresses); j++ {
-			if tcpAddrEqual(p.Addresses[j], *remoteAddr) {
-				i = j
-				break
-			}
-		}
-		recv, err := io.ReadAll(r.Body)
-		if err != nil {
-			fatal <- err
-			return
-		}
-		bufferRecv[i] = recv
-		w.WriteHeader(http.StatusAccepted)
-	})
-	// Create a custom transport with a DialContext
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			LocalAddr: &p.Addresses[p.Rank], // Set the local address
-		}).DialContext,
-	}
-	// Create an HTTP client with the custom transport
-	client := &http.Client{
-		Transport: transport,
-	}
-	for i, addr := range p.Addresses {
-		if i != p.Rank {
-			resp, err := client.Post("http://"+addr.String(), "application/octet-stream", strings.NewReader(string(bufferSend)))
-			for err != nil || resp.StatusCode != http.StatusAccepted {
-				resp, err = client.Post("http://"+addr.String(), "application/octet-stream", strings.NewReader(string(bufferSend)))
-			}
-		}
-	}
-
-	for slices.ContainsFunc(bufferRecv, func(b []byte) bool { return b == nil }) {
-	}
-	return
-}
-
-type myHandler struct {
+type broadcastHandler struct {
 	RootAddr       net.TCPAddr
 	ContentChannel chan []byte
 	ErrChannel     chan error
 }
 
-func (h *myHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	remoteAddr, err := net.ResolveTCPAddr("tcp", req.RemoteAddr)
 	if err != nil {
 		rw.WriteHeader(http.StatusNotAcceptable)
@@ -116,16 +50,31 @@ func (h *myHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 // The Player with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Player with Rank root.
 // This function will implicitly synchronize the players.
-func (p Player) Broadcast(bufferSend string, root int) (string, error) {
+func (p Player) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 	bufferRecv, err := p.broadcastNoBarrier(bufferSend, root)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	err = p.barrier()
 	if err != nil {
-		return "", nil
+		return nil, nil
 	}
 	return bufferRecv, nil
+}
+
+// Each caller of AllToAll sends the content of bufferSend to every node.
+// bufferRecv[i] will contain the value sent by the Player with Rank i.
+// This function will implicitly synchronize the players.
+func (p Player) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
+	bufferRecv = make([][]byte, len(p.Addresses))
+	for i := 0; i < len(p.Addresses); i++ {
+		recv, err := p.broadcastNoBarrier(bufferSend, i)
+		if err != nil {
+			return nil, err
+		}
+		bufferRecv[i] = recv
+	}
+	return
 }
 
 // barrier sychronizes the players.
@@ -141,34 +90,43 @@ func (p Player) barrier() error {
 
 // The Player with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Player with Rank root.
-func (p Player) broadcastNoBarrier(bufferSend string, root int) (string, error) {
+func (p Player) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	if root == p.Rank {
 		// Create a custom transport with a DialContext
 		transport := &http.Transport{
 			DialContext: (&net.Dialer{
 				LocalAddr: &p.Addresses[p.Rank], // Set the local address
+				Control: func(network, address string, c syscall.RawConn) error {
+					var err error
+					c.Control(func(fd uintptr) {
+						err = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+					})
+					return err
+				},
 			}).DialContext,
 		}
 		// Create an HTTP client with the custom transport
 		client := &http.Client{
 			Transport: transport,
 		}
+		defer client.CloseIdleConnections()
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
-				resp, err := client.Post("http://"+addr.String(), "application/octet-stream", strings.NewReader(bufferSend))
+				resp, err := client.Post("http://"+addr.String(), "application/octet-stream", strings.NewReader(string(bufferSend)))
 				for err != nil || resp.StatusCode != http.StatusAccepted {
 					time.Sleep(time.Millisecond)
-					resp, err = client.Post("http://"+addr.String(), "application/octet-stream", strings.NewReader(bufferSend))
+					resp, err = client.Post("http://"+addr.String(), "application/octet-stream", strings.NewReader(string(bufferSend)))
 				}
+				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusAccepted {
-					return "", fmt.Errorf("unsuccessful status code %d", resp.StatusCode)
+					return nil, fmt.Errorf("unsuccessful status code %d", resp.StatusCode)
 				}
 			}
 		}
 		return bufferSend, nil
 	}
 	errChan := make(chan error)
-	handler := myHandler{
+	handler := broadcastHandler{
 		RootAddr:       p.Addresses[root],
 		ContentChannel: make(chan []byte),
 		ErrChannel:     errChan,
@@ -188,12 +146,12 @@ func (p Player) broadcastNoBarrier(bufferSend string, root int) (string, error) 
 	var recv []byte
 	select {
 	case err := <-errChan:
-		return "", err
+		return nil, err
 	case recv = <-handler.ContentChannel:
 		break
 	}
 	s.Shutdown(context.Background())
-	return string(recv), nil
+	return recv, nil
 }
 
 func tcpAddrEqual(a, b net.TCPAddr) bool {
