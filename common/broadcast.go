@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,7 +18,6 @@ import (
 type Player struct {
 	Rank      int
 	Addresses []net.TCPAddr
-	// listener net.Listener
 }
 
 type broadcastHandler struct {
@@ -77,7 +77,7 @@ func (p Player) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 	return
 }
 
-// barrier sychronizes the players.
+// barrier synchronizes the players.
 // In particular this method guarantees that no Player's control flow will
 // leave this function until every player has entered this function.
 func (p Player) barrier() error {
@@ -98,10 +98,10 @@ func (p Player) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) 
 				LocalAddr: &p.Addresses[p.Rank], // Set the local address
 				Control: func(network, address string, c syscall.RawConn) error {
 					var err error
-					c.Control(func(fd uintptr) {
+					outerErr := c.Control(func(fd uintptr) {
 						err = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 					})
-					return err
+					return errors.Join(err, outerErr)
 				},
 			}).DialContext,
 		}
@@ -150,8 +150,8 @@ func (p Player) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) 
 	case recv = <-handler.ContentChannel:
 		break
 	}
-	s.Shutdown(context.Background())
-	return recv, nil
+	err := s.Shutdown(context.Background())
+	return recv, err
 }
 
 func tcpAddrEqual(a, b net.TCPAddr) bool {

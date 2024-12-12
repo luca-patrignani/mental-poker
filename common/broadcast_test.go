@@ -24,13 +24,13 @@ func createAddresses(n int) []net.TCPAddr {
 }
 
 func TestAllToAll(t *testing.T) {
-	n := 2
+	n := 10
 	addresses := createAddresses(n)
 	fatal := make(chan error, 3*n)
 	for i := 0; i < n; i++ {
 		go func() {
 			p := Player{
-				Rank: i,
+				Rank:      i,
 				Addresses: addresses,
 			}
 			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
@@ -60,17 +60,18 @@ func TestAllToAll(t *testing.T) {
 }
 
 func TestBroadcast(t *testing.T) {
-	addresses := createAddresses(10)
+	n := 10
+	addresses := createAddresses(n)
 	root := 3
-	fatal := make(chan error, 10)
-	for i := 0; i < 10; i++ {
+	fatal := make(chan error, n)
+	for i := 0; i < n; i++ {
 		go func(i int) {
 			p := Player{
-				Rank: i,
+				Rank:      i,
 				Addresses: addresses,
 			}
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
-			recv, err := p.Broadcast([]byte{0, byte(10*i)}, root)
+			recv, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			if err != nil {
 				fatal <- err
@@ -86,7 +87,7 @@ func TestBroadcast(t *testing.T) {
 			fatal <- nil
 		}(i)
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < n; i++ {
 		err := <-fatal
 		if err != nil {
 			t.Fatal(err)
@@ -100,7 +101,7 @@ func TestBroadcastTwoPlayers(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		go func() {
 			p := Player{
-				Rank: i,
+				Rank:      i,
 				Addresses: addresses,
 			}
 			time.Sleep(time.Second * time.Duration(i+1))
@@ -134,15 +135,15 @@ func TestBroadcastTwoPlayers(t *testing.T) {
 	}
 }
 
-
 func TestBroadcastBarrier(t *testing.T) {
-	addresses := createAddresses(10)
-	fatal := make(chan error, 10)
-	clocks := make(chan int, 20)
-	for i := 0; i < 10; i++ {
+	n := 10
+	addresses := createAddresses(n)
+	fatal := make(chan error, n)
+	clocks := make(chan int, 2*n)
+	for i := 0; i < n; i++ {
 		go func(i int) {
 			p := Player{
-				Rank: i,
+				Rank:      i,
 				Addresses: addresses,
 			}
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
@@ -157,7 +158,7 @@ func TestBroadcastBarrier(t *testing.T) {
 			fatal <- nil
 		}(i)
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < n; i++ {
 		err := <-fatal
 		if err != nil {
 			t.Fatal(err)
@@ -175,16 +176,17 @@ func TestBroadcastBarrier(t *testing.T) {
 }
 
 func TestAllToAllBarrier(t *testing.T) {
-	addresses := createAddresses(10)
-	fatal := make(chan error, 10)
-	clocks := make(chan int, 20)
+	n := 10
+	addresses := createAddresses(n)
+	fatal := make(chan error, n)
+	clocks := make(chan int, 2*n)
 	var wg sync.WaitGroup
 	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
 			p := Player{
-				Rank: i,
+				Rank:      i,
 				Addresses: addresses,
 			}
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
@@ -211,12 +213,5 @@ func TestAllToAllBarrier(t *testing.T) {
 		} else {
 			prev = time
 		}
-	}
-}
-
-func TestRepeatedAllToAllBarrier(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		t.Log(i)
-		TestAllToAllBarrier(t)
 	}
 }
