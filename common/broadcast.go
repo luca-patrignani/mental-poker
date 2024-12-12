@@ -2,13 +2,12 @@ package common
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -18,33 +17,6 @@ import (
 type Player struct {
 	Rank      int
 	Addresses []net.TCPAddr
-}
-
-type broadcastHandler struct {
-	RootAddr       net.TCPAddr
-	ContentChannel chan []byte
-	ErrChannel     chan error
-}
-
-func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	remoteAddr, err := net.ResolveTCPAddr("tcp", req.RemoteAddr)
-	if err != nil {
-		rw.WriteHeader(http.StatusNotAcceptable)
-		h.ErrChannel <- fmt.Errorf("from handler: %v", err)
-		return
-	}
-	if !tcpAddrEqual(*remoteAddr, h.RootAddr) {
-		rw.WriteHeader(http.StatusNotAcceptable)
-		return
-	}
-	content, err := io.ReadAll(req.Body)
-	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		h.ErrChannel <- fmt.Errorf("from handler: %v", err)
-		return
-	}
-	h.ContentChannel <- content
-	rw.WriteHeader(http.StatusAccepted)
 }
 
 // The Player with Rank root sends the content of bufferSend to every node.
@@ -57,7 +29,7 @@ func (p Player) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 	}
 	err = p.barrier()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	return bufferRecv, nil
 }
@@ -88,34 +60,56 @@ func (p Player) barrier() error {
 	return nil
 }
 
+type broadcastHandler struct {
+	RootRank       int
+	ContentChannel chan []byte
+	ErrChannel     chan error
+}
+
+func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	senderRankS, ok := req.Header["Rank"]
+	if !ok {
+		rw.WriteHeader(http.StatusNotAcceptable)
+		h.ErrChannel <- fmt.Errorf("from handler: Rank field is not present in request")
+		return
+	}
+	senderRank, err := strconv.Atoi(senderRankS[0])
+	if err != nil {
+		rw.WriteHeader(http.StatusNotAcceptable)
+		h.ErrChannel <- fmt.Errorf("from handler: Rank field is not a number")
+		return
+	}
+	if senderRank != h.RootRank {
+		rw.WriteHeader(http.StatusNotAcceptable)
+		return
+	}
+	content, err := io.ReadAll(req.Body)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		h.ErrChannel <- fmt.Errorf("from handler: %v", err)
+		return
+	}
+	h.ContentChannel <- content
+	rw.WriteHeader(http.StatusAccepted)
+}
+
 // The Player with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Player with Rank root.
 func (p Player) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	if root == p.Rank {
-		// Create a custom transport with a DialContext
-		transport := &http.Transport{
-			DialContext: (&net.Dialer{
-				LocalAddr: &p.Addresses[p.Rank], // Set the local address
-				Control: func(network, address string, c syscall.RawConn) error {
-					var err error
-					outerErr := c.Control(func(fd uintptr) {
-						err = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-					})
-					return errors.Join(err, outerErr)
-				},
-			}).DialContext,
-		}
-		// Create an HTTP client with the custom transport
-		client := &http.Client{
-			Transport: transport,
-		}
+		client := http.Client{}
 		defer client.CloseIdleConnections()
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
-				resp, err := client.Post("http://"+addr.String(), "application/octet-stream", strings.NewReader(string(bufferSend)))
+				req, err := http.NewRequest("POST", "http://"+addr.String(), strings.NewReader(string(bufferSend)))
+				if err != nil {
+					return nil, err
+				}
+				req.Header["Rank"] = []string{fmt.Sprint(p.Rank)}
+				resp, err := client.Do(req)
 				for err != nil || resp.StatusCode != http.StatusAccepted {
 					time.Sleep(time.Millisecond)
-					resp, err = client.Post("http://"+addr.String(), "application/octet-stream", strings.NewReader(string(bufferSend)))
+					resp, err = client.Do(req)
 				}
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusAccepted {
@@ -127,7 +121,7 @@ func (p Player) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) 
 	}
 	errChan := make(chan error)
 	handler := broadcastHandler{
-		RootAddr:       p.Addresses[root],
+		RootRank:       root,
 		ContentChannel: make(chan []byte),
 		ErrChannel:     errChan,
 	}
@@ -152,8 +146,4 @@ func (p Player) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) 
 	}
 	err := s.Shutdown(context.Background())
 	return recv, err
-}
-
-func tcpAddrEqual(a, b net.TCPAddr) bool {
-	return a.IP.Equal(b.IP) && a.Port == b.Port
 }
