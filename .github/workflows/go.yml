@@ -33,5 +33,10 @@ jobs:
     - name: Build
       run: ${{ matrix.flags }} go build -v ./...
 
-    - name: Golangci-lint
-      uses: golangci/golangci-lint-action@v6.1.1
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v4
+        
+        - name: golangci-lint
+          uses: golangci/golangci-lint-action@v6.1.1
