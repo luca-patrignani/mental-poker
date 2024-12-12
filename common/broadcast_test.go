@@ -29,7 +29,7 @@ func TestAllToAll(t *testing.T) {
 	fatal := make(chan error, 3*n)
 	for i := 0; i < n; i++ {
 		go func() {
-			p := Player{
+			p := Peer{
 				Rank:      i,
 				Addresses: addresses,
 			}
@@ -39,12 +39,12 @@ func TestAllToAll(t *testing.T) {
 				return
 			}
 			if len(actual) != n {
-				fatal <- fmt.Errorf("from player %d: expected list of length %d, %v given", i, n, actual)
+				fatal <- fmt.Errorf("from peer %d: expected list of length %d, %v given", i, n, actual)
 				return
 			}
 			for j := 0; j < n; j++ {
 				if strconv.Itoa(j) != string(actual[j]) {
-					fatal <- fmt.Errorf("from player %d: expected %d, actual %v", i, j, actual[j])
+					fatal <- fmt.Errorf("from peer %d: expected %d, actual %v", i, j, actual[j])
 					return
 				}
 			}
@@ -66,7 +66,7 @@ func TestBroadcast(t *testing.T) {
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			p := Player{
+			p := Peer{
 				Rank:      i,
 				Addresses: addresses,
 			}
@@ -95,12 +95,12 @@ func TestBroadcast(t *testing.T) {
 	}
 }
 
-func TestBroadcastTwoPlayers(t *testing.T) {
+func TestBroadcastTwopeers(t *testing.T) {
 	addresses := createAddresses(2)
 	fatal := make(chan error)
 	for i := 0; i < 2; i++ {
 		go func() {
-			p := Player{
+			p := Peer{
 				Rank:      i,
 				Addresses: addresses,
 			}
@@ -111,7 +111,7 @@ func TestBroadcastTwoPlayers(t *testing.T) {
 				return
 			}
 			if recv[0] != '0' {
-				fatal <- fmt.Errorf("from player %d: expected %s, actual %s", i, "0", recv)
+				fatal <- fmt.Errorf("from peer %d: expected %s, actual %s", i, "0", recv)
 				return
 			}
 			time.Sleep(time.Second * time.Duration(i+1))
@@ -121,7 +121,7 @@ func TestBroadcastTwoPlayers(t *testing.T) {
 				return
 			}
 			if recv[0] != '1' {
-				fatal <- fmt.Errorf("from player %d: expected %s, actual %s", i, "1", recv)
+				fatal <- fmt.Errorf("from peer %d: expected %s, actual %s", i, "1", recv)
 				return
 			}
 			fatal <- nil
@@ -142,7 +142,7 @@ func TestBroadcastBarrier(t *testing.T) {
 	clocks := make(chan int, 2*n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			p := Player{
+			p := Peer{
 				Rank:      i,
 				Addresses: addresses,
 			}
@@ -185,7 +185,7 @@ func TestAllToAllBarrier(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
-			p := Player{
+			p := Peer{
 				Rank:      i,
 				Addresses: addresses,
 			}

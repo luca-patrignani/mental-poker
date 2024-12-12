@@ -11,18 +11,18 @@ import (
 	"time"
 )
 
-// Player is an helper struct for communication between nodes.
-// the Rank is an identifier of the Player.
-// Addresses[i] contains the address to reach the Player with Rank i.
-type Player struct {
+// Peer is an helper struct for communication between nodes.
+// the Rank is an identifier of the Peer.
+// Addresses[i] contains the address to reach the Peer with Rank i.
+type Peer struct {
 	Rank      int
 	Addresses []net.TCPAddr
 }
 
-// The Player with Rank root sends the content of bufferSend to every node.
-// bufferRecv will contain the value sent by the Player with Rank root.
-// This function will implicitly synchronize the players.
-func (p Player) Broadcast(bufferSend []byte, root int) ([]byte, error) {
+// Peer with Rank root sends the content of bufferSend to every node.
+// bufferRecv will contain the value sent by the Peer with Rank root.
+// This function will implicitly synchronize the peers.
+func (p Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 	bufferRecv, err := p.broadcastNoBarrier(bufferSend, root)
 	if err != nil {
 		return nil, err
@@ -35,9 +35,9 @@ func (p Player) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 }
 
 // Each caller of AllToAll sends the content of bufferSend to every node.
-// bufferRecv[i] will contain the value sent by the Player with Rank i.
-// This function will implicitly synchronize the players.
-func (p Player) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
+// bufferRecv[i] will contain the value sent by the Peer with Rank i.
+// This function will implicitly synchronize the peers.
+func (p Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 	bufferRecv = make([][]byte, len(p.Addresses))
 	for i := 0; i < len(p.Addresses); i++ {
 		recv, err := p.broadcastNoBarrier(bufferSend, i)
@@ -49,10 +49,10 @@ func (p Player) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 	return
 }
 
-// barrier synchronizes the players.
-// In particular this method guarantees that no Player's control flow will
-// leave this function until every player has entered this function.
-func (p Player) barrier() error {
+// barrier synchronizes the peers.
+// In particular this method guarantees that no Peer's control flow will
+// leave this function until every peer has entered this function.
+func (p Peer) barrier() error {
 	_, err := p.AllToAll(nil)
 	if err != nil {
 		return err
@@ -93,9 +93,9 @@ func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusAccepted)
 }
 
-// The Player with Rank root sends the content of bufferSend to every node.
-// bufferRecv will contain the value sent by the Player with Rank root.
-func (p Player) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
+// Peer with Rank root sends the content of bufferSend to every node.
+// bufferRecv will contain the value sent by the Peer with Rank root.
+func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	if root == p.Rank {
 		client := http.Client{}
 		defer client.CloseIdleConnections()

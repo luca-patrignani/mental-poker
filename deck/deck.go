@@ -9,7 +9,7 @@ import (
 type Deck struct {
 	DeckSize       int
 	CardCollection []kyber.Point
-	player         common.Player
+	peer         common.Peer
 }
 
 var suite suites.Suite = suites.MustFind("Ed25519")
@@ -51,7 +51,7 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 		return suite.Point(), err
 	}
 	// TODO: remove _ once done and remove string()
-	gArray, err := d.player.AllToAll(dataG)
+	gArray, err := d.peer.AllToAll(dataG)
 	_ = gArray
 	if err != nil {
 		return suite.Point(), err
@@ -63,12 +63,12 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 		return suite.Point(), err
 	}
 	// TODO: remove _ once done and remove string()
-	ataResponse, err := d.player.AllToAll(dataH)
+	ataResponse, err := d.peer.AllToAll(dataH)
 	if err != nil {
 		return suite.Point(), err
 	}
 
-	hArray := make([]kyber.Point, len(d.player.Addresses))
+	hArray := make([]kyber.Point, len(d.peer.Addresses))
 	for i := 0; i < len(ataResponse); i++ {
 		hArray[i] = suite.Point()
 		err := hArray[i].UnmarshalBinary([]byte(ataResponse[i]))
