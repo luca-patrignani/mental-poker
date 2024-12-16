@@ -8,7 +8,8 @@ import (
 
 type Deck struct {
 	DeckSize       int
-	CardCollection []kyber.Point
+	CardCollection []kyber.Point //a
+	EncryptedDeck []kyber.Point  //b
 	peer         common.Peer
 }
 
@@ -62,7 +63,6 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 	if err != nil {
 		return suite.Point(), err
 	}
-	// TODO: remove _ once done and remove string()
 	ataResponse, err := d.peer.AllToAll(dataH)
 	if err != nil {
 		return suite.Point(), err
@@ -85,4 +85,60 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 	}
 
 	return hResult, nil
+}
+
+// func (d *Deck) allToAllMultiple(bufferSend []kyber.Point, root int) ([]kyber.Point, error){
+	// if (d.peer.Rank)
+	// dataSend, err := bufferSend[0].MarshalBinary()
+	// if err != nil {
+		// return suite.Point(), err
+	// }
+	// ataResponse, err := d.peer.AllToAll(dataH)
+	// if err != nil {
+		// return suite.Point(), err
+	// }
+
+	// hArray := make([]kyber.Point, len(d.peer.Addresses))
+	// for i := 0; i < len(ataResponse); i++ {
+		// hArray[i] = suite.Point()
+		// err := hArray[i].UnmarshalBinary([]byte(ataResponse[i]))
+		// if err != nil {
+			// return suite.Point(), err
+		// }
+	// }
+
+// }
+
+func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
+	dataSend, err := bufferSend.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	ataResponse, err := d.peer.AllToAll(dataSend)
+	if err != nil {
+		return nil, err
+	}
+
+	dataReceived := make([]kyber.Point, len(d.peer.Addresses))
+	for i := 0; i < len(d.peer.Addresses); i++ {
+		dataReceived[i] = suite.Point()
+		err := dataReceived[i].UnmarshalBinary([]byte(ataResponse[i]))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return dataReceived, nil
+}
+
+func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int) ([]kyber.Point, error) {
+	dataSend := make([]byte, len(bufferSend))
+	for i:=0; i < len(bufferSend); i++ {
+		temp, err := bufferSend[i].MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		dataSend[i] = temp
+	}
+	ataResponse, err := d.peer.Broadcast(dataSend,root)
+
 }
