@@ -1,6 +1,9 @@
 package deck
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/luca-patrignani/mental-poker/common"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/suites"
@@ -9,8 +12,8 @@ import (
 type Deck struct {
 	DeckSize       int
 	CardCollection []kyber.Point //a
-	EncryptedDeck []kyber.Point  //b
-	peer         common.Peer
+	EncryptedDeck  []kyber.Point //b
+	peer           common.Peer
 }
 
 var suite suites.Suite = suites.MustFind("Ed25519")
@@ -87,28 +90,6 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 	return hResult, nil
 }
 
-// func (d *Deck) allToAllMultiple(bufferSend []kyber.Point, root int) ([]kyber.Point, error){
-	// if (d.peer.Rank)
-	// dataSend, err := bufferSend[0].MarshalBinary()
-	// if err != nil {
-		// return suite.Point(), err
-	// }
-	// ataResponse, err := d.peer.AllToAll(dataH)
-	// if err != nil {
-		// return suite.Point(), err
-	// }
-
-	// hArray := make([]kyber.Point, len(d.peer.Addresses))
-	// for i := 0; i < len(ataResponse); i++ {
-		// hArray[i] = suite.Point()
-		// err := hArray[i].UnmarshalBinary([]byte(ataResponse[i]))
-		// if err != nil {
-			// return suite.Point(), err
-		// }
-	// }
-
-// }
-
 func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	dataSend, err := bufferSend.MarshalBinary()
 	if err != nil {
@@ -130,15 +111,49 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	return dataReceived, nil
 }
 
-func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int) ([]kyber.Point, error) {
-	dataSend := make([]byte, len(bufferSend))
-	for i:=0; i < len(bufferSend); i++ {
+func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int, size int) ([]kyber.Point, error) {
+	dataSend := make([][]byte, len(bufferSend))
+	for i := 0; i < size; i++ {
 		temp, err := bufferSend[i].MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
 		dataSend[i] = temp
 	}
-	ataResponse, err := d.peer.Broadcast(dataSend,root)
+	jsonData, err := json.Marshal(dataSend)
+	if err != nil {
+		return nil, err
+	}
+	dataRecv, err := d.peer.Broadcast(jsonData, root)
+	if err != nil {
+		return nil, err
+	}
+	bufferRecv := make([][]byte, size)
+	err = json.Unmarshal(dataRecv, &bufferRecv)
+	if err != nil {
+		return nil, err
+	}
 
+	pointsRecv := make([]kyber.Point, size)
+
+	for i := 0; i < size; i++ {
+		pointsRecv[i] = suite.Point()
+		err := pointsRecv[i].UnmarshalBinary(bufferRecv[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return pointsRecv, nil
+}
+
+func (d *Deck) broadcastSingle(bufferSend kyber.Point, root int) (kyber.Point, error) {
+	bufferRecv, err := d.broadcastMultiple([]kyber.Point{bufferSend}, root, 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(bufferRecv) != 1 {
+		return nil, fmt.Errorf("bufferRecv must be of size 1")
+	}
+	return bufferRecv[0], nil
 }
