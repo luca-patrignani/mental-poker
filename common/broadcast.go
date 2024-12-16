@@ -22,14 +22,14 @@ type Peer struct {
 // Peer with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Peer with Rank root.
 // This function will implicitly synchronize the peers.
-func (p Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
+func (p Peer) Broadcast(bufferSend string, root int) (string, error) {
 	bufferRecv, err := p.broadcastNoBarrier(bufferSend, root)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	err = p.barrier()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	return bufferRecv, nil
 }
@@ -37,8 +37,8 @@ func (p Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 // Each caller of AllToAll sends the content of bufferSend to every node.
 // bufferRecv[i] will contain the value sent by the Peer with Rank i.
 // This function will implicitly synchronize the peers.
-func (p Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
-	bufferRecv = make([][]byte, len(p.Addresses))
+func (p Peer) AllToAll(bufferSend string) (bufferRecv []string, err error) {
+	bufferRecv = make([]string, len(p.Addresses))
 	for i := 0; i < len(p.Addresses); i++ {
 		recv, err := p.broadcastNoBarrier(bufferSend, i)
 		if err != nil {
@@ -53,7 +53,7 @@ func (p Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 // In particular this method guarantees that no Peer's control flow will
 // leave this function until every peer has entered this function.
 func (p Peer) barrier() error {
-	_, err := p.AllToAll(nil)
+	_, err := p.AllToAll("")
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (p Peer) barrier() error {
 
 type broadcastHandler struct {
 	RootRank       int
-	ContentChannel chan []byte
+	ContentChannel chan string
 	ErrChannel     chan error
 }
 
@@ -89,21 +89,21 @@ func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		h.ErrChannel <- fmt.Errorf("from handler: %v", err)
 		return
 	}
-	h.ContentChannel <- content
+	h.ContentChannel <- string(content)
 	rw.WriteHeader(http.StatusAccepted)
 }
 
 // Peer with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Peer with Rank root.
-func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
+func (p Peer) broadcastNoBarrier(bufferSend string, root int) (string, error) {
 	if root == p.Rank {
 		client := http.Client{}
 		defer client.CloseIdleConnections()
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
-				req, err := http.NewRequest("POST", "http://"+addr.String(), strings.NewReader(string(bufferSend)))
+				req, err := http.NewRequest("POST", "http://"+addr.String(), strings.NewReader(bufferSend))
 				if err != nil {
-					return nil, err
+					return "", err
 				}
 				req.Header["Rank"] = []string{fmt.Sprint(p.Rank)}
 				resp, err := client.Do(req)
@@ -113,7 +113,7 @@ func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 				}
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusAccepted {
-					return nil, fmt.Errorf("unsuccessful status code %d", resp.StatusCode)
+					return "", fmt.Errorf("unsuccessful status code %d", resp.StatusCode)
 				}
 			}
 		}
@@ -122,7 +122,7 @@ func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	errChan := make(chan error)
 	handler := broadcastHandler{
 		RootRank:       root,
-		ContentChannel: make(chan []byte),
+		ContentChannel: make(chan string),
 		ErrChannel:     errChan,
 	}
 	s := http.Server{
@@ -137,10 +137,10 @@ func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 			return
 		}
 	}()
-	var recv []byte
+	var recv string
 	select {
 	case err := <-errChan:
-		return nil, err
+		return "", err
 	case recv = <-handler.ContentChannel:
 		break
 	}

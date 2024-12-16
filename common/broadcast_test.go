@@ -33,7 +33,7 @@ func TestAllToAll(t *testing.T) {
 				Rank:      i,
 				Addresses: addresses,
 			}
-			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
+			actual, err := p.AllToAll(strconv.Itoa(i))
 			if err != nil {
 				fatal <- err
 				return
@@ -71,7 +71,7 @@ func TestBroadcast(t *testing.T) {
 				Addresses: addresses,
 			}
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
-			recv, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
+			recv, err := p.Broadcast(fmt.Sprint(10 * i), root)
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			if err != nil {
 				fatal <- err
@@ -80,7 +80,7 @@ func TestBroadcast(t *testing.T) {
 			if len(recv) != 2 {
 				fatal <- fmt.Errorf("expected length 2, %v received", recv)
 			}
-			if recv[1] != byte(root*10) {
+			if recv != fmt.Sprint(root*10) {
 				fatal <- fmt.Errorf("expected %d, actual %d", recv[1], root*10)
 				return
 			}
@@ -95,7 +95,7 @@ func TestBroadcast(t *testing.T) {
 	}
 }
 
-func TestBroadcastTwopeers(t *testing.T) {
+func TestBroadcastTwoPeers(t *testing.T) {
 	addresses := createAddresses(2)
 	fatal := make(chan error)
 	for i := 0; i < 2; i++ {
@@ -105,7 +105,7 @@ func TestBroadcastTwopeers(t *testing.T) {
 				Addresses: addresses,
 			}
 			time.Sleep(time.Second * time.Duration(i+1))
-			recv, err := p.Broadcast([]byte{'0'}, 0)
+			recv, err := p.Broadcast("0", 0)
 			if err != nil {
 				fatal <- err
 				return
@@ -115,7 +115,7 @@ func TestBroadcastTwopeers(t *testing.T) {
 				return
 			}
 			time.Sleep(time.Second * time.Duration(i+1))
-			recv, err = p.Broadcast([]byte{'1'}, 1)
+			recv, err = p.Broadcast("1", 1)
 			if err != nil {
 				fatal <- err
 				return
@@ -148,7 +148,7 @@ func TestBroadcastBarrier(t *testing.T) {
 			}
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
-			_, err := p.Broadcast(nil, 0)
+			_, err := p.Broadcast("", 0)
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 1
 			if err != nil {
@@ -191,7 +191,7 @@ func TestAllToAllBarrier(t *testing.T) {
 			}
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
-			_, err := p.AllToAll([]byte{})
+			_, err := p.AllToAll("")
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			if err != nil {
 				fatal <- err
