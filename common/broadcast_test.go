@@ -2,30 +2,15 @@ package common
 
 import (
 	"fmt"
-	"net"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 )
 
-func createAddresses(n int) []net.TCPAddr {
-	addresses := []net.TCPAddr{}
-	for i := 0; i < n; i++ {
-		addresses = append(addresses, net.TCPAddr{
-			IP:   net.ParseIP("127.0.0.1"),
-			Port: 50000 + i,
-		})
-		if addresses[i].IP == nil {
-			panic(addresses[i].IP)
-		}
-	}
-	return addresses
-}
-
 func TestAllToAll(t *testing.T) {
 	n := 10
-	addresses := createAddresses(n)
+	addresses := CreateAddresses(n)
 	fatal := make(chan error, 3*n)
 	for i := 0; i < n; i++ {
 		go func() {
@@ -61,7 +46,7 @@ func TestAllToAll(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	n := 10
-	addresses := createAddresses(n)
+	addresses := CreateAddresses(n)
 	root := 3
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
@@ -96,7 +81,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func TestBroadcastTwopeers(t *testing.T) {
-	addresses := createAddresses(2)
+	addresses := CreateAddresses(2)
 	fatal := make(chan error)
 	for i := 0; i < 2; i++ {
 		go func() {
@@ -137,7 +122,7 @@ func TestBroadcastTwopeers(t *testing.T) {
 
 func TestBroadcastBarrier(t *testing.T) {
 	n := 10
-	addresses := createAddresses(n)
+	addresses := CreateAddresses(n)
 	fatal := make(chan error, n)
 	clocks := make(chan int, 2*n)
 	for i := 0; i < n; i++ {
@@ -177,7 +162,7 @@ func TestBroadcastBarrier(t *testing.T) {
 
 func TestAllToAllBarrier(t *testing.T) {
 	n := 10
-	addresses := createAddresses(n)
+	addresses := CreateAddresses(n)
 	fatal := make(chan error, n)
 	clocks := make(chan int, 2*n)
 	var wg sync.WaitGroup

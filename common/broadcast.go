@@ -16,7 +16,7 @@ import (
 // Addresses[i] contains the address to reach the Peer with Rank i.
 type Peer struct {
 	Rank      int
-	Addresses []net.TCPAddr
+	Addresses []string
 }
 
 // Peer with Rank root sends the content of bufferSend to every node.
@@ -93,6 +93,20 @@ func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusAccepted)
 }
 
+// helper function for creating n addresses localhost:PORT 
+func CreateAddresses(n int) []string {
+	addresses := []string{}
+	for i := 0; i < n; i++ {
+		l, err := net.Listen("tcp", "localhost:0")
+		if err != nil {
+			panic(err)
+		}
+		addresses = append(addresses, l.Addr().String())
+		l.Close()
+	}
+	return addresses
+}
+
 // Peer with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Peer with Rank root.
 func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
@@ -101,7 +115,7 @@ func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		defer client.CloseIdleConnections()
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
-				req, err := http.NewRequest("POST", "http://"+addr.String(), strings.NewReader(string(bufferSend)))
+				req, err := http.NewRequest("POST", "http://"+addr, strings.NewReader(string(bufferSend)))
 				if err != nil {
 					return nil, err
 				}
@@ -126,7 +140,7 @@ func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		ErrChannel:     errChan,
 	}
 	s := http.Server{
-		Addr:        p.Addresses[p.Rank].AddrPort().String(),
+		Addr:        p.Addresses[p.Rank],
 		Handler:     &handler,
 		IdleTimeout: time.Second,
 	}
