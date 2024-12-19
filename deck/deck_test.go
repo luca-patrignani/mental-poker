@@ -67,7 +67,14 @@ func TestBroadcastMultiple(t *testing.T) {
 					Addresses: addresses,
 				},
 			}
-			recvs, err := d.broadcastMultiple(points[i], root, m)
+			var recvs []kyber.Point
+			var err error
+			if d.peer.Rank == root {
+				recvs, err = d.broadcastMultiple(points[i], root, m)
+
+			} else {
+				recvs, err = d.broadcastMultiple(nil, root, m)
+			}
 			if err != nil {
 				errChan <- errors.Join(fmt.Errorf("error from %d", i), err)
 				return
@@ -76,6 +83,45 @@ func TestBroadcastMultiple(t *testing.T) {
 				if !recvs[j].Equal(points[root][j]) {
 					errChan <- fmt.Errorf("expected %s, actual %s", points[root][j].String(), recvs[j].String())
 				}
+			}
+			errChan <- nil
+		}()
+	}
+	for i := 0; i < n; i++ {
+		err := <-errChan
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestBroadcastSingle(t *testing.T) {
+	n := 10
+	root := 3
+	addresses := common.CreateAddresses(n)
+	point := suite.Point().Mul(suite.Scalar().Pick(suite.RandomStream()), nil)
+	errChan := make(chan error)
+	for i := 0; i < n; i++ {
+		go func() {
+			d := Deck{
+				peer: common.Peer{
+					Rank:      i,
+					Addresses: addresses,
+				},
+			}
+			var recv kyber.Point
+			var err error
+			if i == root {
+				recv, err = d.broadcastSingle(point, root)
+			} else {
+				recv, err = d.broadcastSingle(nil, root)
+			}
+			if err != nil {
+				errChan <- errors.Join(fmt.Errorf("error from %d", i), err)
+				return
+			}
+			if !recv.Equal(point) {
+				errChan <- fmt.Errorf("expected %s, actual %s", point.String(), recv.String())
 			}
 			errChan <- nil
 		}()

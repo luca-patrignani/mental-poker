@@ -112,17 +112,21 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 }
 
 func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int, size int) ([]kyber.Point, error) {
-	dataSend := make([][]byte, len(bufferSend))
-	for i := 0; i < size; i++ {
-		temp, err := bufferSend[i].MarshalBinary()
+	var jsonData []byte
+	if d.peer.Rank == root {
+		dataSend := make([][]byte, len(bufferSend))
+		for i := 0; i < size; i++ {
+			temp, err := bufferSend[i].MarshalBinary()
+			if err != nil {
+				return nil, err
+			}
+			dataSend[i] = temp
+		}
+		var err error
+		jsonData, err = json.Marshal(dataSend)
 		if err != nil {
 			return nil, err
 		}
-		dataSend[i] = temp
-	}
-	jsonData, err := json.Marshal(dataSend)
-	if err != nil {
-		return nil, err
 	}
 	dataRecv, err := d.peer.Broadcast(jsonData, root)
 	if err != nil {
