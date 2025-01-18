@@ -17,6 +17,40 @@ import (
 type Peer struct {
 	Rank      int
 	Addresses []string
+  client http.Client
+}
+
+type broadcastHandler struct {
+	RootRank       int
+	ContentChannel chan []byte
+	ErrChannel     chan error
+}
+
+func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	senderRankS, ok := req.Header["Rank"]
+	if !ok {
+		rw.WriteHeader(http.StatusNotAcceptable)
+		h.ErrChannel <- fmt.Errorf("from handler: Rank field is not present in request")
+		return
+	}
+	senderRank, err := strconv.Atoi(senderRankS[0])
+	if err != nil {
+		rw.WriteHeader(http.StatusNotAcceptable)
+		h.ErrChannel <- fmt.Errorf("from handler: Rank field is not a number")
+		return
+	}
+	if senderRank != h.RootRank {
+		rw.WriteHeader(http.StatusNotAcceptable)
+		return
+	}
+	content, err := io.ReadAll(req.Body)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		h.ErrChannel <- fmt.Errorf("from handler: %v", err)
+		return
+	}
+	h.ContentChannel <- content
+	rw.WriteHeader(http.StatusAccepted)
 }
 
 // Peer with Rank root sends the content of bufferSend to every node.
@@ -60,38 +94,7 @@ func (p Peer) barrier() error {
 	return nil
 }
 
-type broadcastHandler struct {
-	RootRank       int
-	ContentChannel chan []byte
-	ErrChannel     chan error
-}
 
-func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	senderRankS, ok := req.Header["Rank"]
-	if !ok {
-		rw.WriteHeader(http.StatusNotAcceptable)
-		h.ErrChannel <- fmt.Errorf("from handler: Rank field is not present in request")
-		return
-	}
-	senderRank, err := strconv.Atoi(senderRankS[0])
-	if err != nil {
-		rw.WriteHeader(http.StatusNotAcceptable)
-		h.ErrChannel <- fmt.Errorf("from handler: Rank field is not a number")
-		return
-	}
-	if senderRank != h.RootRank {
-		rw.WriteHeader(http.StatusNotAcceptable)
-		return
-	}
-	content, err := io.ReadAll(req.Body)
-	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		h.ErrChannel <- fmt.Errorf("from handler: %v", err)
-		return
-	}
-	h.ContentChannel <- content
-	rw.WriteHeader(http.StatusAccepted)
-}
 
 // helper function for creating n addresses localhost:PORT 
 func CreateAddresses(n int) []string {
@@ -111,8 +114,7 @@ func CreateAddresses(n int) []string {
 // bufferRecv will contain the value sent by the Peer with Rank root.
 func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	if root == p.Rank {
-		client := http.Client{}
-		defer client.CloseIdleConnections()
+		defer p.client.CloseIdleConnections()
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
 				req, err := http.NewRequest("POST", "http://"+addr, strings.NewReader(string(bufferSend)))
@@ -120,10 +122,10 @@ func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 					return nil, err
 				}
 				req.Header["Rank"] = []string{fmt.Sprint(p.Rank)}
-				resp, err := client.Do(req)
+				resp, err := p.client.Do(req)
 				for err != nil || resp.StatusCode != http.StatusAccepted {
 					time.Sleep(time.Millisecond)
-					resp, err = client.Do(req)
+					resp, err = p.client.Do(req)
 				}
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusAccepted {
