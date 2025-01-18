@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -148,9 +149,8 @@ func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	}
 	go func() {
 		err := s.ListenAndServe()
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errChan <- err
-			return
 		}
 	}()
 	var recv []byte

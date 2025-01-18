@@ -13,7 +13,7 @@ type Deck struct {
 	DeckSize       int
 	CardCollection []kyber.Point //a
 	EncryptedDeck  []kyber.Point //b
-	peer           common.Peer
+	Peer           common.Peer
 }
 
 var suite suites.Suite = suites.MustFind("Ed25519")
@@ -22,16 +22,16 @@ var suite suites.Suite = suites.MustFind("Ed25519")
 // Generate the deck as a set of encrypted values in a cyclic group
 func (d *Deck) PrepareDeck() ([]kyber.Point, error) {
 	// Initialize deck
-	deck := make([]kyber.Point, d.DeckSize)
+	deck := make([]kyber.Point, d.DeckSize+1)
 	// Generate encrypted values for each card
 	for i := 0; i <= d.DeckSize; i++ {
-		card, err := d.generateRandomElement() // Encrypt card as a^(i)
+		card, err := d.generateRandomElement() // Encrypt card as a^(i)http
 		if err != nil {
 			return deck, err
 		}
 		deck[i] = card
 	}
-
+	d.CardCollection = deck
 	return deck, nil
 }
 
@@ -50,34 +50,14 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 
 	gPrime := suite.Point().Mul(lambda, gj)
 
-	dataG, err := gPrime.MarshalBinary()
-	if err != nil {
-		return suite.Point(), err
-	}
-	// TODO: remove _ once done and remove string()
-	gArray, err := d.peer.AllToAll(dataG)
-	_ = gArray
-	if err != nil {
-		return suite.Point(), err
-	}
+	d.allToAllSingle(gj)
+	d.allToAllSingle(gPrime)
+	d.allToAllSingle(hj)
 
 	hPrime := suite.Point().Mul(lambda, hj)
-	dataH, err := hPrime.MarshalBinary()
+	hArray, err := d.allToAllSingle(hPrime)
 	if err != nil {
-		return suite.Point(), err
-	}
-	ataResponse, err := d.peer.AllToAll(dataH)
-	if err != nil {
-		return suite.Point(), err
-	}
-
-	hArray := make([]kyber.Point, len(d.peer.Addresses))
-	for i := 0; i < len(ataResponse); i++ {
-		hArray[i] = suite.Point()
-		err := hArray[i].UnmarshalBinary([]byte(ataResponse[i]))
-		if err != nil {
-			return suite.Point(), err
-		}
+		return nil, err
 	}
 
 	//TODO: ZKA (optional)
@@ -95,13 +75,13 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	if err != nil {
 		return nil, err
 	}
-	ataResponse, err := d.peer.AllToAll(dataSend)
+	ataResponse, err := d.Peer.AllToAll(dataSend)
 	if err != nil {
 		return nil, err
 	}
 
-	dataReceived := make([]kyber.Point, len(d.peer.Addresses))
-	for i := 0; i < len(d.peer.Addresses); i++ {
+	dataReceived := make([]kyber.Point, len(d.Peer.Addresses))
+	for i := 0; i < len(d.Peer.Addresses); i++ {
 		dataReceived[i] = suite.Point()
 		err := dataReceived[i].UnmarshalBinary([]byte(ataResponse[i]))
 		if err != nil {
@@ -113,7 +93,7 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 
 func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int, size int) ([]kyber.Point, error) {
 	var jsonData []byte
-	if d.peer.Rank == root {
+	if d.Peer.Rank == root {
 		dataSend := make([][]byte, len(bufferSend))
 		for i := 0; i < size; i++ {
 			temp, err := bufferSend[i].MarshalBinary()
@@ -128,7 +108,7 @@ func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int, size int) (
 			return nil, err
 		}
 	}
-	dataRecv, err := d.peer.Broadcast(jsonData, root)
+	dataRecv, err := d.Peer.Broadcast(jsonData, root)
 	if err != nil {
 		return nil, err
 	}

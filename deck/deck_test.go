@@ -20,7 +20,7 @@ func TestAllToAllSingle(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				peer: common.Peer{
+				Peer: common.Peer{
 					Rank:      i,
 					Addresses: addresses,
 				},
@@ -62,14 +62,14 @@ func TestBroadcastMultiple(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				peer: common.Peer{
+				Peer: common.Peer{
 					Rank:      i,
 					Addresses: addresses,
 				},
 			}
 			var recvs []kyber.Point
 			var err error
-			if d.peer.Rank == root {
+			if d.Peer.Rank == root {
 				recvs, err = d.broadcastMultiple(points[i], root, m)
 
 			} else {
@@ -104,7 +104,7 @@ func TestBroadcastSingle(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				peer: common.Peer{
+				Peer: common.Peer{
 					Rank:      i,
 					Addresses: addresses,
 				},
@@ -132,4 +132,32 @@ func TestBroadcastSingle(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func TestGenerateRandomElement(t *testing.T) {
+	n := 10
+	addresses := common.CreateAddresses(n)
+  errChan := make(chan error)
+	for i := 0; i < n; i++ {
+		go func() {
+			deck := Deck{
+				DeckSize:       52,
+				Peer:           common.Peer{
+					Rank:      i,
+					Addresses: addresses,
+				},
+			}
+      _, err := deck.PrepareDeck()
+      if err != nil {
+        errChan <- err
+      }
+      errChan <- nil
+		}()
+	}
+  for i := 0; i < n; i++ {
+    err := <- errChan
+    if err != nil {
+      t.Fatal(err)
+    }
+  }
 }
