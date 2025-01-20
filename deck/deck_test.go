@@ -23,9 +23,21 @@ func TestAllToAllSingle(t *testing.T) {
 				Peer: common.NewPeer(i, addresses),
 			}
 			defer d.Peer.Close()
-			d.allToAllSingle(points[i])
-			d.allToAllSingle(points[i])
-			d.allToAllSingle(points[i])
+			_, err := d.allToAllSingle(points[i])
+			if err != nil {
+				errChan <- errors.Join(fmt.Errorf("error from %d", i), err)
+				return
+			}
+			_, err = d.allToAllSingle(points[i])
+			if err != nil {
+				errChan <- errors.Join(fmt.Errorf("error from %d", i), err)
+				return
+			}
+			_, err = d.allToAllSingle(points[i])
+			if err != nil {
+				errChan <- errors.Join(fmt.Errorf("error from %d", i), err)
+				return
+			}
 			recvs, err := d.allToAllSingle(points[i])
 			if err != nil {
 				errChan <- errors.Join(fmt.Errorf("error from %d", i), err)
@@ -143,9 +155,21 @@ func TestGenerateRandomElement(t *testing.T) {
 				Peer: common.NewPeer(i, addresses),
 			}
 			defer deck.Peer.Close()
-			deck.generateRandomElement()
-			deck.generateRandomElement()
-			deck.generateRandomElement()
+			_, err := deck.generateRandomElement()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			_, err = deck.generateRandomElement()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			_, err = deck.generateRandomElement()
+			if err != nil {
+				errChan <- err
+				return
+			}
 			p, err := deck.generateRandomElement()
 			if err != nil {
 				errChan <- err
