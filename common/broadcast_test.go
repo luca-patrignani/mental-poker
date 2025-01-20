@@ -16,7 +16,6 @@ func TestAllToAll(t *testing.T) {
 		go func() {
 			p := NewPeer(i, addresses)
 			defer p.Close()
-			p.AllToAll([]byte(strconv.Itoa(i)))
 			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
 			if err != nil {
 				fatal <- err
