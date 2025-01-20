@@ -14,10 +14,9 @@ func TestAllToAll(t *testing.T) {
 	fatal := make(chan error, 3*n)
 	for i := 0; i < n; i++ {
 		go func() {
-			p := Peer{
-				Rank:      i,
-				Addresses: addresses,
-			}
+			p := NewPeer(i, addresses)
+			defer p.Close()
+			p.AllToAll([]byte(strconv.Itoa(i)))
 			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
 			if err != nil {
 				fatal <- err
@@ -44,6 +43,12 @@ func TestAllToAll(t *testing.T) {
 	}
 }
 
+func TestAllToAll2(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		TestAllToAll(t)
+	}
+}
+
 func TestBroadcast(t *testing.T) {
 	n := 10
 	addresses := CreateAddresses(n)
@@ -51,10 +56,8 @@ func TestBroadcast(t *testing.T) {
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			p := Peer{
-				Rank:      i,
-				Addresses: addresses,
-			}
+			p := NewPeer(i, addresses)
+			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			recv, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
@@ -85,10 +88,8 @@ func TestBroadcastTwopeers(t *testing.T) {
 	fatal := make(chan error)
 	for i := 0; i < 2; i++ {
 		go func() {
-			p := Peer{
-				Rank:      i,
-				Addresses: addresses,
-			}
+			p := NewPeer(i, addresses)
+			defer p.Close()
 			time.Sleep(time.Second * time.Duration(i+1))
 			recv, err := p.Broadcast([]byte{'0'}, 0)
 			if err != nil {
@@ -127,10 +128,8 @@ func TestBroadcastBarrier(t *testing.T) {
 	clocks := make(chan int, 2*n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			p := Peer{
-				Rank:      i,
-				Addresses: addresses,
-			}
+			p := NewPeer(i, addresses)
+			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
 			_, err := p.Broadcast(nil, 0)
@@ -170,10 +169,8 @@ func TestAllToAllBarrier(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
-			p := Peer{
-				Rank:      i,
-				Addresses: addresses,
-			}
+			p := NewPeer(i, addresses)
+			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
 			_, err := p.AllToAll([]byte{})

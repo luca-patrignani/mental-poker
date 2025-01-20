@@ -20,11 +20,12 @@ func TestAllToAllSingle(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				Peer: common.Peer{
-					Rank:      i,
-					Addresses: addresses,
-				},
+				Peer: common.NewPeer(i, addresses),
 			}
+			defer d.Peer.Close()
+			d.allToAllSingle(points[i])
+			d.allToAllSingle(points[i])
+			d.allToAllSingle(points[i])
 			recvs, err := d.allToAllSingle(points[i])
 			if err != nil {
 				errChan <- errors.Join(fmt.Errorf("error from %d", i), err)
@@ -62,11 +63,9 @@ func TestBroadcastMultiple(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				Peer: common.Peer{
-					Rank:      i,
-					Addresses: addresses,
-				},
+				Peer: common.NewPeer(i, addresses),
 			}
+			defer d.Peer.Close()
 			var recvs []kyber.Point
 			var err error
 			if d.Peer.Rank == root {
@@ -104,11 +103,9 @@ func TestBroadcastSingle(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				Peer: common.Peer{
-					Rank:      i,
-					Addresses: addresses,
-				},
+				Peer: common.NewPeer(i, addresses),
 			}
+			defer d.Peer.Close()
 			var recv kyber.Point
 			var err error
 			if i == root {
@@ -137,27 +134,37 @@ func TestBroadcastSingle(t *testing.T) {
 func TestGenerateRandomElement(t *testing.T) {
 	n := 10
 	addresses := common.CreateAddresses(n)
-  errChan := make(chan error)
+	errChan := make(chan error)
+	points := make(chan kyber.Point, n)
 	for i := 0; i < n; i++ {
 		go func() {
 			deck := Deck{
-				DeckSize:       52,
-				Peer:           common.Peer{
-					Rank:      i,
-					Addresses: addresses,
-				},
+				DeckSize: 52,
+				Peer: common.NewPeer(i, addresses),
 			}
-      _, err := deck.PrepareDeck()
-      if err != nil {
-        errChan <- err
-      }
-      errChan <- nil
+			defer deck.Peer.Close()
+			deck.generateRandomElement()
+			deck.generateRandomElement()
+			deck.generateRandomElement()
+			p, err := deck.generateRandomElement()
+			if err != nil {
+				errChan <- err
+			}
+			points <- p
+			errChan <- nil
 		}()
 	}
-  for i := 0; i < n; i++ {
-    err := <- errChan
-    if err != nil {
-      t.Fatal(err)
-    }
-  }
+	for i := 0; i < n; i++ {
+		err := <-errChan
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	close(points)
+	p := <-points
+	for pp := range points {
+		if !pp.Equal(p) {
+			t.Fatal(pp, p)
+		}
+	}
 }

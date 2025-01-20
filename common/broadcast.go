@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -18,46 +19,78 @@ import (
 type Peer struct {
 	Rank      int
 	Addresses []string
-  client http.Client
+	clock uint64
+	server *http.Server
+	handler *broadcastHandler
+}
+
+func NewPeer(rank int, addresses []string) Peer {
+	handler := &broadcastHandler{
+		contentChannel: make(chan []byte),
+		errChannel:     make(chan error),
+	}
+	p := Peer{
+		Rank:           rank,
+		Addresses:      addresses,
+		clock:          0,
+		server:         &http.Server{Addr: addresses[rank], Handler: handler},
+		handler: handler,
+	}
+	go func() {
+		err := p.server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			panic(err)
+		}
+	}()
+	return p
+}
+
+func (p Peer) Close() error {
+	return p.server.Shutdown(context.Background())
 }
 
 type broadcastHandler struct {
-	RootRank       int
-	ContentChannel chan []byte
-	ErrChannel     chan error
+	active atomic.Bool
+	clock       uint64
+	contentChannel chan []byte
+	errChannel     chan error
 }
 
 func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	senderRankS, ok := req.Header["Rank"]
+	if !h.active.Load() {
+		rw.WriteHeader(http.StatusNotAcceptable)
+		return
+	}
+	senderClockS, ok := req.Header["Clock"]
 	if !ok {
 		rw.WriteHeader(http.StatusNotAcceptable)
-		h.ErrChannel <- fmt.Errorf("from handler: Rank field is not present in request")
+		h.errChannel <- fmt.Errorf("from handler: Clock field is not present in request")
 		return
 	}
-	senderRank, err := strconv.Atoi(senderRankS[0])
+	senderClock, err := strconv.ParseUint(senderClockS[0], 10, 64)
 	if err != nil {
 		rw.WriteHeader(http.StatusNotAcceptable)
-		h.ErrChannel <- fmt.Errorf("from handler: Rank field is not a number")
+		h.errChannel <- fmt.Errorf("from handler: Clock field is not a number")
 		return
 	}
-	if senderRank != h.RootRank {
+	if senderClock != h.clock {
 		rw.WriteHeader(http.StatusNotAcceptable)
 		return
 	}
 	content, err := io.ReadAll(req.Body)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
-		h.ErrChannel <- fmt.Errorf("from handler: %v", err)
+		h.errChannel <- fmt.Errorf("from handler: %v", err)
 		return
 	}
-	h.ContentChannel <- content
+	h.contentChannel <- content
 	rw.WriteHeader(http.StatusAccepted)
 }
 
 // Peer with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Peer with Rank root.
 // This function will implicitly synchronize the peers.
-func (p Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
+func (p *Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 	bufferRecv, err := p.broadcastNoBarrier(bufferSend, root)
 	if err != nil {
 		return nil, err
@@ -72,7 +105,7 @@ func (p Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 // Each caller of AllToAll sends the content of bufferSend to every node.
 // bufferRecv[i] will contain the value sent by the Peer with Rank i.
 // This function will implicitly synchronize the peers.
-func (p Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
+func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 	bufferRecv = make([][]byte, len(p.Addresses))
 	for i := 0; i < len(p.Addresses); i++ {
 		recv, err := p.broadcastNoBarrier(bufferSend, i)
@@ -113,22 +146,25 @@ func CreateAddresses(n int) []string {
 
 // Peer with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Peer with Rank root.
-func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
+func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
+	p.clock++
 	if root == p.Rank {
-		defer p.client.CloseIdleConnections()
+		client := http.Client{}
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
 				req, err := http.NewRequest("POST", "http://"+addr, strings.NewReader(string(bufferSend)))
 				if err != nil {
 					return nil, err
 				}
-				req.Header["Rank"] = []string{fmt.Sprint(p.Rank)}
-				resp, err := p.client.Do(req)
+				req.Header["Clock"] = []string{fmt.Sprint(p.clock)}
+				req.Header["SenderRank"] = []string{fmt.Sprint(p.Rank)}
+				req.Header["ReceiverRank"] = []string{fmt.Sprint(i)}
+				resp, err := client.Do(req)
 				for err != nil || resp.StatusCode != http.StatusAccepted {
 					time.Sleep(time.Millisecond)
-					resp, err = p.client.Do(req)
+					resp, err = client.Do(req)
 				}
-				defer resp.Body.Close()
+				resp.Body.Close()
 				if resp.StatusCode != http.StatusAccepted {
 					return nil, fmt.Errorf("unsuccessful status code %d", resp.StatusCode)
 				}
@@ -136,30 +172,15 @@ func (p Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		}
 		return bufferSend, nil
 	}
-	errChan := make(chan error)
-	handler := broadcastHandler{
-		RootRank:       root,
-		ContentChannel: make(chan []byte),
-		ErrChannel:     errChan,
-	}
-	s := http.Server{
-		Addr:        p.Addresses[p.Rank],
-		Handler:     &handler,
-		IdleTimeout: time.Second,
-	}
-	go func() {
-		err := s.ListenAndServe()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errChan <- err
-		}
-	}()
+	p.handler.clock = p.clock
+	p.handler.active.Store(true)
+	defer p.handler.active.Store(false)
 	var recv []byte
 	select {
-	case err := <-errChan:
-		return nil, err
-	case recv = <-handler.ContentChannel:
+	case recv = <-p.handler.contentChannel:
 		break
+	case err := <-p.handler.errChannel:
+		return nil, err
 	}
-	err := s.Shutdown(context.Background())
-	return recv, err
+	return recv, nil
 }

@@ -50,9 +50,18 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 
 	gPrime := suite.Point().Mul(lambda, gj)
 
-	d.allToAllSingle(gj)
-	d.allToAllSingle(gPrime)
-	d.allToAllSingle(hj)
+	_, err := d.allToAllSingle(gj)
+	if err != nil {
+		return nil, err
+	}
+	_, err = d.allToAllSingle(gPrime)
+	if err != nil {
+		return nil, err
+	}
+	_, err = d.allToAllSingle(hj)
+	if err != nil {
+		return nil, err
+	}
 
 	hPrime := suite.Point().Mul(lambda, hj)
 	hArray, err := d.allToAllSingle(hPrime)
