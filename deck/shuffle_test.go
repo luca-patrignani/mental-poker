@@ -4,9 +4,8 @@ import (
 	"testing"
 
 	"github.com/luca-patrignani/mental-poker/common"
-	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v4"
 )
-
 
 func TestShuffle(t *testing.T) {
 	n := 10
@@ -17,7 +16,7 @@ func TestShuffle(t *testing.T) {
 		go func() {
 			deck := Deck{
 				DeckSize: 52,
-				Peer: common.NewPeer(i, addresses),
+				Peer:     common.NewPeer(i, addresses),
 			}
 			defer deck.Peer.Close()
 			_, err := deck.PrepareDeck()
@@ -41,7 +40,7 @@ func TestShuffle(t *testing.T) {
 		}
 	}
 	close(decks)
-	deck := <- decks
+	deck := <-decks
 	for d := range decks {
 		if len(d) != 53 {
 			t.Fatal(len(d))

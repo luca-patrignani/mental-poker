@@ -5,14 +5,16 @@ import (
 	"fmt"
 
 	"github.com/luca-patrignani/mental-poker/common"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/suites"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/suites"
 )
 
 type Deck struct {
 	DeckSize       int
 	CardCollection []kyber.Point //a
 	EncryptedDeck  []kyber.Point //b
+	SecretKey      kyber.Scalar  //xj
+	lastDrawnCard  int
 	Peer           common.Peer
 }
 
@@ -32,6 +34,7 @@ func (d *Deck) PrepareDeck() ([]kyber.Point, error) {
 		deck[i] = card
 	}
 	d.CardCollection = deck
+	d.lastDrawnCard = 0
 	return deck, nil
 }
 
@@ -77,6 +80,35 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 	}
 
 	return hResult, nil
+}
+
+// Protocol 5: Card drawing
+// It returns a face up card to the drawer player.
+func (d *Deck) DrawCard(drawer int) (int, error) {
+	d.lastDrawnCard++
+	cj := d.EncryptedDeck[d.lastDrawnCard].Clone()
+	for j := 0; j < len(d.Peer.Addresses); j++ {
+		if j != drawer {
+			xj_1 := suite.Scalar().Inv(d.SecretKey)
+			cj.Mul(xj_1, cj)
+		}
+		var err error
+		cj, err = d.broadcastSingle(cj, j)
+		if err != nil {
+			return 0, err
+		}
+		// if j != drawer {
+		// 	// ZKA
+		// }
+	}
+	xj_1 := suite.Scalar().Inv(d.SecretKey)
+	cj.Mul(xj_1, cj)
+	for i := 1; i <= d.DeckSize; i++ {
+		if d.CardCollection[i].Equal(cj) {
+			return i, nil
+		}
+	}
+	return 0, fmt.Errorf("card drawn not found")
 }
 
 func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {

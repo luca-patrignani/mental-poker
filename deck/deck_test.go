@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/luca-patrignani/mental-poker/common"
-	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v4"
 )
 
 func TestAllToAllSingle(t *testing.T) {
@@ -152,7 +152,7 @@ func TestGenerateRandomElement(t *testing.T) {
 		go func() {
 			deck := Deck{
 				DeckSize: 52,
-				Peer: common.NewPeer(i, addresses),
+				Peer:     common.NewPeer(i, addresses),
 			}
 			defer deck.Peer.Close()
 			_, err := deck.generateRandomElement()
@@ -189,6 +189,44 @@ func TestGenerateRandomElement(t *testing.T) {
 	for pp := range points {
 		if !pp.Equal(p) {
 			t.Fatal(pp, p)
+		}
+	}
+}
+
+func TestDrawCard(t *testing.T) {
+	n := 10
+	drawer := 0
+	addresses := common.CreateAddresses(n)
+	errChan := make(chan error)
+	for i := 0; i < n; i++ {
+		go func() {
+			deck := Deck{
+				DeckSize: 52,
+				Peer:     common.NewPeer(i, addresses),
+			}
+			defer deck.Peer.Close()
+			_, err := deck.PrepareDeck()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			err = deck.Shuffle()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			_, err = deck.DrawCard(drawer)
+			if err != nil && i == drawer {
+				errChan <- err
+				return
+			}
+			errChan <- nil
+		}()
+	}
+	for i := 0; i < n; i++ {
+		err := <-errChan
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 }

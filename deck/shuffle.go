@@ -3,7 +3,7 @@ package deck
 import (
 	"math/rand"
 
-	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v4"
 )
 
 func (d *Deck) Shuffle() error {
@@ -14,9 +14,14 @@ func (d *Deck) Shuffle() error {
 	for j := 0; j < len(d.Peer.Addresses); j++ {
 		if j == d.Peer.Rank {
 			x := suite.Scalar().Pick(suite.RandomStream())
+			d.SecretKey = x
 			perm := permutation(d.DeckSize)
+			tmp := make([]kyber.Point, d.DeckSize+1)
+			for i, card := range d.EncryptedDeck {
+				tmp[i] = card.Clone()
+			}
 			for i := 0; i <= d.DeckSize; i++ {
-				d.EncryptedDeck[i] = suite.Point().Mul(x, d.EncryptedDeck[perm[i]]) //TODO: add temp variable for permutation
+				d.EncryptedDeck[i].Mul(x, tmp[perm[i]])
 			}
 		}
 		var err error

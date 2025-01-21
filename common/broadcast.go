@@ -19,9 +19,9 @@ import (
 type Peer struct {
 	Rank      int
 	Addresses []string
-	clock uint64
-	server *http.Server
-	handler *broadcastHandler
+	clock     uint64
+	server    *http.Server
+	handler   *broadcastHandler
 }
 
 func NewPeer(rank int, addresses []string) Peer {
@@ -30,11 +30,11 @@ func NewPeer(rank int, addresses []string) Peer {
 		errChannel:     make(chan error),
 	}
 	p := Peer{
-		Rank:           rank,
-		Addresses:      addresses,
-		clock:          0,
-		server:         &http.Server{Addr: addresses[rank], Handler: handler},
-		handler: handler,
+		Rank:      rank,
+		Addresses: addresses,
+		clock:     0,
+		server:    &http.Server{Addr: addresses[rank], Handler: handler},
+		handler:   handler,
 	}
 	go func() {
 		err := p.server.ListenAndServe()
@@ -50,8 +50,8 @@ func (p Peer) Close() error {
 }
 
 type broadcastHandler struct {
-	active atomic.Bool
-	clock       uint64
+	active         atomic.Bool
+	clock          uint64
 	contentChannel chan []byte
 	errChannel     chan error
 }
@@ -128,9 +128,7 @@ func (p Peer) barrier() error {
 	return nil
 }
 
-
-
-// helper function for creating n addresses localhost:PORT 
+// helper function for creating n addresses localhost:PORT
 func CreateAddresses(n int) []string {
 	addresses := []string{}
 	for i := 0; i < n; i++ {
