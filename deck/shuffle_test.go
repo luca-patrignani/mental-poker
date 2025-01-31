@@ -19,7 +19,7 @@ func TestShuffle(t *testing.T) {
 				Peer:     common.NewPeer(i, addresses),
 			}
 			defer deck.Peer.Close()
-			_, err := deck.PrepareDeck()
+			err := deck.PrepareDeck()
 			if err != nil {
 				errChan <- err
 				return

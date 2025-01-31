@@ -193,11 +193,12 @@ func TestGenerateRandomElement(t *testing.T) {
 	}
 }
 
-func TestDrawCard(t *testing.T) {
+func TestDrawCardOpenCard(t *testing.T) {
 	n := 10
 	drawer := 0
 	addresses := common.CreateAddresses(n)
 	errChan := make(chan error)
+	cardChan := make(chan int, 10)
 	for i := 0; i < n; i++ {
 		go func() {
 			deck := Deck{
@@ -205,7 +206,7 @@ func TestDrawCard(t *testing.T) {
 				Peer:     common.NewPeer(i, addresses),
 			}
 			defer deck.Peer.Close()
-			_, err := deck.PrepareDeck()
+			err := deck.PrepareDeck()
 			if err != nil {
 				errChan <- err
 				return
@@ -215,11 +216,17 @@ func TestDrawCard(t *testing.T) {
 				errChan <- err
 				return
 			}
-			_, err = deck.DrawCard(drawer)
+			card, err := deck.DrawCard(drawer)
 			if err != nil && i == drawer {
 				errChan <- err
 				return
 			}
+			cardB, err := deck.OpenCard(drawer, card)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			cardChan <- cardB
 			errChan <- nil
 		}()
 	}
@@ -227,6 +234,13 @@ func TestDrawCard(t *testing.T) {
 		err := <-errChan
 		if err != nil {
 			t.Fatal(err)
+		}
+	}
+	card := <-cardChan
+	for i := 1; i < n; i++ {
+		c := <-cardChan
+		if card != c {
+			t.Fatal(card, c)
 		}
 	}
 }

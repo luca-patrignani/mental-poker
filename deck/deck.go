@@ -3,6 +3,7 @@ package deck
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/luca-patrignani/mental-poker/common"
 	"go.dedis.ch/kyber/v4"
@@ -22,20 +23,20 @@ var suite suites.Suite = suites.MustFind("Ed25519")
 
 // Protocol 1: Deck Preparation
 // Generate the deck as a set of encrypted values in a cyclic group
-func (d *Deck) PrepareDeck() ([]kyber.Point, error) {
+func (d *Deck) PrepareDeck() error {
 	// Initialize deck
 	deck := make([]kyber.Point, d.DeckSize+1)
 	// Generate encrypted values for each card
 	for i := 0; i <= d.DeckSize; i++ {
 		card, err := d.generateRandomElement() // Encrypt card as a^(i)http
 		if err != nil {
-			return deck, err
+			return err
 		}
 		deck[i] = card
 	}
 	d.CardCollection = deck
 	d.lastDrawnCard = 0
-	return deck, nil
+	return nil
 }
 
 // Protocol 2: Generate Random Element
@@ -109,6 +110,20 @@ func (d *Deck) DrawCard(drawer int) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("card drawn not found")
+}
+
+// Protocol 6: Card Opening
+// the player with rank player shows its card card.
+func (d *Deck) OpenCard(player int, card int) (int, error) {
+	recv, err := d.Peer.Broadcast([]byte(strconv.Itoa(card)), player)
+	if err != nil {
+		return 0, err
+	}
+	cardRecv, err := strconv.Atoi(string(recv))
+	if err != nil {
+		return 0, err
+	}
+	return cardRecv, nil
 }
 
 func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
