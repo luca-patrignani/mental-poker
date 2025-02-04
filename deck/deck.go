@@ -127,7 +127,7 @@ func (d *Deck) OpenCard(player int, card int) (int, error) {
 	return cardRecv, nil
 }
 
-//Broadcast of a single card from all the source
+// Broadcast of a single card from all the source
 func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	dataSend, err := bufferSend.MarshalBinary()
 	if err != nil {
@@ -189,6 +189,7 @@ func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int, size int) (
 
 	return pointsRecv, nil
 }
+
 // Broadcast of a single card from a single source
 func (d *Deck) broadcastSingle(bufferSend kyber.Point, root int) (kyber.Point, error) {
 	bufferRecv, err := d.broadcastMultiple([]kyber.Point{bufferSend}, root, 1)

@@ -217,13 +217,13 @@ func TestDrawCardOpenCard(t *testing.T) {
 				return
 			}
 			card, err := deck.DrawCard(drawer)
-			t.Logf("player %d draw card %d",i,card)
+			t.Logf("player %d draw card %d", i, card)
 			if err != nil && i == drawer {
 				errChan <- err
 				return
 			}
 			cardB, err := deck.OpenCard(drawer, card)
-			t.Logf("Player %d show his card, it's a %d",i,cardB)
+			t.Logf("Player %d show his card, it's a %d", i, cardB)
 			if err != nil {
 				errChan <- err
 				return
