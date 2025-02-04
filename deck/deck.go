@@ -10,11 +10,12 @@ import (
 	"go.dedis.ch/kyber/v4/suites"
 )
 
+// Deck is the rappresentation of a game session.
 type Deck struct {
 	DeckSize       int
-	CardCollection []kyber.Point //a
-	EncryptedDeck  []kyber.Point //b
-	SecretKey      kyber.Scalar  //xj
+	CardCollection []kyber.Point //(a) The index of the array rappresent the value of the card.
+	EncryptedDeck  []kyber.Point //(b)
+	SecretKey      kyber.Scalar  //(x_j)
 	lastDrawnCard  int
 	Peer           common.Peer
 }
@@ -113,7 +114,7 @@ func (d *Deck) DrawCard(drawer int) (int, error) {
 }
 
 // Protocol 6: Card Opening
-// the player with rank player shows its card card.
+// the player with rank player shows its card.
 func (d *Deck) OpenCard(player int, card int) (int, error) {
 	recv, err := d.Peer.Broadcast([]byte(strconv.Itoa(card)), player)
 	if err != nil {
@@ -126,6 +127,7 @@ func (d *Deck) OpenCard(player int, card int) (int, error) {
 	return cardRecv, nil
 }
 
+//Broadcast of a single card from all the source
 func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	dataSend, err := bufferSend.MarshalBinary()
 	if err != nil {
@@ -147,6 +149,7 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	return dataReceived, nil
 }
 
+// Broadcast of multiple card from a single source
 func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int, size int) ([]kyber.Point, error) {
 	var jsonData []byte
 	if d.Peer.Rank == root {
@@ -186,7 +189,7 @@ func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int, size int) (
 
 	return pointsRecv, nil
 }
-
+// Broadcast of a single card from a single source
 func (d *Deck) broadcastSingle(bufferSend kyber.Point, root int) (kyber.Point, error) {
 	bufferRecv, err := d.broadcastMultiple([]kyber.Point{bufferSend}, root, 1)
 	if err != nil {
