@@ -13,15 +13,15 @@ import (
 type Session struct {
 	Board [5]poker.Card
 	Hand  [2]poker.Card
-	Deck deck.Deck
+	Deck  deck.Deck
 }
-//TODO: Add interface for card, matching card struct of the package (non so come fare lucone :c)
 
+//TODO: Add interface for card, matching card struct of the package (non so come fare lucone :c)
 
 // Convert the raw input card with the following suit order: ♣clubs -> ♦diamonds -> ♥hearts -> ♠spades
 func convertCard(rawCard int) (poker.Card, error) {
 	suit := poker.Suit(uint8((rawCard / 13)))
-	rank := poker.Rank(((rawCard - 1) % 13)+1)
+	rank := poker.Rank(((rawCard - 1) % 13) + 1)
 	card, err := poker.MakeCard(suit, rank)
 	if err != nil {
 		return 0, err
@@ -29,23 +29,23 @@ func convertCard(rawCard int) (poker.Card, error) {
 	return card, nil
 }
 
-//Evaluate the final hand and return the peer rank of the winner
-func (hb *Session) WinnerEval()([]int,error) {
-	
+// Evaluate the final hand and return the peer rank of the winner
+func (hb *Session) WinnerEval() ([]int, error) {
+
 	playerNum := len(hb.Deck.Peer.Addresses)
 
 	var finalHand [7]poker.Card
-	copy(finalHand[:5],hb.Board[:])
-	copy(finalHand[5:],hb.Hand[:])
+	copy(finalHand[:5], hb.Board[:])
+	copy(finalHand[5:], hb.Hand[:])
 	score := poker.Eval7(&finalHand)
 
 	//Marshall the data
 	bufferSend := new(bytes.Buffer)
-	binary.Write(bufferSend,binary.BigEndian, score)
+	binary.Write(bufferSend, binary.BigEndian, score)
 
 	byteScores, err := hb.Deck.Peer.AllToAll(bufferSend.Bytes())
 	if err != nil {
-		return []int{-1},err
+		return []int{-1}, err
 	}
 	//Unmarshal the data
 	var scores []int16
@@ -68,15 +68,15 @@ func (hb *Session) WinnerEval()([]int,error) {
 		return scores[i] < scores[j]
 	})
 
-	// Check for ties 
+	// Check for ties
 	winner := []int{players[0]}
-	for i:=0; i<len(scores); i++ {
+	for i := 0; i < len(scores); i++ {
 		if scores[i] == scores[i+1] {
-			winner = append(winner,players[i])
+			winner = append(winner, players[i])
 		} else {
 			i = len(scores)
 		}
 	}
 
-	return winner,nil
+	return winner, nil
 }
