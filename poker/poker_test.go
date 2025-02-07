@@ -12,16 +12,16 @@ import (
 
 // TODO: make more elaborate test
 func TestConvertCard(t *testing.T) {
-	jackClub, _ := poker.MakeCard(poker.Club, 11)
-	testCard, err := convertCard(11)
+	expctCard, _ := poker.MakeCard(poker.Heart, 2)
+	testCard, err := convertCard(28)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !testCard.Valid() {
 		t.Fatal("card not valid")
 	}
-	if testCard != jackClub {
-		errString := "expected " + jackClub.String() + ", get " + testCard.String()
+	if testCard != expctCard {
+		errString := "expected " + expctCard.String() + ", get " + testCard.String()
 		t.Fatal(errString)
 	}
 
@@ -42,7 +42,7 @@ func TestWinnerEval(t *testing.T) {
 			Deck:  deck,
 		}
 		defer deck.Peer.Close()
-		// TODO: Si blocca qua non so il perchè T-T
+		// TODO: Si blocca qua non so il perchè T-T, errore a broadcast.go ln. 162
 		err := deck.PrepareDeck()
 		if err != nil {
 			errChan <- err

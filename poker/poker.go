@@ -3,6 +3,7 @@ package poker
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"sort"
 
 	"github.com/luca-patrignani/mental-poker/deck"
@@ -11,15 +12,19 @@ import (
 
 // Deck is the rappresentation of a game session.
 type Session struct {
-	Board [5]poker.Card
-	Hand  [2]poker.Card
-	Deck  deck.Deck
-}
+	Board       [5]poker.Card
+	Hand        [2]poker.Card
+	Deck        deck.Deck
+	}
 
 //TODO: Add interface for card, matching card struct of the package (non so come fare lucone :c)
 
 // Convert the raw input card with the following suit order: ♣clubs -> ♦diamonds -> ♥hearts -> ♠spades
 func convertCard(rawCard int) (poker.Card, error) {
+	if rawCard > 52 || rawCard < 1 {
+		return 0, errors.New("the card to convert have an invalid value")
+	}
+
 	suit := poker.Suit(uint8((rawCard / 13)))
 	rank := poker.Rank(((rawCard - 1) % 13) + 1)
 	card, err := poker.MakeCard(suit, rank)

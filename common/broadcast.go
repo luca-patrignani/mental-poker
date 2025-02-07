@@ -158,6 +158,7 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 				req.Header["SenderRank"] = []string{fmt.Sprint(p.Rank)}
 				req.Header["ReceiverRank"] = []string{fmt.Sprint(i)}
 				resp, err := client.Do(req)
+				//TODO: test for winnerEval si ferma in un loop infinito qua
 				for err != nil || resp.StatusCode != http.StatusAccepted {
 					time.Sleep(time.Millisecond)
 					resp, err = client.Do(req)
