@@ -82,7 +82,33 @@ func TestBroadcast(t *testing.T) {
 	}
 }
 
-func TestBroadcastTwopeers(t *testing.T) {
+func TestBroadcastTimeout(t *testing.T) {
+	n := 10
+	addresses := CreateAddresses(n)
+	root := 0
+	fatal := make(chan error, n)
+	for i := 0; i < n-1; i++ {
+		go func() {
+			p := NewPeer(i, addresses)
+			defer p.Close()
+			_, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			fatal <- nil
+		}()
+	}
+	for i := 0; i < n-1; i++ {
+		err := <-fatal
+		if err == nil {
+			t.Fatal(err)
+		}
+		t.Log(err)
+	}
+}
+
+func TestBroadcastTwoPeers(t *testing.T) {
 	addresses := CreateAddresses(2)
 	fatal := make(chan error)
 	for i := 0; i < 2; i++ {

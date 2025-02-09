@@ -22,6 +22,7 @@ type Peer struct {
 	clock     uint64
 	server    *http.Server
 	handler   *broadcastHandler
+	timeout   time.Duration
 }
 
 func NewPeer(rank int, addresses []string) Peer {
@@ -35,6 +36,7 @@ func NewPeer(rank int, addresses []string) Peer {
 		clock:     0,
 		server:    &http.Server{Addr: addresses[rank], Handler: handler},
 		handler:   handler,
+		timeout:   time.Second,
 	}
 	go func() {
 		err := p.server.ListenAndServe()
@@ -158,15 +160,17 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 				req.Header["SenderRank"] = []string{fmt.Sprint(p.Rank)}
 				req.Header["ReceiverRank"] = []string{fmt.Sprint(i)}
 				resp, err := client.Do(req)
-				//TODO: test for winnerEval si ferma in un loop infinito qua
+				start := time.Now()
 				for err != nil || resp.StatusCode != http.StatusAccepted {
-					time.Sleep(time.Millisecond)
 					resp, err = client.Do(req)
+					if time.Since(start) > p.timeout {
+						if err != nil {
+							return nil, fmt.Errorf("connection attempts timed out with error %w", err)
+						}
+						return nil, fmt.Errorf("connection attempts timed out with status code %d", resp.StatusCode)
+					}
 				}
 				resp.Body.Close()
-				if resp.StatusCode != http.StatusAccepted {
-					return nil, fmt.Errorf("unsuccessful status code %d", resp.StatusCode)
-				}
 			}
 		}
 		return bufferSend, nil
@@ -180,6 +184,8 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		break
 	case err := <-p.handler.errChannel:
 		return nil, err
+	case <-time.Tick(p.timeout):
+		return nil, fmt.Errorf("the peer wait for connection timed out")
 	}
 	return recv, nil
 }
