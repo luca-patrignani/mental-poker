@@ -32,85 +32,88 @@ func TestWinnerEval(t *testing.T) {
 	errChan := make(chan error)
 	winChan := make(chan []int, 10)
 	for i := 0; i < n; i++ {
-		deck := deck.Deck{
-			DeckSize: 52,
-			Peer:     common.NewPeer(i, addresses),
-		}
-		session := Session{
-			Board: [5]poker.Card{},
-			Hand:  [2]poker.Card{},
-			Deck:  deck,
-		}
-		defer deck.Peer.Close()
-		// TODO: Si blocca qua non so il perchè T-T, errore a broadcast.go ln. 162
-		err := deck.PrepareDeck()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		err = deck.Shuffle()
-		if err != nil {
-			errChan <- err
-			return
-		}
+		go func() {
+			deck := deck.Deck{
+				DeckSize: 52,
+				Peer:     common.NewPeer(i, addresses),
+			}
+			session := Session{
+				Board: [5]poker.Card{},
+				Hand:  [2]poker.Card{},
+				Deck:  deck,
+			}
+			defer deck.Peer.Close()
+			// TODO: Si blocca qua non so il perchè T-T, errore a broadcast.go ln. 162
+			err := deck.PrepareDeck()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			err = deck.Shuffle()
+			if err != nil {
+				errChan <- err
+				return
+			}
 
-		for drawer := 0; drawer < n; drawer++ {
-			cardA, err := deck.DrawCard(drawer)
-			if err != nil {
-				errChan <- err
-				return
+			for drawer := 0; drawer < n; drawer++ {
+				cardA, err := deck.DrawCard(drawer)
+				if err != nil && i == drawer {
+					errChan <- err
+					return
+				}
+				cardB, err := deck.DrawCard(drawer)
+				if err != nil && i == drawer {
+					errChan <- err
+					return
+				}
+				cardConvA, err := convertCard(cardA)
+				if err != nil && i == drawer {
+					errChan <- err
+					return
+				}
+				cardConvB, err := convertCard(cardB)
+				if err != nil && i == drawer {
+					errChan <- err
+					return
+				}
+				if i == drawer {
+					session.Hand[0] = cardConvA
+					session.Hand[1] = cardConvB
+					t.Logf("Player %d got %s and %s", drawer, cardConvA.String(), cardConvB.String())
+				}
 			}
-			cardB, err := deck.DrawCard(drawer)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			cardConvA, err := convertCard(cardA)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			cardConvB, err := convertCard(cardB)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			if i == drawer {
-				session.Hand[0] = cardConvA
-				session.Hand[1] = cardConvB
-				t.Logf("Player %d got %s and %s", drawer, cardConvA.String(), cardConvB.String())
-			}
-		}
-		for board := 0; board < 5; board++ {
-			card, err := deck.DrawCard(0)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			card, err = deck.OpenCard(0, card)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			cardRev, err := convertCard(card)
+			drawer := 0
+			for board := 0; board < 5; board++ {
+				card, err := deck.DrawCard(drawer)
+				if err != nil && i == drawer {
+					errChan <- err
+					return
+				}
+				card, err = deck.OpenCard(0, card)
+				if err != nil && i == drawer {
+					errChan <- err
+					return
+				}
+				cardRev, err := convertCard(card)
 
+				if err != nil && i == drawer {
+					errChan <- err
+					return
+				}
+				session.Board[board] = cardRev
+				t.Logf("board for player %d\n%s", i, append(session.Board[:], session.Hand[:]...))
+			}
+			winner, err := session.WinnerEval()
 			if err != nil {
 				errChan <- err
 				return
 			}
-			session.Board[board] = cardRev
-			t.Logf("board for player %d\n%s", i, append(session.Board[:], session.Hand[:]...))
-		}
-		winner, err := session.WinnerEval()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		winChan <- winner[:]
-		//var finalHand [7]poker.Card
-		//copy(finalHand[:5],session.Board[:])
-		//copy(finalHand[5:],session.Hand[:])
-		//score := poker.Eval7(&finalHand)
+			winChan <- winner[:]
+			//var finalHand [7]poker.Card
+			//copy(finalHand[:5],session.Board[:])
+			//copy(finalHand[5:],session.Hand[:])
+			//score := poker.Eval7(&finalHand)
+		}()
 	}
 
 	for i := 0; i < n; i++ {
