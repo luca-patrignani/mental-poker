@@ -2,6 +2,7 @@ package deck
 
 import (
 	"testing"
+	"time"
 
 	"github.com/luca-patrignani/mental-poker/common"
 	"go.dedis.ch/kyber/v4"
@@ -9,14 +10,14 @@ import (
 
 func TestShuffle(t *testing.T) {
 	n := 10
-	addresses := common.CreateAddresses(n)
+	listeners, addresses := common.CreateListeners(n)
 	errChan := make(chan error)
 	decks := make(chan []kyber.Point, n)
 	for i := 0; i < n; i++ {
 		go func() {
 			deck := Deck{
 				DeckSize: 52,
-				Peer:     common.NewPeer(i, addresses),
+				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
 			}
 			defer deck.Peer.Close()
 			err := deck.PrepareDeck()

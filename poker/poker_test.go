@@ -4,6 +4,7 @@ import (
 	//"errors"
 	//"fmt"
 	"testing"
+	"time"
 
 	"github.com/luca-patrignani/mental-poker/common"
 	"github.com/luca-patrignani/mental-poker/deck"
@@ -28,14 +29,14 @@ func TestConvertCard(t *testing.T) {
 }
 func TestWinnerEval(t *testing.T) {
 	n := 10
-	addresses := common.CreateAddresses(n)
+	listeners, addresses := common.CreateListeners(n)
 	errChan := make(chan error)
 	winChan := make(chan []int, 10)
 	for i := 0; i < n; i++ {
 		go func() {
 			deck := deck.Deck{
 				DeckSize: 52,
-				Peer:     common.NewPeer(i, addresses),
+				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
 			}
 			session := Session{
 				Board: [5]poker.Card{},

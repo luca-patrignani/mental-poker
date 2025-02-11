@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/luca-patrignani/mental-poker/common"
 	"go.dedis.ch/kyber/v4"
@@ -11,7 +12,7 @@ import (
 
 func TestAllToAllSingle(t *testing.T) {
 	n := 10
-	addresses := common.CreateAddresses(n)
+	listeners, addresses := common.CreateListeners(n)
 	points := []kyber.Point{}
 	for i := 0; i < n; i++ {
 		points = append(points, suite.Point().Mul(suite.Scalar().Pick(suite.RandomStream()), nil))
@@ -20,7 +21,7 @@ func TestAllToAllSingle(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				Peer: common.NewPeer(i, addresses),
+				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
 			}
 			defer d.Peer.Close()
 			_, err := d.allToAllSingle(points[i])
@@ -62,7 +63,7 @@ func TestAllToAllSingle(t *testing.T) {
 func TestBroadcastMultiple(t *testing.T) {
 	n := 10
 	m := 52
-	addresses := common.CreateAddresses(n)
+	listeners, addresses := common.CreateListeners(n)
 	points := make([][]kyber.Point, m)
 	for i := 0; i < n; i++ {
 		points[i] = []kyber.Point{}
@@ -75,7 +76,7 @@ func TestBroadcastMultiple(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				Peer: common.NewPeer(i, addresses),
+				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
 			}
 			defer d.Peer.Close()
 			var recvs []kyber.Point
@@ -109,13 +110,13 @@ func TestBroadcastMultiple(t *testing.T) {
 func TestBroadcastSingle(t *testing.T) {
 	n := 10
 	root := 3
-	addresses := common.CreateAddresses(n)
+	listeners, addresses := common.CreateListeners(n)
 	point := suite.Point().Mul(suite.Scalar().Pick(suite.RandomStream()), nil)
 	errChan := make(chan error)
 	for i := 0; i < n; i++ {
 		go func() {
 			d := Deck{
-				Peer: common.NewPeer(i, addresses),
+				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
 			}
 			defer d.Peer.Close()
 			var recv kyber.Point
@@ -145,14 +146,14 @@ func TestBroadcastSingle(t *testing.T) {
 
 func TestGenerateRandomElement(t *testing.T) {
 	n := 10
-	addresses := common.CreateAddresses(n)
+	listeners, addresses := common.CreateListeners(n)
 	errChan := make(chan error)
 	points := make(chan kyber.Point, n)
 	for i := 0; i < n; i++ {
 		go func() {
 			deck := Deck{
 				DeckSize: 52,
-				Peer:     common.NewPeer(i, addresses),
+				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
 			}
 			defer deck.Peer.Close()
 			_, err := deck.generateRandomElement()
@@ -196,14 +197,14 @@ func TestGenerateRandomElement(t *testing.T) {
 func TestDrawCardOpenCard(t *testing.T) {
 	n := 10
 	drawer := 0
-	addresses := common.CreateAddresses(n)
+	listeners, addresses := common.CreateListeners(n)
 	errChan := make(chan error)
 	cardChan := make(chan int, 10)
 	for i := 0; i < n; i++ {
 		go func() {
 			deck := Deck{
 				DeckSize: 52,
-				Peer:     common.NewPeer(i, addresses),
+				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
 			}
 			defer deck.Peer.Close()
 			err := deck.PrepareDeck()

@@ -10,11 +10,11 @@ import (
 
 func TestAllToAll(t *testing.T) {
 	n := 10
-	addresses := CreateAddresses(n)
+	listeners, addresses := CreateListeners(n)
 	fatal := make(chan error, 3*n)
 	for i := 0; i < n; i++ {
 		go func() {
-			p := NewPeer(i, addresses)
+			p := NewPeer(i, addresses, listeners[i], time.Second)
 			defer p.Close()
 			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
 			if err != nil {
@@ -50,12 +50,12 @@ func TestAllToAll2(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	n := 10
-	addresses := CreateAddresses(n)
+	listeners, addresses := CreateListeners(n)
 	root := 3
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			p := NewPeer(i, addresses)
+			p := NewPeer(i, addresses, listeners[i], time.Second)
 			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			recv, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
@@ -84,16 +84,16 @@ func TestBroadcast(t *testing.T) {
 
 func TestBroadcastTimeout(t *testing.T) {
 	n := 10
-	addresses := CreateAddresses(n)
+	listeners, addresses := CreateListeners(n)
 	root := 0
 	fatal := make(chan error, n)
 	for i := 0; i < n-1; i++ {
 		go func() {
-			p := NewPeer(i, addresses)
+			p := NewPeer(i, addresses, listeners[i], time.Second)
 			defer p.Close()
 			_, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
 			if err != nil {
-				fatal <- err
+				fatal <- fmt.Errorf("from player %d: %w", i, err)
 				return
 			}
 			fatal <- nil
@@ -109,11 +109,11 @@ func TestBroadcastTimeout(t *testing.T) {
 }
 
 func TestBroadcastTwoPeers(t *testing.T) {
-	addresses := CreateAddresses(2)
+	listeners, addresses := CreateListeners(2)
 	fatal := make(chan error)
 	for i := 0; i < 2; i++ {
 		go func() {
-			p := NewPeer(i, addresses)
+			p := NewPeer(i, addresses, listeners[i], 10*time.Second)
 			defer p.Close()
 			time.Sleep(time.Second * time.Duration(i+1))
 			recv, err := p.Broadcast([]byte{'0'}, 0)
@@ -148,12 +148,12 @@ func TestBroadcastTwoPeers(t *testing.T) {
 
 func TestBroadcastBarrier(t *testing.T) {
 	n := 10
-	addresses := CreateAddresses(n)
+	listeners, addresses := CreateListeners(n)
 	fatal := make(chan error, n)
 	clocks := make(chan int, 2*n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			p := NewPeer(i, addresses)
+			p := NewPeer(i, addresses, listeners[i], time.Second)
 			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
@@ -186,7 +186,7 @@ func TestBroadcastBarrier(t *testing.T) {
 
 func TestAllToAllBarrier(t *testing.T) {
 	n := 10
-	addresses := CreateAddresses(n)
+	listeners, addresses := CreateListeners(n)
 	fatal := make(chan error, n)
 	clocks := make(chan int, 2*n)
 	var wg sync.WaitGroup
@@ -194,7 +194,7 @@ func TestAllToAllBarrier(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
-			p := NewPeer(i, addresses)
+			p := NewPeer(i, addresses, listeners[i], time.Second)
 			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0

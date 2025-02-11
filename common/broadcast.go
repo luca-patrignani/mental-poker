@@ -25,7 +25,7 @@ type Peer struct {
 	timeout   time.Duration
 }
 
-func NewPeer(rank int, addresses []string) Peer {
+func NewPeer(rank int, addresses []string, l net.Listener, timeout time.Duration) Peer {
 	handler := &broadcastHandler{
 		contentChannel: make(chan []byte),
 		errChannel:     make(chan error),
@@ -36,10 +36,10 @@ func NewPeer(rank int, addresses []string) Peer {
 		clock:     0,
 		server:    &http.Server{Addr: addresses[rank], Handler: handler},
 		handler:   handler,
-		timeout:   time.Second,
+		timeout:   timeout,
 	}
 	go func() {
-		err := p.server.ListenAndServe()
+		err := p.server.Serve(l)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(err)
 		}
@@ -144,12 +144,26 @@ func CreateAddresses(n int) []string {
 	return addresses
 }
 
+func CreateListeners(n int) ([]net.Listener, []string) {
+	listeners := []net.Listener{}
+	addresses := []string{}
+	for i := 0; i < n; i++ {
+		l, err := net.Listen("tcp", "localhost:0")
+		if err != nil {
+			panic(err)
+		}
+		listeners = append(listeners, l)
+		addresses = append(addresses, l.Addr().String())
+	}
+	return listeners, addresses
+}
+
 // Peer with Rank root sends the content of bufferSend to every node.
 // bufferRecv will contain the value sent by the Peer with Rank root.
 func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	p.clock++
 	if root == p.Rank {
-		client := http.Client{}
+		client := http.Client{Timeout: p.timeout}
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
 				req, err := http.NewRequest("POST", "http://"+addr, strings.NewReader(string(bufferSend)))
@@ -163,7 +177,7 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 				start := time.Now()
 				for err != nil || resp.StatusCode != http.StatusAccepted {
 					resp, err = client.Do(req)
-					if time.Since(start) > p.timeout {
+					if p.timeout > 0 && time.Since(start) > p.timeout {
 						if err != nil {
 							return nil, fmt.Errorf("connection attempts timed out with error %w", err)
 						}
@@ -179,13 +193,18 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	p.handler.active.Store(true)
 	defer p.handler.active.Store(false)
 	var recv []byte
+	timeoutTicker := make(<-chan time.Time)
+	if p.timeout > 0 {
+		timeoutTicker = time.Tick(p.timeout)
+	}
 	select {
 	case recv = <-p.handler.contentChannel:
 		break
 	case err := <-p.handler.errChannel:
 		return nil, err
-	case <-time.Tick(p.timeout):
-		return nil, fmt.Errorf("the peer wait for connection timed out")
+	case <-timeoutTicker:
+		err := p.Close()
+		return nil, errors.Join(err, fmt.Errorf("the peer wait for connection timed out"))
 	}
 	return recv, nil
 }
