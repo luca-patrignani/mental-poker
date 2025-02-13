@@ -1,0 +1,260 @@
+\documentclass{article}
+\usepackage{style}
+% version
+\newcommand{\versionmajor}{0}
+\newcommand{\versionminor}{1}
+\newcommand{\versionpatch}{0}
+\newcommand{\version}{\versionmajor.\versionminor.\versionpatch}
+
+\title{\LARGE
+    Final Report Template
+}
+
+% Consider watching:
+% https://www.youtube.com/watch?v=ihxSUsJB_14
+% https://www.youtube.com/watch?v=XTFWaV55uDo
+
+\author{
+    Galeri Marco \\ \emailaddr{marco.galeri@studio.unibo.it}
+    \and 
+    Patrignani Luca \\ \emailaddr{luca.patrignani3@studio.unibo.it} 
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    Up to $\sim$2000 characters briefly describing the project (i.e. its goals and results).
+\end{abstract}
+
+\section{Goal/s of the project}
+The project's goal is to implement a decentralized poker game without a trusted third party. In particular our implementation will guarantee that given $k$ players, an adversary cannot rig the game even controlling $k-1$ players.
+
+
+Detailed description of the project goal/s.
+%
+Use case diagrams, examples, or Q/A simulations are welcome.
+
+\subsection{Usage scenarios}
+
+Informal description of the ways users are expected to interact with your project.
+%
+It should describe \emph{how} and \emph{why} a user use / interact with the system.
+
+\subsection{Definition of done}
+The delivered artifacts are
+\begin{itemize}
+    \item A golang library which implements decentralized deck and some operation on the deck such as shuffling, dealing face down cards and showing a card. The implementation follows the paper by Wei and Wang\cite{Wei-Wang-Protocol}.
+    \item A golang library which implements the actual game of poker
+    \item An CLI interface for playing the game of poker.
+\end{itemize}
+The functionalities are mainly tested automatically. 
+
+\section{Background and link to the theory}
+%
+(To be written at the end)
+%
+\begin{itemize}
+    \item Relevant architectural styles (the ones mentioned in \Cref{sec:requirements})
+    %
+    \item Relevant interaction patterns (the ones mentioned in \Cref{sec:requirements}) 
+    %
+    \item Relevant software frameworks (the ones mentioned in \Cref{sec:requirements,sec:design}) 
+\end{itemize}
+
+\section{Requirements Analysis}
+
+\subsection{Functional requirements}
+The player is able to play a game of poker:
+\begin{enumerate}
+    \item The player will be shown two cards, which are not seen by any others players
+    \item When it is his turn the player can call, raise or fold
+    \item When it is the big blind's turn or the raising player's turn checks, three cards will be dealt face up
+    \item These operations are repeated three more times: the first two times one card is dealt face up, the last time every player shows their own cards. Then the winner is determined
+    \item if only one player is still in the game the game ends
+\end{enumerate}
+
+\subsection{Non functional requirements}
+\subsubsection{Deck's requirements}
+Each of the following requirements have to be met even in the condition that given $k$ players a coalition of $k-1$ players are trying to manipulate the game without that the one out is not informed of the manipulation.
+\begin{itemize}
+    \item When shuffling the deck no player can control the final order of the cards
+    \item When the deck is shuffled no player knows the order of the cards
+    \item All cards are present in the deck exactly once
+    \item When a card is dealt to a player faced down, no other players knows which card it is
+    \item When a player shows its card, the other players can verify that he is not lying
+\end{itemize}
+\subsubsection{Poker game's requirements}
+\begin{itemize}
+    \item The game uses a deck which meets the requirements previously described
+    \item When player makes a move (call, check or fold), he cannot later repudiate its choice.
+\end{itemize}
+\label{sec:requirements}
+
+\subsection{Top-down analysis}
+\subsubsection{Deck implementation}
+Due to the decentralized nature of the project every communication has to be considered a \textit{broadcast}, that is a player can only communicate with other players by sending the same information to every players.
+%
+\begin{itemize}
+    \item What architectural style / interaction pattern / software framework are better suited to develop the project
+    %
+    \item \dots and why w.r.t. requirements
+    %
+\end{itemize}
+%
+
+\section{Design}
+\label{sec:design}
+The design process has been a mix between top-down and bottom-up approaches. 
+The solution was designed to have three main components:
+\begin{itemize}
+    \item The deck
+    \item The DLT
+    \item The game of poker.
+\end{itemize}
+
+This is where the logical / abstract contribution of the project is presented.
+%
+Always remember to report \textbf{why} a particular design has been chosen.
+%
+Keep the discussion \emph{technology-free} as much as possible.
+%
+Reporting wrong design choices which has been evaluated during the design phase is welcome too.
+
+\subsection{Structure (domain entities)}
+
+Which entities need to by modelled to reflect the domain?
+%
+UML class diagram here with domain entities and possibly messages being exchanged
+
+\subsection{Interaction}
+As already previously mentioned, each player can communicate only via two primitives:
+\begin{itemize}
+    \item \texttt{broadcast}: a player sends some information to every other players
+    \item \texttt{all-to-all broadcast}: every players sends some information to every other players
+\end{itemize}
+Moreover our two operations will implicitly behave as a barrier synchronization, such that they will stop the thread execution until every nodes have terminated the communication.
+This choice has been made while studying the already mentioned Wei and Wang paper\cite{Wei-Wang-Protocol}: their protocols only use these two primitives.
+
+\subsubsection{The high performance computing similarity}
+The aforementioned primitives are inspired from the \textit{Message Passing Interface}\cite{mpi41}, an open library standard for distributed memory parallelization widely used in high performance computing. From those who are familiar with MPI our two primitives can be seen respectively as \texttt{MPI\_BCAST} and \texttt{MPI\_ALLTOALL}.
+We also observed that the protocols described in the paper are executed by every nodes. This resembles the computational model \textit{single program, multiple data}\cite{spmd}. This is the most used model in parallel programming and it states that all nodes run the same program but each node may choose a different execution path depending on its id. We believe that this model can be applied also to decentralized systems such ours.
+
+How should entities interact with each others?
+%
+UML activity / sequence diagram and protocols definitions.
+
+\subsection{Behaviour}
+
+How should each entity behave?
+%
+UML State diagram.
+
+\subsection{Architecture}
+
+How are software pieces organised into software modules?
+%
+UML component / package / deployment diagrams, data-flow among components, web API description.
+
+\subsection{Corner cases}
+
+\begin{itemize}
+    \item Faults detection
+    %
+    \item Recover strategies
+    %
+    \item Error messages
+    %
+    \item Graceful shutdown
+\end{itemize}
+
+\section{Salient implementation details}
+
+Anything potentially interesting / non-trivial and technologies adopted to match the design.
+%
+This section is expected to be short in case some documentation (e.g. Javadoc or Swagger Spec) has been produced for the software artefacts.
+%
+This this case, the produced documentation should be referenced here.
+
+\section{Validation}
+
+Choose a criterion for the evaluation of the produced software and \textbf{its compliance to the requirements above}.
+%
+Description of automated (and manual) tests and their rationale.
+%
+In case of a test-driven development, describe tests here and possibly report the amount of passing tests, the total amount of tests and, possibly, the test coverage.
+
+\section{Deployment Instructions}
+
+Explain here how to install and launch the produced software artefacts.
+%
+Assume the software must be installed on a totally virgin environment.
+%
+So, report \textbf{any} configuration step.
+%
+Gradle and Docker may be useful here to ensure the deployment and launch processes to be easy.
+
+\section{Usage Examples}
+
+Show how to use the produced software artefacts.
+%
+Ideally, there should be at least one example for each scenario proposed above.
+
+\section{Conclusions}
+
+Recap what you did.
+
+\subsection{Future Works}
+
+Recap what you did \emph{not}
+
+\subsection{What did we learned}
+
+Recap what did you learned.
+
+\section*{Stylistic Notes}
+
+Use a uniform style, especially when writing formal stuff: $X$, X, $\mathbf{X}$, $\mathcal{X}$, \texttt{X} are all different symbols possibly referring to different entities. 
+
+This is a very short paragraph.
+
+This is a longer paragraph (notice the blank line in the code).
+It composed by several sentences.
+%
+You're invited to use comments within \texttt{.tex} source files to separate sentences composing the same paragraph.
+
+Paragraph should be logically atomic: a subordinate sentence from one paragraph should always refer to another sentence from within the same paragraph.
+
+The first line of a paragraph is usually indented.
+%
+This is intended: it is the way \LaTeX{} lets the reader know a new paragraph is beginning.
+
+\begin{figure} % DO NOT write any positional hint (e.g. [h] or [t] here!
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/universe.jpg}
+    \caption{Some floating image}
+    \label{fig:image} 
+\end{figure}
+
+Let \LaTeX{} decide where to put figures (or tables, or listings), label them and reference the labels instead of say things like ``in the following image...''.
+%
+Consider for instance the case of \cref{fig:image}.
+
+Use the \href{https://en.wikibooks.org/wiki/LaTeX/Source_Code_Listings}{\texttt{listing}} package for inserting scripts into the \LaTeX{} source.
+%
+Consider for instance \cref{lst:snippet}.
+
+% have a look to macros in code-listings.sty
+\javaimport[
+    caption={Some Java listing},
+    label={lst:snippet}
+]{listings/HelloWorld.java}
+
+\nocite{*} % Includes all references from the `references.bib` file
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
