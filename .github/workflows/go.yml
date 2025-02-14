@@ -28,7 +28,12 @@ jobs:
         go-version: '1.22.2'
 
     - name: Test
-      run: ${{ matrix.flags }} go test -v ./...
+      run: ${{ matrix.flags }} go test -coverprofile=coverage.txt -v ./...
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Build
       run: ${{ matrix.flags }} go build -v ./...
