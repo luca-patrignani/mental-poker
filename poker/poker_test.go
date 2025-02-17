@@ -36,7 +36,7 @@ func TestWinnerEval(t *testing.T) {
 		go func() {
 			deck := deck.Deck{
 				DeckSize: 52,
-				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
+				Peer: common.NewPeer(i, addresses, listeners[i], time.Hour),
 			}
 			session := Session{
 				Board: [5]poker.Card{},
@@ -66,17 +66,17 @@ func TestWinnerEval(t *testing.T) {
 					errChan <- err
 					return
 				}
-				cardConvA, err := convertCard(cardA)
-				if err != nil {
-					errChan <- err
-					return
-				}
-				cardConvB, err := convertCard(cardB)
-				if err != nil {
-					errChan <- err
-					return
-				}
 				if i == drawer {
+					cardConvA, err := convertCard(cardA)
+					if err != nil {
+						errChan <- err
+						return
+					}
+					cardConvB, err := convertCard(cardB)
+					if err != nil {
+						errChan <- err
+						return
+					}
 					session.Hand[0] = cardConvA
 					session.Hand[1] = cardConvB
 					t.Logf("Player %d got %s and %s", drawer, cardConvA.String(), cardConvB.String())
@@ -90,13 +90,12 @@ func TestWinnerEval(t *testing.T) {
 					return
 				}
 				card, err = deck.OpenCard(0, card)
-				if err != nil && i == drawer {
+				if err != nil {
 					errChan <- err
 					return
 				}
 				cardRev, err := convertCard(card)
-
-				if err != nil && i == drawer {
+				if err != nil {
 					errChan <- err
 					return
 				}

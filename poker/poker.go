@@ -25,7 +25,7 @@ func convertCard(rawCard int) (poker.Card, error) {
 		return 0, errors.New("the card to convert have an invalid value")
 	}
 
-	suit := poker.Suit(uint8((rawCard / 13)))
+	suit := poker.Suit(uint8(((rawCard-1) / 13)))
 	rank := poker.Rank(((rawCard - 1) % 13) + 1)
 	card, err := poker.MakeCard(suit, rank)
 	if err != nil {
