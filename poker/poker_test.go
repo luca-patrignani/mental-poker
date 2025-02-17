@@ -44,7 +44,6 @@ func TestWinnerEval(t *testing.T) {
 				Deck:  deck,
 			}
 			defer deck.Peer.Close()
-			// TODO: Si blocca qua non so il perchè T-T, errore a broadcast.go ln. 162
 			err := deck.PrepareDeck()
 			if err != nil {
 				errChan <- err
@@ -58,22 +57,22 @@ func TestWinnerEval(t *testing.T) {
 
 			for drawer := 0; drawer < n; drawer++ {
 				cardA, err := deck.DrawCard(drawer)
-				if err != nil && i == drawer {
+				if err != nil {
 					errChan <- err
 					return
 				}
 				cardB, err := deck.DrawCard(drawer)
-				if err != nil && i == drawer {
+				if err != nil {
 					errChan <- err
 					return
 				}
 				cardConvA, err := convertCard(cardA)
-				if err != nil && i == drawer {
+				if err != nil {
 					errChan <- err
 					return
 				}
 				cardConvB, err := convertCard(cardB)
-				if err != nil && i == drawer {
+				if err != nil {
 					errChan <- err
 					return
 				}

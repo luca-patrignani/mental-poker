@@ -103,6 +103,9 @@ func (d *Deck) DrawCard(drawer int) (int, error) {
 		// 	// ZKA
 		// }
 	}
+	if d.Peer.Rank != drawer {
+		return 0, nil
+	}
 	xj_1 := suite.Scalar().Inv(d.SecretKey)
 	cj.Mul(xj_1, cj)
 	for i := 1; i <= d.DeckSize; i++ {
