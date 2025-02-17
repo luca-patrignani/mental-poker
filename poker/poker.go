@@ -1,62 +1,85 @@
 package poker
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/luca-patrignani/mental-poker/deck"
 	"github.com/paulhankin/poker"
 )
 
+type Card struct {
+	suit uint8
+	rank uint8
+}
+
 // Deck is the rappresentation of a game session.
 type Session struct {
-	Board       [5]poker.Card
-	Hand        [2]poker.Card
+	Board       [5]Card
+	Hand        [2]Card
 	Deck        deck.Deck
 	}
 
-//TODO: Add interface for card, matching card struct of the package (non so come fare lucone :c)
-
-// Convert the raw input card with the following suit order: ♣clubs -> ♦diamonds -> ♥hearts -> ♠spades
-func convertCard(rawCard int) (poker.Card, error) {
-	if rawCard > 52 || rawCard < 1 {
-		return 0, errors.New("the card to convert have an invalid value")
+func NewCard(suit uint8, rank uint8) (Card, error) {
+	if (suit > 3 || rank == 0 || rank > 13) {
+		return Card{}, fmt.Errorf("invalid card %d, %d",suit,rank)
 	}
 
-	suit := poker.Suit(uint8(((rawCard-1) / 13)))
-	rank := poker.Rank(((rawCard - 1) % 13) + 1)
-	card, err := poker.MakeCard(suit, rank)
+	return Card{
+		suit: suit,
+		rank: rank,
+	}, nil
+}
+
+func (c Card) Suit() uint8 {
+	return c.suit
+}
+
+func (c Card) Rank() uint8 {
+	return c.rank
+}
+
+
+// Convert the raw input card with the following suit order: ♣clubs -> ♦diamonds -> ♥hearts -> ♠spades
+func convertCard(rawCard int) (Card, error) {
+	if rawCard > 52 || rawCard < 1 {
+		return Card{}, errors.New("the card to convert have an invalid value")
+	}
+
+	suit := uint8(((rawCard-1) / 13))
+	rank := uint8(((rawCard - 1) % 13) + 1)
+	card, err := NewCard(suit, rank)
 	if err != nil {
-		return 0, err
+		return Card{}, err
 	}
 	return card, nil
 }
 
 // Evaluate the final hand and return the peer rank of the winner
-func (hb *Session) WinnerEval() ([]int, error) {
+func (s *Session) WinnerEval() ([]int, error) {
 
-	playerNum := len(hb.Deck.Peer.Addresses)
+	playerNum := len(s.Deck.Peer.Addresses)
 
 	var finalHand [7]poker.Card
-	copy(finalHand[:5], hb.Board[:])
-	copy(finalHand[5:], hb.Hand[:])
+	var err error
+	for i:=0; i<5; i++ {
+		finalHand[i], err = poker.MakeCard(poker.Suit(s.Board[i].suit),poker.Rank(s.Board[i].rank))
+		if err != nil {
+			return []int{}, err
+		}
+	}
+	finalHand[5], err = poker.MakeCard(poker.Suit(s.Hand[0].suit),poker.Rank(s.Hand[0].rank))
+	if err != nil {
+		return []int{}, err
+	}
+	finalHand[6], err = poker.MakeCard(poker.Suit(s.Hand[1].suit),poker.Rank(s.Hand[1].rank)) 
+	if err != nil {
+		return []int{}, err
+	}
+
 	score := poker.Eval7(&finalHand)
 
-	//Marshall the data
-	bufferSend := new(bytes.Buffer)
-	binary.Write(bufferSend, binary.BigEndian, score)
-
-	byteScores, err := hb.Deck.Peer.AllToAll(bufferSend.Bytes())
-	if err != nil {
-		return []int{-1}, err
-	}
-	//Unmarshal the data
-	var scores []int16
-	for i := 0; i < len(byteScores); i++ {
-		scores[i] = int16(binary.BigEndian.Uint16(byteScores[i]))
-	}
 
 	// Create a slice of player indexes
 	players := make([]int, playerNum)
