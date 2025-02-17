@@ -12,8 +12,7 @@ func TestConvertCard(t *testing.T) {
 		t.Fatal(err)
 	}
 	if testCard != expectedCard {
-		errString := "expected " + expectedCard.String() + ", get " + testCard.String()
-		t.Fatal(errString)
+		t.Fatalf("expected %v, get %v", expectedCard, testCard)
 	}
 
 }
@@ -37,7 +36,6 @@ func TestWinnerEvalSingleWinner(t *testing.T) {
 		t.Fatalf("expected player 2, actual %d", winners[0].Rank)
 	}
 }
-
 
 func TestWinnerEvalTie(t *testing.T) {
 	session := Session{

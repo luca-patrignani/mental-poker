@@ -17,7 +17,7 @@ func TestShuffle(t *testing.T) {
 		go func() {
 			deck := Deck{
 				DeckSize: 52,
-				Peer: common.NewPeer(i, addresses, listeners[i], time.Second),
+				Peer:     common.NewPeer(i, addresses, listeners[i], time.Second),
 			}
 			defer deck.Peer.Close()
 			err := deck.PrepareDeck()

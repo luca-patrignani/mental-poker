@@ -6,17 +6,17 @@ import (
 )
 
 const (
-	Club = 0
+	Club    = 0
 	Diamond = 1
-	Heart = 2
-	Spade = 3
+	Heart   = 2
+	Spade   = 3
 )
 
 const (
-	Jack = 11
+	Jack  = 11
 	Queen = 12
-	King = 13
-	Ace = 1
+	King  = 13
+	Ace   = 1
 )
 
 type Card struct {
@@ -25,8 +25,8 @@ type Card struct {
 }
 
 func NewCard(suit uint8, rank uint8) (Card, error) {
-	if (suit > 3 || rank == 0 || rank > 13) {
-		return Card{}, fmt.Errorf("invalid card %d, %d",suit,rank)
+	if suit > 3 || rank == 0 || rank > 13 {
+		return Card{}, fmt.Errorf("invalid card %d, %d", suit, rank)
 	}
 
 	return Card{
@@ -41,7 +41,7 @@ func convertCard(rawCard int) (Card, error) {
 		return Card{}, errors.New("the card to convert have an invalid value")
 	}
 
-	suit := uint8(((rawCard-1) / 13))
+	suit := uint8(((rawCard - 1) / 13))
 	rank := uint8(((rawCard - 1) % 13) + 1)
 	card, err := NewCard(suit, rank)
 	if err != nil {
@@ -61,10 +61,14 @@ func (c Card) Rank() uint8 {
 func (c Card) String() string {
 	var suit string
 	switch c.suit {
-	case 0: suit = "♣"
-	case 1: suit = "♦"
-	case 2: suit = "♥"
-	case 3: suit = "♠"
+	case 0:
+		suit = "♣"
+	case 1:
+		suit = "♦"
+	case 2:
+		suit = "♥"
+	case 3:
+		suit = "♠"
 	}
-	return string(c.rank)+suit
+	return string(c.rank) + suit
 }
