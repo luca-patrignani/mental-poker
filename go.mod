@@ -3,7 +3,7 @@ module github.com/luca-patrignani/mental-poker
 go 1.23.3
 
 require (
-	github.com/paulhankin/poker v1.0.0 // indirect
+	github.com/paulhankin/poker v1.0.0
 	go.dedis.ch/protobuf v1.0.11 // indirect
 )
 
