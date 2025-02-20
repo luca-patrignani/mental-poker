@@ -12,6 +12,8 @@ type Session struct {
 	Board   [5]Card
 	Players []Player
 	Deck    deck.Deck
+	Pot uint
+	Dealer uint
 }
 
 // Evaluate the final hand and return the peer rank of the winner
