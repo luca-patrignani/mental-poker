@@ -13,7 +13,11 @@ type Session struct {
 	Players []Player
 	Deck    deck.Deck
 	Pot uint
+	HighestBet  uint
 	Dealer uint
+	CurrentTurn uint // index into Players for who must act
+	RoundID string // identifier for the current betting round/hand
+	LastIndex uint64 // last committed transaction/block index
 }
 
 // Evaluate the final hand and return the peer rank of the winner
