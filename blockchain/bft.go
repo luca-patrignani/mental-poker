@@ -104,84 +104,93 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
 
 	fmt.Printf("Node %s broadcasting vote %s for proposal %s\n", node.ID, v, pid)
 	b, _ := json.Marshal(vote)
-	if _, err := node.peer.AllToAll(b); err != nil {
-        return err
-    }
 	
+	votesBytes, err := node.peer.AllToAll(b)
+	if err != nil {
+    	return err
+	}
+	
+	
+	votes := make([]VoteMsg, 0, len(votesBytes))
 
-
-	// locally process the vote (simulate immediate arrival)
-	go node.onReceiveVote(vote)
+	for _, vb := range votesBytes {
+    	var v VoteMsg
+    	if err := json.Unmarshal(vb, &v); err != nil {
+        	fmt.Printf("failed to unmarshal vote: %v\n", err)
+        	continue // skip malformed messages
+    	}
+    votes = append(votes, v)
+	}
+	
+	fmt.Printf("Node %s received %d votes from AllToAll\n", node.ID, len(votes))
+	// now votes contains all VoteMsg objects, ready for processing
+	node.onReceiveVotes(votes)
 	return nil
 }
 
-func (node *Node) onReceiveVote(v VoteMsg) error {
-	fmt.Printf("Node %s received vote %s from %s for proposal %s\n", node.ID, v.Value, v.VoterID, v.ProposalID)
-	node.mtx.Lock()
-	defer node.mtx.Unlock()
+// onReceiveVotes processes multiple votes at once
+func (node *Node) onReceiveVotes(votes []VoteMsg) {
+	fmt.Printf("Node %s processing %d votes\n", node.ID, len(votes))
+    node.mtx.Lock()
+    defer node.mtx.Unlock()
 
-	// verify vote signature
-	pub, ok := node.PlayersPK[v.VoterID]
-	if !ok {
-		return fmt.Errorf("unknown voter")
-	}
-	toSign, _ := json.Marshal(struct {
-		ProposalID string    `json:"proposal_id"`
-		VoterID    string    `json:"voter_id"`
-		Value      VoteValue `json:"value"`
-	}{v.ProposalID, v.VoterID, v.Value})
-	if !ed25519.Verify(pub, toSign, v.Sig) {
-		return fmt.Errorf("bad vote signature")
-	}
-	if _, ex := node.votes[v.ProposalID]; !ex {
-		node.votes[v.ProposalID] = make(map[string]VoteMsg)
-	}
-	node.votes[v.ProposalID][v.VoterID] = v
+    for _, v := range votes {
+        // verify signature
+        pub, ok := node.PlayersPK[v.VoterID]
+        if !ok {
+            fmt.Printf("unknown voter %s\n", v.VoterID)
+            continue
+        }
+        toSign, _ := json.Marshal(struct {
+            ProposalID string    `json:"proposal_id"`
+            VoterID    string    `json:"voter_id"`
+            Value      VoteValue `json:"value"`
+        }{v.ProposalID, v.VoterID, v.Value})
+        if !ed25519.Verify(pub, toSign, v.Sig) {
+            fmt.Printf("bad signature from %s\n", v.VoterID)
+            continue
+        }
 
-	// compute counts
-	accepts := 0
-	rejects := 0
-	for _, vv := range node.votes[v.ProposalID] {
-		if vv.Value == VoteAccept {
-			accepts++
-		} else {
-			rejects++
-		}
-	}
+        if _, ex := node.votes[v.ProposalID]; !ex {
+            node.votes[v.ProposalID] = make(map[string]VoteMsg)
+        }
+        node.votes[v.ProposalID][v.VoterID] = v
+    }
 
-	// quick helper to fetch proposal
-	prop, hasProp := node.proposals[v.ProposalID]
-
-	// commit if accept quorum
-	if accepts >= node.quorum && hasProp {
-		fmt.Printf("Node %s committing proposal %s\n", node.ID, v.ProposalID)
-		// collect votes
-		votes := collectVotes(node.votes[v.ProposalID], VoteAccept)
-		cert := makeCommitCertificate( &prop, votes, true)
-		// broadcast commit certificate
-		cb, _ := json.Marshal(cert)
-		if _, err := node.peer.Broadcast(cb, node.peer.Rank); err != nil {
-        return err
-    	}
-		// apply locally
-		_ = node.applyCommit(cert)
-		return nil
-	}
-	// ban if reject quorum -> build certificate with rejecting votes and broadcast it for validation
-	if rejects >= node.quorum && hasProp {
-		fmt.Printf("Node %s banning player %s for proposal %s\n", node.ID, prop.Action.PlayerID, v.ProposalID)
-		// collect rejecting votes to form certificate
-		votes := collectVotes(node.votes[v.ProposalID], VoteReject)
-		bc := makeBanCertificate(v.ProposalID, prop.Action.PlayerID,  votes)
-		cb, _ := json.Marshal(bc)
-		if _, err := node.peer.Broadcast(cb, node.peer.Rank); err != nil {
-        return err
-    	}
-		node.handleBanCertificate(bc)
-		return nil
-	}
-	return nil
+    // now check quorum for all proposals included in this batch
+    for _, v := range votes {
+        node.checkAndCommit(v.ProposalID)
+    }
 }
+
+// checkAndCommit triggers commit if quorum is reached
+func (node *Node) checkAndCommit(proposalID string) {
+    prop, hasProp := node.proposals[proposalID]
+    if !hasProp {
+        return
+    }
+
+    accepts := 0
+    rejects := 0
+    for _, vv := range node.votes[proposalID] {
+        if vv.Value == VoteAccept {
+            accepts++
+        } else {
+            rejects++
+        }
+    }
+
+    if accepts >= node.quorum {
+		fmt.Printf("Node %s committing proposal %s\n", node.ID, proposalID)
+        cert := makeCommitCertificate(&prop, collectVotes(node.votes[proposalID], VoteAccept), true)
+        _ = node.applyCommit(cert)
+    } else if rejects >= node.quorum {
+		fmt.Printf("Node %s banning player from proposal %s\n", node.ID, proposalID)
+        bc := makeBanCertificate(proposalID, prop.Action.PlayerID, collectVotes(node.votes[proposalID], VoteReject))
+        node.handleBanCertificate(bc)
+    }
+}
+
 
 func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
 	out := []VoteMsg{}
@@ -195,6 +204,7 @@ func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
 
 // applyCommit verifies certificate and applies the action deterministically
 func (node *Node) applyCommit(cert CommitCertificate) error {
+	fmt.Printf("Node %s applying commit certificate for proposal %s\n", node.ID, cert.Proposal.Type)
 	if cert.Proposal == nil || cert.Proposal.Action == nil {
 		return errors.New("bad cert")
 	}
