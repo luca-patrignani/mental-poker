@@ -5,7 +5,6 @@ go 1.23.5
 toolchain go1.24.7
 
 require (
-	github.com/cometbft/cometbft v1.0.1
 	github.com/paulhankin/poker v1.0.0
 	go.dedis.ch/protobuf v1.0.11 // indirect
 )
