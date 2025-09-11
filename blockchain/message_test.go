@@ -1,0 +1,151 @@
+package blockchain
+
+import (
+	"crypto/ed25519"
+	"encoding/json"
+	"testing"
+)
+
+// Test makeMsgID is non-empty and produces different values across calls.
+func TestMakeMsgID(t *testing.T) {
+	id1, err := makeMsgID()
+	if err != nil {
+		t.Fatalf("makeMsgID failed: %v", err)
+	}
+	if id1 == "" {
+		t.Fatalf("makeMsgID returned empty id")
+	}
+	id2, err := makeMsgID()
+	if err != nil {
+		t.Fatalf("makeMsgID failed second call: %v", err)
+	}
+	if id1 == id2 {
+		t.Fatalf("makeMsgID returned same id twice: %s", id1)
+	}
+}
+
+// Test message constructors (makeProposalMsg, makeVoteMsg, makeCommitCertificate, makeBanCertificate)
+func TestMessageConstructors(t *testing.T) {
+	// create simple action
+	a := &Action{RoundID: "r", PlayerID: "1", Type: ActionFold}
+	prop := makeProposalMsg(a, nil)
+	if prop.Type != "proposal" {
+		t.Fatalf("expected proposal type, got %s", prop.Type)
+	}
+	if prop.Action == nil {
+		t.Fatalf("proposal action nil")
+	}
+
+	v := makeVoteMsg("pid", "voter", VoteAccept, "reason")
+	if v.Type != "vote" {
+		t.Fatalf("expected vote type, got %s", v.Type)
+	}
+	if v.Value != VoteAccept {
+		t.Fatalf("expected VoteAccept, got %s", v.Value)
+	}
+
+	vc := makeCommitCertificate(&prop, []VoteMsg{v}, true)
+	if vc.Type != "commit" || !vc.Committed {
+		t.Fatalf("commit certificate wrong")
+	}
+
+	bc := makeBanCertificate("pid", "acc", []VoteMsg{v})
+	if bc.Type != "ban" || bc.ProposalID != "pid" || bc.Accused != "acc" {
+		t.Fatalf("ban certificate wrong")
+	}
+
+	// Ensure types marshal/unmarshal properly (basic sanity)
+	bs, err := json.Marshal(vc)
+	if err != nil {
+		t.Fatalf("failed to marshal commit cert: %v", err)
+	}
+	var vc2 CommitCertificate
+	if err := json.Unmarshal(bs, &vc2); err != nil {
+		t.Fatalf("failed to unmarshal commit cert: %v", err)
+	}
+}
+
+// Test validateBanCertificate positive and negative cases
+func TestValidateBanCertificate(t *testing.T) {
+	// create two keypairs (accuser and voter)
+	pubA, _ := mustKeypair(t)
+	pubB, privB := mustKeypair(t)
+
+	// node with known players (voter is "voter")
+	playersPK := map[string]ed25519.PublicKey{
+		"accused": pubA,
+		"voter":   pubB,
+	}
+	node := &Node{PlayersPK: playersPK, N: 2, quorum: 1, proposals: make(map[string]ProposalMsg), votes: make(map[string]map[string]VoteMsg)}
+
+	// make a proposal id
+	pid, err := makeMsgID()
+	if err != nil {
+		t.Fatalf("makeMsgID failed: %v", err)
+	}
+
+	// create a valid reject vote signed by voter
+	toSign, _ := json.Marshal(struct {
+		ProposalID string    `json:"proposal_id"`
+		VoterID    string    `json:"voter_id"`
+		Value      VoteValue `json:"value"`
+	}{pid, "voter", VoteReject})
+	sig := ed25519.Sign(privB, toSign)
+	vote := VoteMsg{Type: "vote", ProposalID: pid, VoterID: "voter", Value: VoteReject, Reason: "test", Sig: sig}
+	ban := makeBanCertificate(pid, "accused", []VoteMsg{vote})
+
+	ok, err := node.validateBanCertificate(ban)
+	if err != nil || !ok {
+		t.Fatalf("expected valid ban cert, got ok=%v err=%v", ok, err)
+	}
+
+	// Negative: not enough votes
+	node.quorum = 2
+	ok, err = node.validateBanCertificate(ban)
+	if err == nil || ok {
+		t.Fatalf("expected error for not enough votes")
+	}
+	node.quorum = 1
+
+	// Negative: unknown voter
+	badVote := vote
+	badVote.VoterID = "unknown"
+	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", []VoteMsg{badVote}))
+	if err == nil || ok {
+		t.Fatalf("expected unknown voter error")
+	}
+
+	// Negative: bad signature
+	badVote2 := vote
+	badVote2.Sig = []byte("bad")
+	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", []VoteMsg{badVote2}))
+	if err == nil || ok {
+		t.Fatalf("expected bad signature error")
+	}
+
+	// Negative: wrong value (ACCEPT instead of REJECT)
+	toSignAccept, _ := json.Marshal(struct {
+		ProposalID string    `json:"proposal_id"`
+		VoterID    string    `json:"voter_id"`
+		Value      VoteValue `json:"value"`
+	}{pid, "voter", VoteAccept})
+	sigAccept := ed25519.Sign(privB, toSignAccept)
+	voteAccept := VoteMsg{Type: "vote", ProposalID: pid, VoterID: "voter", Value: VoteAccept, Reason: "test", Sig: sigAccept}
+	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", []VoteMsg{voteAccept}))
+	if err == nil || ok {
+		t.Fatalf("expected wrong value error")
+	}
+
+	// Negative: proposal id mismatch
+	toSign2, _ := json.Marshal(struct {
+		ProposalID string    `json:"proposal_id"`
+		VoterID    string    `json:"voter_id"`
+		Value      VoteValue `json:"value"`
+	}{"other", "voter", VoteReject})
+	sig2 := ed25519.Sign(privB, toSign2)
+	voteMismatch := VoteMsg{Type: "vote", ProposalID: "other", VoterID: "voter", Value: VoteReject, Reason: "test", Sig: sig2}
+	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", []VoteMsg{voteMismatch}))
+	if err == nil || ok {
+		t.Fatalf("expected proposal id mismatch error")
+	}
+}
