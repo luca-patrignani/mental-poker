@@ -7,75 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
-
-	"github.com/luca-patrignani/mental-poker/poker"
 )
-
-// ProposalMsg and VoteMsg types
-type ProposalMsg struct {
-	Action    *Action `json:"action"`
-	Signature []byte  `json:"sig"` // signature of the action (redundant with Action.Signature but kept for clarity)
-}
-
-type VoteValue string
-
-const (
-	VoteAccept VoteValue = "ACCEPT"
-	VoteReject VoteValue = "REJECT"
-)
-
-type VoteMsg struct {
-	ProposalID string    `json:"proposal_id"`
-	VoterID    string    `json:"voter_id"`
-	Value      VoteValue `json:"value"`
-	Reason     string    `json:"reason,omitempty"`
-	Sig        []byte    `json:"sig"`
-}
-
-// CommitCertificate = Proposal + quorum votes
-type CommitCertificate struct {
-	Proposal  *ProposalMsg `json:"proposal"`
-	Votes     []VoteMsg    `json:"votes"`
-	Committed bool         `json:"committed"`
-}
-
-// Node represents a single peer in the P2P table
-type Node struct {
-	ID        string
-	Pub       ed25519.PublicKey
-	Priv      ed25519.PrivateKey
-	PlayersPK map[string]ed25519.PublicKey // playerID -> pubkey
-	N         int
-	quorum    int
-
-	// Session state (shared FSM)
-	Session poker.Session
-
-	// in-memory caches
-	mtx           sync.Mutex
-	proposals     map[string]ProposalMsg           // proposalID -> proposal
-	votes         map[string]map[string]VoteMsg    // proposalID -> voterID -> vote
-	commitHandler func(cert CommitCertificate)    // optional hook
-
-	// network hook: you must implement Broadcast to send bytes to peers
-	Broadcast func(msgType string, payload []byte) error
-}
-
-// NewNode constructs a Node. playersPK is the map of all player pubkeys (including this node)
-func NewNode(id string, pub ed25519.PublicKey, priv ed25519.PrivateKey, playersPK map[string]ed25519.PublicKey) *Node {
-	n := len(playersPK)
-	return &Node{
-		ID:        id,
-		Pub:       pub,
-		Priv:      priv,
-		PlayersPK: playersPK,
-		N:         n,
-		quorum:    ceil2n3(n),
-		proposals: make(map[string]ProposalMsg),
-		votes:     make(map[string]map[string]VoteMsg),
-	}
-}
 
 func ceil2n3(n int) int { return (2*n + 2) / 3 }
 
@@ -86,28 +18,41 @@ func Sha256Hex(b []byte) string {
 
 // ProposeAction is called by the player who wants to act (the proposer)
 func (node *Node) ProposeAction(a *Action) error {
+	
+	idx := node.findPlayerIndex(a.PlayerID)
+	if idx == -1 { return fmt.Errorf("player not in session") }
+	// check it's player's turn
+	if uint(idx) != node.Session.CurrentTurn {
+	    return fmt.Errorf("cannot propose out-of-turn")
+	}
 	// action should already be signed by the player
 	pid, err := proposalID(a)
-	if err != nil {
-		return err
-	}
-	proposal := ProposalMsg{Action: a, Signature: a.Signature}
-	// cache locally
-	node.mtx.Lock()
-	node.proposals[pid] = proposal
-	node.mtx.Unlock()
+    if err != nil {
+        return err
+    }
+    proposal := makeProposalMsg(a, a.Signature)
 
-	b, _ := json.Marshal(proposal)
-	if node.Broadcast != nil {
-		_ = node.Broadcast("proposal", b) // best-effort broadcast
-	}
-	// also locally process to send our own vote
-	go node.onReceiveProposal(proposal)
-	return nil
+    // cache locally
+    node.mtx.Lock()
+    node.proposals[pid] = proposal
+    node.mtx.Unlock()
+
+    b, _ := json.Marshal(proposal)
+    // proposer uses its own rank as root
+    if _, err := node.peer.Broadcast(b, node.peer.Rank); err != nil {
+        return err
+    }
+        // locally process to send our own vote
+    node.onReceiveProposal(proposal)
+
+  
+    return nil
+
 }
 
 // network layer calls this when a proposal arrives
 func (node *Node) onReceiveProposal(p ProposalMsg) {
+	print("Arrivata proposta\n")
 	// verify action signature
 	if p.Action == nil {
 		return
@@ -129,18 +74,14 @@ func (node *Node) onReceiveProposal(p ProposalMsg) {
 		return
 	}
 	// valid
-	node.broadcastVoteForProposal(p, VoteAccept, "")
+	node.broadcastVoteForProposal(p, VoteAccept, "valid")
 }
 
 // helper to broadcast vote
-func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason string) {
+func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason string) error {
+	fmt.Printf("Node %s voting %s for proposal from %s: %s\n", node.ID, v, p.Action.PlayerID, reason)
 	pid, _ := proposalID(p.Action)
-	vote := VoteMsg{
-		ProposalID: pid,
-		VoterID:    node.ID,
-		Value:      v,
-		Reason:     reason,
-	}
+	vote := makeVoteMsg(pid,node.ID,v,reason)
 	// sign minimal vote fields
 	toSign, _ := json.Marshal(struct {
 		ProposalID string    `json:"proposal_id"`
@@ -161,23 +102,28 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
 	node.votes[pid][node.ID] = vote
 	node.mtx.Unlock()
 
+	fmt.Printf("Node %s broadcasting vote %s for proposal %s\n", node.ID, v, pid)
 	b, _ := json.Marshal(vote)
-	if node.Broadcast != nil {
-		_ = node.Broadcast("vote", b)
-	}
+	if _, err := node.peer.AllToAll(b); err != nil {
+        return err
+    }
+	
+
 
 	// locally process the vote (simulate immediate arrival)
 	go node.onReceiveVote(vote)
+	return nil
 }
 
-func (node *Node) onReceiveVote(v VoteMsg) {
+func (node *Node) onReceiveVote(v VoteMsg) error {
+	fmt.Printf("Node %s received vote %s from %s for proposal %s\n", node.ID, v.Value, v.VoterID, v.ProposalID)
 	node.mtx.Lock()
 	defer node.mtx.Unlock()
 
 	// verify vote signature
 	pub, ok := node.PlayersPK[v.VoterID]
 	if !ok {
-		return
+		return fmt.Errorf("unknown voter")
 	}
 	toSign, _ := json.Marshal(struct {
 		ProposalID string    `json:"proposal_id"`
@@ -185,7 +131,7 @@ func (node *Node) onReceiveVote(v VoteMsg) {
 		Value      VoteValue `json:"value"`
 	}{v.ProposalID, v.VoterID, v.Value})
 	if !ed25519.Verify(pub, toSign, v.Sig) {
-		return
+		return fmt.Errorf("bad vote signature")
 	}
 	if _, ex := node.votes[v.ProposalID]; !ex {
 		node.votes[v.ProposalID] = make(map[string]VoteMsg)
@@ -208,26 +154,33 @@ func (node *Node) onReceiveVote(v VoteMsg) {
 
 	// commit if accept quorum
 	if accepts >= node.quorum && hasProp {
+		fmt.Printf("Node %s committing proposal %s\n", node.ID, v.ProposalID)
 		// collect votes
 		votes := collectVotes(node.votes[v.ProposalID], VoteAccept)
-		cert := CommitCertificate{Proposal: &prop, Votes: votes, Committed: true}
+		cert := makeCommitCertificate( &prop, votes, true)
 		// broadcast commit certificate
 		cb, _ := json.Marshal(cert)
-		if node.Broadcast != nil {
-			_ = node.Broadcast("commit", cb)
-		}
+		if _, err := node.peer.Broadcast(cb, node.peer.Rank); err != nil {
+        return err
+    	}
 		// apply locally
 		_ = node.applyCommit(cert)
-		return
+		return nil
 	}
-	// ban if reject quorum
+	// ban if reject quorum -> build certificate with rejecting votes and broadcast it for validation
 	if rejects >= node.quorum && hasProp {
-		// For brevity: here we simply print and mark ban. In production you build BanCertificate
-		fmt.Printf("BAN quorum reached for proposal %s (proposer=%s)\n", v.ProposalID, prop.Action.PlayerID)
-		// perform local removal
-		node.removePlayerByID(prop.Action.PlayerID)
-		return
+		fmt.Printf("Node %s banning player %s for proposal %s\n", node.ID, prop.Action.PlayerID, v.ProposalID)
+		// collect rejecting votes to form certificate
+		votes := collectVotes(node.votes[v.ProposalID], VoteReject)
+		bc := makeBanCertificate(v.ProposalID, prop.Action.PlayerID,  votes)
+		cb, _ := json.Marshal(bc)
+		if _, err := node.peer.Broadcast(cb, node.peer.Rank); err != nil {
+        return err
+    	}
+		node.handleBanCertificate(bc)
+		return nil
 	}
+	return nil
 }
 
 func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
@@ -307,11 +260,15 @@ func (node *Node) applyActionToSession(a *Action, idx int) error {
 		node.Session.Players[idx].HasFolded = true
 		node.advanceTurnLocked()
 	case ActionBet:
-		node.Session.Players[idx].Bet += a.Amount
-		if node.Session.Players[idx].Bet > node.Session.HighestBet {
-			node.Session.HighestBet = node.Session.Players[idx].Bet
-		}
-		node.Session.Pot += a.Amount
+		if node.Session.Players[idx].Pot < a.Amount {
+        return fmt.Errorf("insufficient funds")
+    	}
+    	node.Session.Players[idx].Pot -= a.Amount    
+    	node.Session.Players[idx].Bet += a.Amount
+    	if node.Session.Players[idx].Bet > node.Session.HighestBet {
+        	node.Session.HighestBet = node.Session.Players[idx].Bet
+    	}
+    	node.Session.Pot += a.Amount
 		node.advanceTurnLocked()
 	case ActionRaise:
 		node.Session.Players[idx].Bet += a.Amount
@@ -378,7 +335,7 @@ func (node *Node) validateActionAgainstSession(a *Action) error {
 
 // proposalID computes a stable id for a proposal
 func proposalID(a *Action) (string, error) {
-	b, err := a.Bytes()
+	b, err := a.signingBytes()
 	if err != nil {
 		return "", err
 	}
