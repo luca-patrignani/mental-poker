@@ -21,3 +21,14 @@ func TestAllCardConvert(t *testing.T) {
 		}
 	}
 }
+
+func TestCardStringFaces(t *testing.T) {
+    c := Card{ suit: Heart, rank: 1 }
+    if c.String() != "A♥" {
+        t.Fatalf("expected A♥, got %s", c.String())
+    }
+    c = Card{ suit: Club, rank: 11 }
+    if c.String() != "J♣" { 
+        t.Fatalf("expected J♣, got %s", c.String())
+    }
+}

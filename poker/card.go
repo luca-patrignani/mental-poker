@@ -69,6 +69,22 @@ func (c Card) String() string {
 		suit = "♥"
 	case 3:
 		suit = "♠"
+	default:
+		suit = "?"
 	}
-	return string(c.rank) + suit
+
+	var rankStr string
+	switch c.rank {
+	case Ace:
+		rankStr = "A"
+	case Jack:
+		rankStr = "J"
+	case Queen:
+		rankStr = "Q"
+	case King:
+		rankStr = "K"
+	default:
+		rankStr = fmt.Sprintf("%d", c.rank)
+	}
+	return rankStr + suit
 }
