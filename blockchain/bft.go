@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 func ceil2n3(n int) int { return (2*n + 2) / 3 }
@@ -123,13 +124,32 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
 	}
 	
 	fmt.Printf("Node %s received %d votes from AllToAll\n", node.ID, len(votes))
-	// now votes contains all VoteMsg objects, ready for processing
 	node.onReceiveVotes(votes)
 	return nil
 }
 
+func ensureSameProposal(votes []VoteMsg) (error, string) {
+    if len(votes) == 0 {
+        return fmt.Errorf("Votes array is empty"), "" // no votes means invalid
+    }
+
+    firstProposal := votes[0].ProposalID
+    for _, v := range votes[1:] {
+        if v.ProposalID != firstProposal {
+            return fmt.Errorf("Votes don't refer to the same proposal"), ""
+        }
+    }
+    return nil, firstProposal
+}
+
 // onReceiveVotes processes multiple votes at once
 func (node *Node) onReceiveVotes(votes []VoteMsg) {
+	err,id := ensureSameProposal(votes)
+	if err != nil {
+		fmt.Printf("Node %s received invalid votes: %v\n", node.ID, err)
+		return
+	}
+
 	fmt.Printf("Node %s processing %d votes\n", node.ID, len(votes))
     node.mtx.Lock()
     defer node.mtx.Unlock()
@@ -158,9 +178,8 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) {
     }
 
     // now check quorum for all proposals included in this batch
-    for _, v := range votes {
-        node.checkAndCommit(v.ProposalID)
-    }
+    node.checkAndCommit(id)
+    
 }
 
 // checkAndCommit triggers commit if quorum is reached
@@ -237,7 +256,11 @@ func (node *Node) applyCommit(cert CommitCertificate) error {
 // findPlayerIndex helper
 func (node *Node) findPlayerIndex(playerID string) int {
 	for i, p := range node.Session.Players {
-		if p.Name == playerID {
+		pID,err := strconv.Atoi(playerID)
+		if err != nil {
+			return -1
+		}
+		if p.Rank == pID {
 			return i
 		}
 	}

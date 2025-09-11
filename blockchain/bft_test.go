@@ -2,7 +2,7 @@ package blockchain
 
 import (
 	"crypto/ed25519"
-	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -59,7 +59,7 @@ func TestProposeReceive(t *testing.T) {
     ids := make([]string, 3)
     for i := 0; i < 3; i++ {
         pub, priv, _ := NewEd25519Keypair()
-        ids[i] = "p" + fmt.Sprintf("0%d", i)
+        ids[i] = strconv.Itoa(peers[i].Rank)
         playersPK[ids[i]] = pub
         privs[i] = priv
     }
@@ -89,7 +89,7 @@ func TestProposeReceive(t *testing.T) {
     // proposer builds action and proposes
     a := &Action{
         RoundID:  nodes[0].Session.RoundID,
-        PlayerID: nodes[0].Session.Players[0].Name,
+        PlayerID: strconv.Itoa(nodes[0].peer.Rank),
         Type:     ActionBet,
         Amount:   10,
     }

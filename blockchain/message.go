@@ -1,20 +1,47 @@
 package blockchain
 
 import (
-    "crypto/ed25519"
-    "encoding/json"
-    "fmt"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"time"
 )
+
+func makeMsgID() (string, error) {
+	// Timestamp in nanoseconds
+	ts := time.Now().UnixNano()
+
+	// Add random entropy
+	randBytes := make([]byte, 16) // 128 bits entropy
+	_, err := rand.Read(randBytes)
+    if err != nil {
+        return "", err
+    }
+
+	// Combine inputs into one string
+	raw := fmt.Sprintf("%d-%x", ts, randBytes)
+
+	// Hash it
+	hash := sha256.Sum256([]byte(raw))
+
+	// Encode as hex string (can shorten if desired)
+	return hex.EncodeToString(hash[:8]), nil
+}
 
 // ProposalMsg and VoteMsg types
 type ProposalMsg struct {
 	Type 		string  `json:"type,omitempty"` // "proposal"
-	Action    *Action `json:"action"`
-	Signature []byte  `json:"sig"` // signature of the action (redundant with Action.Signature but kept for clarity)
+    ProposalID  string  `json:"proposal_id"`
+	Action    *Action   `json:"action"`
+	Signature []byte    `json:"sig"` // signature of the action (redundant with Action.Signature but kept for clarity)
 }
 
 func makeProposalMsg(a *Action, sig []byte) ProposalMsg {
-	return ProposalMsg{Type: "proposal", Action: a, Signature: sig}
+    id,_ := makeMsgID()
+	return ProposalMsg{Type: "proposal", ProposalID: id, Action: a, Signature: sig}
 }
 
 type VoteValue string
