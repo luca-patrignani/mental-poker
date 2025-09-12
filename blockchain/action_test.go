@@ -48,7 +48,7 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 	a.Amount = 999
 	ok, err := a.VerifySignature(pub)
 	if err != nil {
-		// verification might return nil err and false, but either is acceptable
+		t.Fatalf("Verify returned err: %v", err)
 	}
 	if ok {
 		t.Fatalf("Tampered action should not verify")

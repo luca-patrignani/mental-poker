@@ -45,7 +45,10 @@ func (node *Node) ProposeAction(a *Action) error {
 		return err
 	}
 	// locally process to send our own vote
-	node.onReceiveProposal(proposal)
+	err = node.onReceiveProposal(proposal)
+	if err != nil {
+		return err
+	}
 
 	return nil
 
@@ -135,7 +138,10 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
 		votes = append(votes, v)
 	}
 
-	node.onReceiveVotes(votes)
+	err = node.onReceiveVotes(votes)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -154,11 +160,11 @@ func ensureSameProposal(votes []VoteMsg) (error, string) {
 }
 
 // onReceiveVotes processes multiple votes at once
-func (node *Node) onReceiveVotes(votes []VoteMsg) {
+func (node *Node) onReceiveVotes(votes []VoteMsg) error {
 	err, id := ensureSameProposal(votes)
 	if err != nil {
 		fmt.Printf("Node %s received invalid votes: %v\n", node.ID, err)
-		return
+		return err
 	}
 
 	fmt.Printf("Node %s processing %d votes\n", node.ID, len(votes))
@@ -177,6 +183,7 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) {
 			VoterID    string    `json:"voter_id"`
 			Value      VoteValue `json:"value"`
 		}{v.ProposalID, v.VoterID, v.Value})
+		
 		if !ed25519.Verify(pub, toSign, v.Sig) {
 			fmt.Printf("bad signature from %s\n", v.VoterID)
 			continue
@@ -189,7 +196,11 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) {
 	}
 
 	// now check quorum
-	node.checkAndCommit(id)
+	err = node.checkAndCommit(id)
+	if err != nil {
+		return err
+	}
+	return nil
 
 }
 

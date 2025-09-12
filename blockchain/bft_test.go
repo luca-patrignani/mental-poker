@@ -315,7 +315,10 @@ func TestApplyCommitErrors(t *testing.T) {
 
 	// prepare a valid proposal
 	a := &Action{RoundID: "r1", PlayerID: "1", Type: ActionFold}
-	a.Sign(priv)
+	err := a.Sign(priv)
+	if err != nil {
+		t.Fatalf("action sign failed: %v", err)
+	}
 	prop := makeProposalMsg(a, a.Signature)
 	votes := []VoteMsg{} // none
 	cert := makeCommitCertificate(&prop, votes, true)
