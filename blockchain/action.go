@@ -43,7 +43,7 @@ func (a *Action) Sign(priv ed25519.PrivateKey) error {
 
 // VerifySignature verifies the action signature with pubkey
 func (a *Action) VerifySignature(pub ed25519.PublicKey) (bool, error) {
-	if a.Signature == nil || len(a.Signature) == 0 {
+	if len(a.Signature) == 0 {
 		return false, errors.New("missing signature")
 	}
 	b, err := a.signingBytes()

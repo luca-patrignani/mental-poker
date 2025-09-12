@@ -171,7 +171,10 @@ func TestFindPlayerIndexAndRemove(t *testing.T) {
 	}
 
 	// remove player "1"
-	node.removePlayerByID("1", "test")
+	err := node.removePlayerByID("1", "test")
+	if err != nil {
+		t.Fatalf("removePlayerByID failed: %v", err)
+	}
 	// N should be updated to 2
 	if node.N != 2 {
 		t.Fatalf("expected N==2 after removal, got %d", node.N)
@@ -189,7 +192,10 @@ func TestApplyActionToSessionAndValidate(t *testing.T) {
 
 	// prepare an action and sign it
 	a := &Action{RoundID: "r1", PlayerID: "0", Type: ActionBet, Amount: 10}
-	a.Sign(priv)
+	err := a.Sign(priv)
+	if err != nil {
+		t.Fatalf("action sign failed: %v", err)
+	}
 
 	// invalid round
 	aBad := *a
@@ -255,7 +261,10 @@ func TestProposalIDAndApplyCommitAndBanCert(t *testing.T) {
 
 	// create action by player "1" and sign
 	a := &Action{RoundID: "r1", PlayerID: "1", Type: ActionCheck}
-	a.Sign(privA)
+	err := a.Sign(privA)
+	if err != nil {
+		t.Fatalf("action sign failed: %v", err)
+	}
 
 	pid, err := proposalID(a)
 	if err != nil || pid == "" {

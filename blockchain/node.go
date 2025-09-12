@@ -20,14 +20,13 @@ type Node struct {
 	N         int
 	quorum    int
 
-	// Session state (shared FSM)
+	// Session state (shared)
 	Session poker.Session
 
 	// in-memory caches
 	mtx           sync.Mutex
 	proposals     map[string]ProposalMsg        // proposalID -> proposal
 	votes         map[string]map[string]VoteMsg // proposalID -> voterID -> vote
-	commitHandler func(cert CommitCertificate)  // optional hook
 
 	peer *common.Peer
 }

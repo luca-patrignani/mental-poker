@@ -52,30 +52,43 @@ func (node *Node) ProposeAction(a *Action) error {
 }
 
 // network layer calls this when a proposal arrives
-func (node *Node) onReceiveProposal(p ProposalMsg) {
+func (node *Node) onReceiveProposal(p ProposalMsg) error {
 	print("Arrivata proposta\n")
 	// verify action signature
 	if p.Action == nil {
-		return
+		return errors.New("nil action in proposal")
 	}
 	pub, ok := node.PlayersPK[p.Action.PlayerID]
 	if !ok {
 		// unknown player
-		node.broadcastVoteForProposal(p, VoteReject, "unknown-player")
-		return
+		err := node.broadcastVoteForProposal(p, VoteReject, "unknown-player")
+		if err != nil {
+			return err			
+		}
+		return nil
 	}
 	okv, _ := p.Action.VerifySignature(pub)
 	if !okv {
-		node.broadcastVoteForProposal(p, VoteReject, "bad-signature")
-		return
+		err := node.broadcastVoteForProposal(p, VoteReject, "bad-signature")
+		if err != nil {
+			return err			
+		}
+		return nil
 	}
 	// validate action against local session rules
-	if err := node.validateActionAgainstSession(p.Action); err != nil {
-		node.broadcastVoteForProposal(p, VoteReject, err.Error())
-		return
+	if invalid := node.validateActionAgainstSession(p.Action); invalid != nil {
+		err := node.broadcastVoteForProposal(p, VoteReject, invalid.Error())
+		if err != nil {
+			return err			
+		}
+		return nil
 	}
 	// valid
-	node.broadcastVoteForProposal(p, VoteAccept, "valid")
+	err := node.broadcastVoteForProposal(p, VoteAccept, "valid")
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // helper to broadcast vote
@@ -181,10 +194,10 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) {
 }
 
 // checkAndCommit triggers commit if quorum is reached
-func (node *Node) checkAndCommit(proposalID string) {
+func (node *Node) checkAndCommit(proposalID string) error {
 	prop, hasProp := node.proposals[proposalID]
 	if !hasProp {
-		return
+		return fmt.Errorf("missing proposal for id %s", proposalID)
 	}
 
 	accepts := 0
@@ -202,12 +215,19 @@ func (node *Node) checkAndCommit(proposalID string) {
 	if accepts >= node.quorum {
 		fmt.Printf("Node %s committing proposal %s\n", node.ID, proposalID)
 		cert := makeCommitCertificate(&prop, collectVotes(node.votes[proposalID], VoteAccept), true)
-		_ = node.applyCommit(cert)
+		err := node.applyCommit(cert)
+		if err != nil {
+			return err
+		}
 	} else if rejects >= node.quorum {
 		fmt.Printf("Node %s banning player due to s\n", node.ID)
 		bc := makeBanCertificate(proposalID, prop.Action.PlayerID, reason, collectVotes(node.votes[proposalID], VoteReject))
-		node.handleBanCertificate(bc)
+		err := node.handleBanCertificate(bc)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
