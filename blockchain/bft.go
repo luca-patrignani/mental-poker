@@ -66,7 +66,7 @@ func (node *Node) onReceiveProposal(p ProposalMsg) error {
 		// unknown player
 		err := node.broadcastVoteForProposal(p, VoteReject, "unknown-player")
 		if err != nil {
-			return err			
+			return err
 		}
 		return nil
 	}
@@ -74,7 +74,7 @@ func (node *Node) onReceiveProposal(p ProposalMsg) error {
 	if !okv {
 		err := node.broadcastVoteForProposal(p, VoteReject, "bad-signature")
 		if err != nil {
-			return err			
+			return err
 		}
 		return nil
 	}
@@ -82,7 +82,7 @@ func (node *Node) onReceiveProposal(p ProposalMsg) error {
 	if invalid := node.validateActionAgainstSession(p.Action); invalid != nil {
 		err := node.broadcastVoteForProposal(p, VoteReject, invalid.Error())
 		if err != nil {
-			return err			
+			return err
 		}
 		return nil
 	}
@@ -183,7 +183,7 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) error {
 			VoterID    string    `json:"voter_id"`
 			Value      VoteValue `json:"value"`
 		}{v.ProposalID, v.VoterID, v.Value})
-		
+
 		if !ed25519.Verify(pub, toSign, v.Sig) {
 			fmt.Printf("bad signature from %s\n", v.VoterID)
 			continue

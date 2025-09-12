@@ -24,9 +24,9 @@ type Node struct {
 	Session poker.Session
 
 	// in-memory caches
-	mtx           sync.Mutex
-	proposals     map[string]ProposalMsg        // proposalID -> proposal
-	votes         map[string]map[string]VoteMsg // proposalID -> voterID -> vote
+	mtx       sync.Mutex
+	proposals map[string]ProposalMsg        // proposalID -> proposal
+	votes     map[string]map[string]VoteMsg // proposalID -> voterID -> vote
 
 	peer *common.Peer
 }
@@ -80,6 +80,9 @@ func (node *Node) WaitForProposalAndProcess() error {
 		return fmt.Errorf("invalid proposal bytes: %w", err)
 	}
 	// process locally (vote)
-	node.onReceiveProposal(p)
+	err = node.onReceiveProposal(p)
+	if err != nil {
+		return err
+	}
 	return nil
 }
