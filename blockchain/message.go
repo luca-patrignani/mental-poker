@@ -11,37 +11,38 @@ import (
 )
 
 func makeMsgID() (string, error) {
-	// Timestamp in nanoseconds
 	ts := time.Now().UnixNano()
 
-	// Add random entropy
 	randBytes := make([]byte, 16) // 128 bits entropy
 	_, err := rand.Read(randBytes)
 	if err != nil {
 		return "", err
 	}
-
-	// Combine inputs into one string
 	raw := fmt.Sprintf("%d-%x", ts, randBytes)
-
-	// Hash it
 	hash := sha256.Sum256([]byte(raw))
 
-	// Encode as hex string (can shorten if desired)
 	return hex.EncodeToString(hash[:8]), nil
 }
 
-// ProposalMsg and VoteMsg types
 type ProposalMsg struct {
 	Type       string  `json:"type,omitempty"` // "proposal"
 	ProposalID string  `json:"proposal_id"`
 	Action     *Action `json:"action"`
-	Signature  []byte  `json:"sig"` // signature of the action (redundant with Action.Signature but kept for clarity)
+	Signature  []byte  `json:"sig"`
 }
 
+// Construnctor for ProposalMsg
 func makeProposalMsg(a *Action, sig []byte) ProposalMsg {
 	id, _ := makeMsgID()
 	return ProposalMsg{Type: "proposal", ProposalID: id, Action: a, Signature: sig}
+}
+
+func proposalID(a *Action) (string, error) {
+	b, err := a.signingBytes()
+	if err != nil {
+		return "", err
+	}
+	return Sha256Hex(b), nil
 }
 
 type VoteValue string
@@ -84,8 +85,6 @@ func makeCommitCertificate(prop *ProposalMsg, votes []VoteMsg, commit bool) Comm
 }
 
 // BanCertificate contains the evidence that a given player behaved maliciously
-// w.r.t. a particular proposal. It includes the proposal ID, accused player and
-// the rejecting votes (raw VoteMsg) that form the evidence.
 type BanCertificate struct {
 	Type       string    `json:"type,omitempty"` // "ban"
 	ProposalID string    `json:"proposal_id"`
@@ -99,10 +98,6 @@ func makeBanCertificate(proposalID string, accused string, reason string, votes 
 	return BanCertificate{Type: "ban", ProposalID: proposalID, Accused: accused, Reason: reason, Votes: votes}
 }
 
-// validateBanCertificate checks that:
-// - the votes are signed by known players
-// - each vote references the same proposalID and has Value==VoteReject
-// - there are at least quorum votes
 func (node *Node) validateBanCertificate(cert BanCertificate) (bool, error) {
 	if len(cert.Votes) < node.quorum {
 		return false, fmt.Errorf("not enough votes in ban cert")
@@ -130,20 +125,4 @@ func (node *Node) validateBanCertificate(cert BanCertificate) (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-// handleBanCertificate is invoked when this node receives a BanCertificate.
-// If it's valid, removes the accused player deterministically.
-func (node *Node) handleBanCertificate(cert BanCertificate) error {
-	fmt.Printf("Node %s: handling ban cert against player %s \n", node.ID, cert.Accused)
-	ok, err := node.validateBanCertificate(cert)
-	if err != nil || !ok {
-		return fmt.Errorf("invalid ban certificate: %w", err)
-	}
-
-	err = node.removePlayerByID(cert.Accused, cert.Reason)
-	if err != nil {
-		return err
-	}
-	return nil
 }

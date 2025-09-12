@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"sync"
 
 	"github.com/luca-patrignani/mental-poker/common"
 	"github.com/luca-patrignani/mental-poker/poker"
@@ -23,8 +22,6 @@ type Node struct {
 	// Session state (shared)
 	Session poker.Session
 
-	// in-memory caches
-	mtx       sync.Mutex
 	proposals map[string]ProposalMsg        // proposalID -> proposal
 	votes     map[string]map[string]VoteMsg // proposalID -> voterID -> vote
 
@@ -46,6 +43,9 @@ func NewNode(id string, p *common.Peer, pub ed25519.PublicKey, priv ed25519.Priv
 		peer:      p,
 	}
 }
+
+// Ceiling for Byzantine fault tolerance
+func ceil2n3(n int) int { return (2*n + 2) / 3 }
 
 // findPlayerIndex helper
 func (node *Node) findPlayerIndex(playerID string) int {

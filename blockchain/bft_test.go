@@ -43,16 +43,6 @@ func SampleSessionForTest(ids []string) poker.Session {
 	}
 }
 
-// helpers used by tests
-func mustKeypair(t *testing.T) (ed25519.PublicKey, ed25519.PrivateKey) {
-	t.Helper()
-	pub, priv, err := NewEd25519Keypair()
-	if err != nil {
-		t.Fatalf("failed to generate keypair: %v", err)
-	}
-	return pub, priv
-}
-
 func makeSignedVote(t *testing.T, proposalID, voterID string, value VoteValue, priv ed25519.PrivateKey) VoteMsg {
 	t.Helper()
 	toSign, _ := json.Marshal(struct {
@@ -378,7 +368,7 @@ func TestProposeReceive(t *testing.T) {
 	privs := make([]ed25519.PrivateKey, 3)
 	ids := make([]string, 3)
 	for i := 0; i < 3; i++ {
-		pub, priv, _ := NewEd25519Keypair()
+		pub, priv := mustKeypair(t)
 		ids[i] = strconv.Itoa(peers[i].Rank)
 		playersPK[ids[i]] = pub
 		privs[i] = priv
@@ -470,7 +460,7 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	privs := make([]ed25519.PrivateKey, 3)
 	ids := make([]string, 3)
 	for i := 0; i < 3; i++ {
-		pub, priv, _ := NewEd25519Keypair()
+		pub, priv := mustKeypair(t)
 		ids[i] = strconv.Itoa(peers[i].Rank)
 		playersPK[ids[i]] = pub
 		privs[i] = priv

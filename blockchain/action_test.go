@@ -1,15 +1,13 @@
 package blockchain
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
 
 func TestNewEd25519KeypairAndSignVerify(t *testing.T) {
-	pub, priv, err := NewEd25519Keypair()
-	if err != nil {
-		t.Fatalf("keygen failed: %v", err)
-	}
+	pub, priv := mustKeypair(t)
 
 	a := &Action{
 		RoundID:  "r1",
@@ -32,7 +30,7 @@ func TestNewEd25519KeypairAndSignVerify(t *testing.T) {
 }
 
 func TestVerifyFailsIfTampered(t *testing.T) {
-	pub, priv, _ := NewEd25519Keypair()
+	pub, priv := mustKeypair(t)
 
 	a := &Action{
 		RoundID:  "r1",
@@ -56,7 +54,7 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 }
 
 func TestMarshalUnmarshalAction(t *testing.T) {
-	_, priv, _ := NewEd25519Keypair()
+	_, priv := mustKeypair(t)
 	a := &Action{
 		RoundID:  "round-abc",
 		PlayerID: "bob",
@@ -66,14 +64,16 @@ func TestMarshalUnmarshalAction(t *testing.T) {
 	if err := a.Sign(priv); err != nil {
 		t.Fatalf("sign failed: %v", err)
 	}
-	b, err := a.Bytes()
+	b, err := json.Marshal(a)
 	if err != nil {
 		t.Fatalf("Bytes failed: %v", err)
 	}
-	a2, err := ActionFromBytes(b)
-	if err != nil {
+
+	var a2 Action
+	if err := json.Unmarshal(b, &a2); err != nil {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
+
 	// Verify a2 signature (you need original pub but we can't get pub from priv here)
 	// Basic checks:
 	if a2.RoundID != a.RoundID || a2.PlayerID != a.PlayerID || a2.Type != a.Type || a2.Amount != a.Amount {

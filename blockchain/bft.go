@@ -9,8 +9,6 @@ import (
 	"fmt"
 )
 
-func ceil2n3(n int) int { return (2*n + 2) / 3 }
-
 func Sha256Hex(b []byte) string {
 	h := sha256.Sum256(b)
 	return hex.EncodeToString(h[:])
@@ -23,70 +21,62 @@ func (node *Node) ProposeAction(a *Action) error {
 	if idx == -1 {
 		return fmt.Errorf("player not in session")
 	}
-	// check it's player's turn
 	if uint(idx) != node.Session.CurrentTurn {
 		return fmt.Errorf("cannot propose out-of-turn")
 	}
-	// action should already be signed by the player
 	pid, err := proposalID(a)
 	if err != nil {
 		return err
 	}
 	proposal := makeProposalMsg(a, a.Signature)
 
-	// cache locally
-	node.mtx.Lock()
+	// cache proposal
 	node.proposals[pid] = proposal
-	node.mtx.Unlock()
 
 	b, _ := json.Marshal(proposal)
-	// proposer uses its own rank as root
 	if _, err := node.peer.Broadcast(b, node.peer.Rank); err != nil {
 		return err
 	}
-	// locally process to send our own vote
 	err = node.onReceiveProposal(proposal)
 	if err != nil {
 		return err
 	}
-
 	return nil
-
 }
 
-// network layer calls this when a proposal arrives
+// Calls this when a proposal arrives
 func (node *Node) onReceiveProposal(p ProposalMsg) error {
-	print("Arrivata proposta\n")
-	// verify action signature
+	fmt.Printf("Node %s received proposal from player %s\n", node.ID, p.Action.PlayerID)
+
 	if p.Action == nil {
 		return errors.New("nil action in proposal")
 	}
-	pub, ok := node.PlayersPK[p.Action.PlayerID]
-	if !ok {
-		// unknown player
+	pub, find := node.PlayersPK[p.Action.PlayerID]
+	if !find {
 		err := node.broadcastVoteForProposal(p, VoteReject, "unknown-player")
 		if err != nil {
 			return err
 		}
 		return nil
 	}
-	okv, _ := p.Action.VerifySignature(pub)
-	if !okv {
+	verified, _ := p.Action.VerifySignature(pub)
+	if !verified {
 		err := node.broadcastVoteForProposal(p, VoteReject, "bad-signature")
 		if err != nil {
 			return err
 		}
 		return nil
 	}
-	// validate action against local session rules
-	if invalid := node.validateActionAgainstSession(p.Action); invalid != nil {
+
+	invalid := node.validateActionAgainstSession(p.Action)
+	if invalid != nil {
 		err := node.broadcastVoteForProposal(p, VoteReject, invalid.Error())
 		if err != nil {
 			return err
 		}
 		return nil
 	}
-	// valid
+
 	err := node.broadcastVoteForProposal(p, VoteAccept, "valid")
 	if err != nil {
 		return err
@@ -94,22 +84,22 @@ func (node *Node) onReceiveProposal(p ProposalMsg) error {
 	return nil
 }
 
-// helper to broadcast vote
 func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason string) error {
 	fmt.Printf("Node %s voting %s for proposal from %s: %s\n", node.ID, v, p.Action.PlayerID, reason)
+
 	pid, _ := proposalID(p.Action)
 	vote := makeVoteMsg(pid, node.ID, v, reason)
-	// sign minimal vote fields
+
 	toSign, _ := json.Marshal(struct {
 		ProposalID string    `json:"proposal_id"`
 		VoterID    string    `json:"voter_id"`
 		Value      VoteValue `json:"value"`
 	}{pid, node.ID, v})
+
 	sig := ed25519.Sign(node.Priv, toSign)
 	vote.Sig = sig
 
 	// cache proposal if missing
-	node.mtx.Lock()
 	if _, ex := node.proposals[pid]; !ex {
 		node.proposals[pid] = p
 	}
@@ -117,18 +107,15 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
 		node.votes[pid] = make(map[string]VoteMsg)
 	}
 	node.votes[pid][node.ID] = vote
-	node.mtx.Unlock()
 
 	fmt.Printf("Node %s broadcasting vote %s for proposal %s\n", node.ID, v, pid)
 	b, _ := json.Marshal(vote)
-
 	votesBytes, err := node.peer.AllToAll(b)
 	if err != nil {
 		return err
 	}
 
 	votes := make([]VoteMsg, 0, len(votesBytes))
-
 	for _, vb := range votesBytes {
 		var v VoteMsg
 		if err := json.Unmarshal(vb, &v); err != nil {
@@ -147,7 +134,7 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
 
 func ensureSameProposal(votes []VoteMsg) (error, string) {
 	if len(votes) == 0 {
-		return fmt.Errorf("Votes array is empty"), "" // no votes means invalid
+		return fmt.Errorf("Votes array is empty"), ""
 	}
 
 	firstProposal := votes[0].ProposalID
@@ -159,7 +146,6 @@ func ensureSameProposal(votes []VoteMsg) (error, string) {
 	return nil, firstProposal
 }
 
-// onReceiveVotes processes multiple votes at once
 func (node *Node) onReceiveVotes(votes []VoteMsg) error {
 	err, id := ensureSameProposal(votes)
 	if err != nil {
@@ -168,13 +154,11 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) error {
 	}
 
 	fmt.Printf("Node %s processing %d votes\n", node.ID, len(votes))
-	node.mtx.Lock()
-	defer node.mtx.Unlock()
 
+	// cache valid votes
 	for _, v := range votes {
-		// verify signature
-		pub, ok := node.PlayersPK[v.VoterID]
-		if !ok {
+		pub, present := node.PlayersPK[v.VoterID]
+		if !present {
 			fmt.Printf("unknown voter %s\n", v.VoterID)
 			continue
 		}
@@ -190,8 +174,10 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) error {
 		}
 
 		if _, ex := node.votes[v.ProposalID]; !ex {
-			node.votes[v.ProposalID] = make(map[string]VoteMsg)
+			fmt.Printf("Vote doesn't match any known proposal\n")
+			continue
 		}
+
 		node.votes[v.ProposalID][v.VoterID] = v
 	}
 
@@ -211,15 +197,16 @@ func (node *Node) checkAndCommit(proposalID string) error {
 		return fmt.Errorf("missing proposal for id %s", proposalID)
 	}
 
-	accepts := 0
-	rejects := 0
+	accepts := len(collectVotes(node.votes[proposalID], VoteAccept))
+	rejectVotes := collectVotes(node.votes[proposalID], VoteReject)
+	rejects := len(rejectVotes)
+
 	reason := ""
-	for _, vv := range node.votes[proposalID] {
-		if vv.Value == VoteAccept {
-			accepts++
+	for _, vv := range rejectVotes {
+		if reason != vv.Reason {
+			reason += vv.Reason + "; "
 		} else {
 			reason = vv.Reason
-			rejects++
 		}
 	}
 
@@ -253,17 +240,13 @@ func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
 
 // applyCommit verifies certificate and applies the action deterministically
 func (node *Node) applyCommit(cert CommitCertificate) error {
-	fmt.Printf("Node %s applying commit certificate for proposal %s\n", node.ID, cert.Proposal.Type)
+	fmt.Printf("Node %s applying commit certificate for proposal %s\n", node.ID, cert.Proposal.Action.Type)
 	if cert.Proposal == nil || cert.Proposal.Action == nil {
-		return errors.New("bad cert")
-	}
-	// verify that we have enough votes (counted earlier but double-check)
-	if len(cert.Votes) < node.quorum {
-		return errors.New("not enough votes in certificate")
+		return errors.New("bad certificate format")
 	}
 	// verify action signature
-	pub, ok := node.PlayersPK[cert.Proposal.Action.PlayerID]
-	if !ok {
+	pub, present := node.PlayersPK[cert.Proposal.Action.PlayerID]
+	if !present {
 		return errors.New("unknown player in cert")
 	}
 	okv, _ := cert.Proposal.Action.VerifySignature(pub)
@@ -283,7 +266,22 @@ func (node *Node) applyCommit(cert CommitCertificate) error {
 	return nil
 }
 
-// removePlayerByID removes a player from the session (deterministic) and adjusts turn
+// handleBanCertificate is invoked when this node receives a BanCertificate.
+// If it's valid, removes the accused player.
+func (node *Node) handleBanCertificate(cert BanCertificate) error {
+	ok, err := node.validateBanCertificate(cert)
+	if err != nil || !ok {
+		return fmt.Errorf("invalid ban certificate: %w", err)
+	}
+
+	err = node.removePlayerByID(cert.Accused, cert.Reason)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// removePlayerByID removes a player from the session and adjusts turn
 func (node *Node) removePlayerByID(playerID string, reason string) error {
 	idx := node.findPlayerIndex(playerID)
 	if idx == -1 {
@@ -291,10 +289,11 @@ func (node *Node) removePlayerByID(playerID string, reason string) error {
 	}
 	if node.ID == playerID {
 		node.peer.Close()
-		fmt.Printf("Node %s: You have been banned for %s, shutting down Now\n", node.ID, reason)
+		fmt.Printf("You have been banned for %s, shutting down Now\n", reason)
 		return nil
 	}
 	// remove player slice entry
+	//TODO: Check for problems when list index shift after removal
 	node.Session.Players = append(node.Session.Players[:idx], node.Session.Players[idx+1:]...)
 
 	// adjust CurrentTurn if necessary
@@ -306,53 +305,47 @@ func (node *Node) removePlayerByID(playerID string, reason string) error {
 	node.quorum = ceil2n3(node.N)
 	fmt.Printf("Node %s removed player %s for %s, new N=%d quorum=%d\n", node.ID, playerID, reason, node.N, node.quorum)
 	return nil
-
 }
 
 // applyActionToSession applies validated actions to the Session
 func (node *Node) applyActionToSession(a *Action, idx int) error {
+	err := checkPokerLogic(a, node, idx)
+	if err != nil {
+		return err
+	}
 	switch a.Type {
 	case ActionFold:
 		node.Session.Players[idx].HasFolded = true
-		node.advanceTurnLocked()
+		node.advanceTurn()
 	case ActionBet:
-		if node.Session.Players[idx].Pot < a.Amount {
-			return fmt.Errorf("insufficient funds")
-		}
-		node.Session.Players[idx].Pot -= a.Amount
 		node.Session.Players[idx].Bet += a.Amount
+		node.Session.Players[idx].Pot -= a.Amount
 		if node.Session.Players[idx].Bet > node.Session.HighestBet {
 			node.Session.HighestBet = node.Session.Players[idx].Bet
 		}
 		node.Session.Pot += a.Amount
-		node.advanceTurnLocked()
+		node.advanceTurn()
 	case ActionRaise:
 		node.Session.Players[idx].Bet += a.Amount
-		if node.Session.Players[idx].Bet < node.Session.HighestBet {
-			return fmt.Errorf("raise must at least match highest bet")
-		}
+		node.Session.Players[idx].Pot -= a.Amount
 		node.Session.HighestBet = node.Session.Players[idx].Bet
 		node.Session.Pot += a.Amount
-		node.advanceTurnLocked()
+		node.advanceTurn()
 	case ActionCall:
 		diff := node.Session.HighestBet - node.Session.Players[idx].Bet
-		if diff > 0 {
-			node.Session.Players[idx].Bet += diff
-			node.Session.Pot += diff
-		}
-		node.advanceTurnLocked()
+		node.Session.Players[idx].Bet += diff
+		node.Session.Players[idx].Pot -= diff
+		node.Session.Pot += diff
+		node.advanceTurn()
 	case ActionCheck:
-		if node.Session.Players[idx].Bet != node.Session.HighestBet {
-			return fmt.Errorf("invalid check")
-		}
-		node.advanceTurnLocked()
+		node.advanceTurn()
 	default:
 		return fmt.Errorf("unknown action")
 	}
 	return nil
 }
 
-func (node *Node) advanceTurnLocked() {
+func (node *Node) advanceTurn() {
 	n := len(node.Session.Players)
 	if n == 0 {
 		return
@@ -366,52 +359,49 @@ func (node *Node) advanceTurnLocked() {
 	}
 }
 
-// validateActionAgainstSession checks local rules (turn, amounts, round) and returns error if invalid
 func (node *Node) validateActionAgainstSession(a *Action) error {
-	// ensure round matches
 	if a.RoundID != node.Session.RoundID {
 		return fmt.Errorf("wrong round")
 	}
-	// check player exists
 	idx := node.findPlayerIndex(a.PlayerID)
 	if idx == -1 {
 		return fmt.Errorf("player not in session")
 	}
-	// check it is player's turn
 	if uint(idx) != node.Session.CurrentTurn {
 		return fmt.Errorf("out-of-turn")
 	}
-	// amount checks for bet/raise
-	if a.Type == ActionBet || a.Type == ActionCall || a.Type == ActionRaise {
-		if a.Amount == 0 {
-			return fmt.Errorf("bad amount")
-		}
-		if node.Session.Players[idx].Pot < a.Amount {
-			return fmt.Errorf("insufficient funds")
-		}
-	}
 
-	if a.Type == ActionRaise {
-
-		if a.Amount < node.Session.HighestBet-node.Session.Players[idx].Bet {
-			return fmt.Errorf("raise must at least match highest bet")
-		}
-	}
-
-	if a.Type == ActionCheck {
-		if node.Session.Players[idx].Bet != node.Session.HighestBet {
-			return fmt.Errorf("cannot check, must call or raise")
-		}
+	err := checkPokerLogic(a, node, idx)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// proposalID computes a stable id for a proposal
-func proposalID(a *Action) (string, error) {
-	b, err := a.signingBytes()
-	if err != nil {
-		return "", err
+func checkPokerLogic(a *Action, node *Node, idx int) error {
+	switch a.Type {
+	case ActionFold:
+		return nil
+	case ActionBet:
+		if node.Session.Players[idx].Pot < a.Amount {
+			return fmt.Errorf("insufficient funds")
+		}
+	case ActionRaise:
+		if node.Session.Players[idx].Bet < node.Session.HighestBet {
+			return fmt.Errorf("raise must at least match highest bet")
+		}
+	case ActionCall:
+		diff := node.Session.HighestBet - node.Session.Players[idx].Bet
+		if diff > node.Session.Players[idx].Pot {
+			return fmt.Errorf("insufficient funds to call")
+		}
+	case ActionCheck:
+		if node.Session.Players[idx].Bet != node.Session.HighestBet {
+			return fmt.Errorf("cannot check, must call, raise or fold")
+		}
+	default:
+		return fmt.Errorf("unknown action")
 	}
-	return Sha256Hex(b), nil
+	return nil
 }
