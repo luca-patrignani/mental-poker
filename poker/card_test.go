@@ -14,7 +14,7 @@ func TestConvertCard(t *testing.T) {
 
 }
 func TestAllCardConvert(t *testing.T) {
-	for i:= 1; i < 53; i++ {
+	for i := 1; i < 53; i++ {
 		_, err := convertCard(i)
 		if err != nil {
 			t.Fatal(err)
@@ -23,12 +23,12 @@ func TestAllCardConvert(t *testing.T) {
 }
 
 func TestCardStringFaces(t *testing.T) {
-    c := Card{ suit: Heart, rank: 1 }
-    if c.String() != "A♥" {
-        t.Fatalf("expected A♥, got %s", c.String())
-    }
-    c = Card{ suit: Club, rank: 11 }
-    if c.String() != "J♣" { 
-        t.Fatalf("expected J♣, got %s", c.String())
-    }
+	c := Card{suit: Heart, rank: 1}
+	if c.String() != "A♥" {
+		t.Fatalf("expected A♥, got %s", c.String())
+	}
+	c = Card{suit: Club, rank: 11}
+	if c.String() != "J♣" {
+		t.Fatalf("expected J♣, got %s", c.String())
+	}
 }

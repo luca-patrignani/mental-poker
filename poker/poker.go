@@ -10,15 +10,15 @@ import (
 
 // Deck is the rappresentation of a game session.
 type Session struct {
-	Board   [5]Card
-	Players []Player
-	Deck    deck.Deck
-	Pot uint
+	Board       [5]Card
+	Players     []Player
+	Deck        deck.Deck
+	Pot         uint
 	HighestBet  uint
-	Dealer uint
-	CurrentTurn uint // index into Players for who must act
-	RoundID string // identifier for the current betting round/hand
-	LastIndex uint64 // last committed transaction/block index
+	Dealer      uint
+	CurrentTurn uint   // index into Players for who must act
+	RoundID     string // identifier for the current betting round/hand
+	LastIndex   uint64 // last committed transaction/block index
 }
 
 // Evaluate the final hand and return the peer rank of the winner

@@ -25,11 +25,11 @@ type Node struct {
 
 	// in-memory caches
 	mtx           sync.Mutex
-	proposals     map[string]ProposalMsg           // proposalID -> proposal
-	votes         map[string]map[string]VoteMsg    // proposalID -> voterID -> vote
-	commitHandler func(cert CommitCertificate)    // optional hook
+	proposals     map[string]ProposalMsg        // proposalID -> proposal
+	votes         map[string]map[string]VoteMsg // proposalID -> voterID -> vote
+	commitHandler func(cert CommitCertificate)  // optional hook
 
-	peer 		*common.Peer 
+	peer *common.Peer
 }
 
 // NewNode constructs a Node. playersPK is the map of all player pubkeys (including this node)
@@ -44,14 +44,14 @@ func NewNode(id string, p *common.Peer, pub ed25519.PublicKey, priv ed25519.Priv
 		quorum:    ceil2n3(n),
 		proposals: make(map[string]ProposalMsg),
 		votes:     make(map[string]map[string]VoteMsg),
-		peer: p,
+		peer:      p,
 	}
 }
 
 // findPlayerIndex helper
 func (node *Node) findPlayerIndex(playerID string) int {
 	for i, p := range node.Session.Players {
-		pID,err := strconv.Atoi(playerID)
+		pID, err := strconv.Atoi(playerID)
 		if err != nil {
 			return -1
 		}
@@ -68,20 +68,19 @@ func (node *Node) findPlayerIndex(playerID string) int {
 // This function is intended to be called by non-proposer nodes when they are in the
 // "waiting for proposal" phase.
 func (node *Node) WaitForProposalAndProcess() error {
-    // compute proposer rank from the session state
-    proposerRank := int(node.Session.CurrentTurn)
-    // call barrier-style Broadcast to receive the proposal bytes
-    recv, err := node.peer.Broadcast(nil, proposerRank)
-    if err != nil {
-        return fmt.Errorf("wait for proposal failed: %w", err)
-    }
-    // unmarshal into ProposalMsg
-    var p ProposalMsg
-    if err := json.Unmarshal(recv, &p); err != nil {
-        return fmt.Errorf("invalid proposal bytes: %w", err)
-    }
-    // process locally (vote)
-    node.onReceiveProposal(p)
-    return nil
+	// compute proposer rank from the session state
+	proposerRank := int(node.Session.CurrentTurn)
+	// call barrier-style Broadcast to receive the proposal bytes
+	recv, err := node.peer.Broadcast(nil, proposerRank)
+	if err != nil {
+		return fmt.Errorf("wait for proposal failed: %w", err)
+	}
+	// unmarshal into ProposalMsg
+	var p ProposalMsg
+	if err := json.Unmarshal(recv, &p); err != nil {
+		return fmt.Errorf("invalid proposal bytes: %w", err)
+	}
+	// process locally (vote)
+	node.onReceiveProposal(p)
+	return nil
 }
-

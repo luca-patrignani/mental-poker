@@ -110,7 +110,7 @@ func TestValidateBanCertificate(t *testing.T) {
 	// Negative: unknown voter
 	badVote := vote
 	badVote.VoterID = "unknown"
-	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused","reason", []VoteMsg{badVote}))
+	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", "reason", []VoteMsg{badVote}))
 	if err == nil || ok {
 		t.Fatalf("expected unknown voter error")
 	}
@@ -118,7 +118,7 @@ func TestValidateBanCertificate(t *testing.T) {
 	// Negative: bad signature
 	badVote2 := vote
 	badVote2.Sig = []byte("bad")
-	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused","reason", []VoteMsg{badVote2}))
+	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", "reason", []VoteMsg{badVote2}))
 	if err == nil || ok {
 		t.Fatalf("expected bad signature error")
 	}
@@ -131,7 +131,7 @@ func TestValidateBanCertificate(t *testing.T) {
 	}{pid, "voter", VoteAccept})
 	sigAccept := ed25519.Sign(privB, toSignAccept)
 	voteAccept := VoteMsg{Type: "vote", ProposalID: pid, VoterID: "voter", Value: VoteAccept, Reason: "test", Sig: sigAccept}
-	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused","reason", []VoteMsg{voteAccept}))
+	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", "reason", []VoteMsg{voteAccept}))
 	if err == nil || ok {
 		t.Fatalf("expected wrong value error")
 	}
@@ -144,7 +144,7 @@ func TestValidateBanCertificate(t *testing.T) {
 	}{"other", "voter", VoteReject})
 	sig2 := ed25519.Sign(privB, toSign2)
 	voteMismatch := VoteMsg{Type: "vote", ProposalID: "other", VoterID: "voter", Value: VoteReject, Reason: "test", Sig: sig2}
-	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused","reason", []VoteMsg{voteMismatch}))
+	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", "reason", []VoteMsg{voteMismatch}))
 	if err == nil || ok {
 		t.Fatalf("expected proposal id mismatch error")
 	}

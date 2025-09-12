@@ -4,7 +4,6 @@ import (
 	"testing"
 )
 
-
 func TestWinnerEvalSingleWinner(t *testing.T) {
 	session := Session{
 		Board: [5]Card{{Heart, 2}, {Spade, 5}, {Heart, Ace}, {Diamond, Queen}, {Diamond, 10}},
@@ -52,22 +51,22 @@ func TestWinnerEvalTie(t *testing.T) {
 }
 
 func TestWinnerEvalIgnoresFolded(t *testing.T) {
-    session := Session{
-        Board: [5]Card{{Heart, 2}, {Spade, 5}, {Heart, Ace}, {Diamond, Queen}, {Diamond, 10}},
-        Players: []Player{
-            {Rank: 0, Hand: [2]Card{{Club, Ace}, {Heart, 7}}},
-            {Rank: 1, HasFolded: true, Hand: [2]Card{{Spade, Ace}, {Heart, 8}}},
-            {Rank: 2, Hand: [2]Card{{Club, 3}, {Heart, 4}}},
-        },
-    }
-    winners, err := session.WinnerEval()
-    if err != nil {
-        t.Fatal(err)
-    }
-    // player 1 folded and must be ignored
-    for _, w := range winners {
-        if w.Rank == 1 {
-            t.Fatalf("folded player should not be winner")
-        }
-    }
+	session := Session{
+		Board: [5]Card{{Heart, 2}, {Spade, 5}, {Heart, Ace}, {Diamond, Queen}, {Diamond, 10}},
+		Players: []Player{
+			{Rank: 0, Hand: [2]Card{{Club, Ace}, {Heart, 7}}},
+			{Rank: 1, HasFolded: true, Hand: [2]Card{{Spade, Ace}, {Heart, 8}}},
+			{Rank: 2, Hand: [2]Card{{Club, 3}, {Heart, 4}}},
+		},
+	}
+	winners, err := session.WinnerEval()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// player 1 folded and must be ignored
+	for _, w := range winners {
+		if w.Rank == 1 {
+			t.Fatalf("folded player should not be winner")
+		}
+	}
 }
