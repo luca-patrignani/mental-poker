@@ -90,12 +90,13 @@ type BanCertificate struct {
 	Type 		string  `json:"type,omitempty"` // "ban"
     ProposalID string    `json:"proposal_id"`
     Accused    string    `json:"accused"`
+	Reason	 string    `json:"reason"`
     Votes      []VoteMsg `json:"votes"`
 }
 
 // makeBanCertificate constructs a BanCertificate from the collected reject votes
-func makeBanCertificate(proposalID string, accused string, votes []VoteMsg) BanCertificate {
-    return BanCertificate{Type: "ban", ProposalID: proposalID, Accused: accused, Votes: votes}
+func makeBanCertificate(proposalID string, accused string, reason string, votes []VoteMsg) BanCertificate {
+    return BanCertificate{Type: "ban", ProposalID: proposalID, Accused: accused, Reason: reason, Votes: votes}
 }
 
 // validateBanCertificate checks that:
@@ -134,10 +135,15 @@ func (node *Node) validateBanCertificate(cert BanCertificate) (bool, error) {
 // handleBanCertificate is invoked when this node receives a BanCertificate.
 // If it's valid, removes the accused player deterministically.
 func (node *Node) handleBanCertificate(cert BanCertificate) error {
+	fmt.Printf("Node %s: handling ban cert against player %s \n", node.ID, cert.Accused)
     ok, err := node.validateBanCertificate(cert)
     if err != nil || !ok {
         return fmt.Errorf("invalid ban certificate: %w", err)
     }
-    node.removePlayerByID(cert.Accused)
+	
+    err = node.removePlayerByID(cert.Accused, cert.Reason)
+	if err != nil {
+		return err
+	}
     return nil
 }

@@ -23,10 +23,10 @@ func SampleSessionForTest(ids []string) poker.Session {
 		players[i] = poker.Player{
 			Name:      id,
 			Rank:      i,
-			Hand:      [2]poker.Card{}, // mano vuota — i test che hanno bisogno di carte possono impostarla
+			Hand:      [2]poker.Card{}, 
 			HasFolded: false,
 			Bet:       0,
-			Pot:       1000, // valore di default, cambia se vuoi
+			Pot:       100, 
 		}
 	}
 
@@ -171,7 +171,7 @@ func TestFindPlayerIndexAndRemove(t *testing.T) {
 	}
 
 	// remove player "1"
-	node.removePlayerByID("1")
+	node.removePlayerByID("1", "test")
 	// N should be updated to 2
 	if node.N != 2 {
 		t.Fatalf("expected N==2 after removal, got %d", node.N)
@@ -282,7 +282,7 @@ func TestProposalIDAndApplyCommitAndBanCert(t *testing.T) {
 	// Now test ban certificate validation and handling
 	// create reject votes signed by player 2 and meet quorum=1
 	rVotes := []VoteMsg{makeSignedVote(t, pid, "2", VoteReject, privB)}
-	ban := makeBanCertificate(pid, "1", rVotes)
+	ban := makeBanCertificate(pid, "1","test", rVotes)
 	ok, err := node.validateBanCertificate(ban)
 	if err != nil || !ok {
 		t.Fatalf("validateBanCertificate failed: %v", err)
@@ -434,4 +434,98 @@ func TestProposeReceive(t *testing.T) {
                 expectedPot, nodes[i].Session.Pot, i)
         }
     }
+}
+
+// Full integration test: proposer sends malformed proposal. Followers should reject it and not update state.
+func TestProposeReceiveAndBan(t *testing.T) {
+    // create listeners and peers
+    listeners, addresses := common.CreateListeners(3)
+    peers := make([]*common.Peer, 3)
+    for i := 0; i < 3; i++ {
+        p := common.NewPeer(i, addresses, listeners[i], 5*time.Second)
+        peers[i] = &p
+    }
+    defer func() {
+        for i := 0; i < 3; i++ { _ = peers[i].Close() }
+    }()
+
+    // generate keys and players map
+    playersPK := make(map[string]ed25519.PublicKey)
+    privs := make([]ed25519.PrivateKey, 3)
+    ids := make([]string, 3)
+    for i := 0; i < 3; i++ {
+        pub, priv, _ := NewEd25519Keypair()
+        ids[i] = strconv.Itoa(peers[i].Rank)
+        playersPK[ids[i]] = pub
+        privs[i] = priv
+    }
+
+    // create nodes
+    nodes := make([]*Node, 3)
+    for i := 0; i < 3; i++ {
+        nodes[i] = NewNode(ids[i], peers[i], playersPK[ids[i]], privs[i], playersPK)
+    }
+
+    // set identical session state on all nodes (simple)
+	session := SampleSessionForTest(ids)
+    for _, n := range nodes {
+        n.Session = session
+    }
+
+    // start receiver goroutines for non-proposers
+    done := make(chan struct{})
+    for i := 1; i < 3; i++ {
+        go func(idx int) {
+            if err := nodes[idx].WaitForProposalAndProcess(); err != nil {
+                t.Logf("node %d receive error: %v", idx, err)
+            }
+            done <- struct{}{}
+        }(i)
+    }
+
+    // proposer builds action and proposes
+    a := &Action{
+        RoundID:  session.RoundID,
+        PlayerID: strconv.Itoa(nodes[0].peer.Rank),
+        Type:     ActionBet,
+        Amount:   110, // too high, should trigger validation error
+    }
+    _ = a.Sign(privs[0])
+
+    if err := nodes[0].ProposeAction(a); err != nil {
+        t.Fatalf("propose failed: %v", err)
+    }
+
+    // wait for receivers
+    <-done
+    <-done
+
+    // 1. Check that proposal was stored on each node
+    for i := 0; i < 3; i++ {
+        //t.Logf("Node %d proposals: %+v\n", i, nodes[i].proposals)
+        if nodes[i].proposals == nil || len(nodes[i].proposals) != 1 {
+            t.Fatalf("node %d did not store proposal", i)
+        }
+    }
+
+    // 2. Check that votes were produced by followers
+    for i := 1; i < 3; i++ {
+        if len(nodes[i].votes) == 0 {
+            t.Fatalf("node %d did not cast any vote", i)
+        }
+    }
+
+    // 3. Check that commit did NOT affect session state (e.g. pot unchanged)
+    expectedPot := uint(0)
+    for i := 0; i < 3; i++ {
+        if nodes[i].Session.Pot != expectedPot {
+            t.Fatalf("expected pot=%d, got %d on node %d",
+                expectedPot, nodes[i].Session.Pot, i)
+        }
+    }
+
+	// 4. Check that proposer was removed from session (banned)
+	if idx := nodes[0].findPlayerIndex(nodes[0].ID); idx != -1 {
+		t.Fatalf("expected proposer to be banned, still found at index %d", idx)
+	}
 }

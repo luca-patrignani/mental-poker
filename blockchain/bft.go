@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 )
 
 func ceil2n3(n int) int { return (2*n + 2) / 3 }
@@ -46,7 +45,6 @@ func (node *Node) ProposeAction(a *Action) error {
         // locally process to send our own vote
     node.onReceiveProposal(proposal)
 
-  
     return nil
 
 }
@@ -111,7 +109,6 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
     	return err
 	}
 	
-	
 	votes := make([]VoteMsg, 0, len(votesBytes))
 
 	for _, vb := range votesBytes {
@@ -123,7 +120,6 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
     votes = append(votes, v)
 	}
 	
-	fmt.Printf("Node %s received %d votes from AllToAll\n", node.ID, len(votes))
 	node.onReceiveVotes(votes)
 	return nil
 }
@@ -177,7 +173,7 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) {
         node.votes[v.ProposalID][v.VoterID] = v
     }
 
-    // now check quorum for all proposals included in this batch
+    // now check quorum
     node.checkAndCommit(id)
     
 }
@@ -191,10 +187,12 @@ func (node *Node) checkAndCommit(proposalID string) {
 
     accepts := 0
     rejects := 0
+	reason := ""
     for _, vv := range node.votes[proposalID] {
         if vv.Value == VoteAccept {
             accepts++
         } else {
+			reason = vv.Reason
             rejects++
         }
     }
@@ -204,8 +202,8 @@ func (node *Node) checkAndCommit(proposalID string) {
         cert := makeCommitCertificate(&prop, collectVotes(node.votes[proposalID], VoteAccept), true)
         _ = node.applyCommit(cert)
     } else if rejects >= node.quorum {
-		fmt.Printf("Node %s banning player from proposal %s\n", node.ID, proposalID)
-        bc := makeBanCertificate(proposalID, prop.Action.PlayerID, collectVotes(node.votes[proposalID], VoteReject))
+		fmt.Printf("Node %s banning player due to s\n", node.ID,)
+        bc := makeBanCertificate(proposalID, prop.Action.PlayerID,reason, collectVotes(node.votes[proposalID], VoteReject))
         node.handleBanCertificate(bc)
     }
 }
@@ -253,30 +251,22 @@ func (node *Node) applyCommit(cert CommitCertificate) error {
 	return nil
 }
 
-// findPlayerIndex helper
-func (node *Node) findPlayerIndex(playerID string) int {
-	for i, p := range node.Session.Players {
-		pID,err := strconv.Atoi(playerID)
-		if err != nil {
-			return -1
-		}
-		if p.Rank == pID {
-			return i
-		}
-	}
-	return -1
-}
+
 
 // removePlayerByID removes a player from the session (deterministic) and adjusts turn
-func (node *Node) removePlayerByID(playerID string) {
-	node.mtx.Lock()
-	defer node.mtx.Unlock()
+func (node *Node) removePlayerByID(playerID string, reason string) error{
 	idx := node.findPlayerIndex(playerID)
 	if idx == -1 {
-		return
+		return fmt.Errorf("player %s to remove not found", playerID)
+	}
+	if node.ID == playerID {
+		node.peer.Close()
+		fmt.Printf("Node %s: You have been banned for %s, shutting down Now\n", node.ID,reason)
+		return nil
 	}
 	// remove player slice entry
 	node.Session.Players = append(node.Session.Players[:idx], node.Session.Players[idx+1:]...)
+	
 	// adjust CurrentTurn if necessary
 	if int(node.Session.CurrentTurn) >= len(node.Session.Players) {
 		node.Session.CurrentTurn = 0
@@ -284,9 +274,12 @@ func (node *Node) removePlayerByID(playerID string) {
 	// recompute quorum
 	node.N = len(node.Session.Players)
 	node.quorum = ceil2n3(node.N)
+	fmt.Printf("Node %s removed player %s for %s, new N=%d quorum=%d\n", node.ID, playerID, reason, node.N, node.quorum)
+	return nil
+
 }
 
-// applyActionToSession applies validated actions to the Session FSM
+// applyActionToSession applies validated actions to the Session
 func (node *Node) applyActionToSession(a *Action, idx int) error {
 	switch a.Type {
 	case ActionFold:
@@ -305,9 +298,10 @@ func (node *Node) applyActionToSession(a *Action, idx int) error {
 		node.advanceTurnLocked()
 	case ActionRaise:
 		node.Session.Players[idx].Bet += a.Amount
-		if node.Session.Players[idx].Bet > node.Session.HighestBet {
-			node.Session.HighestBet = node.Session.Players[idx].Bet
+		if node.Session.Players[idx].Bet < node.Session.HighestBet {
+			return fmt.Errorf("raise must at least match highest bet")
 		}
+		node.Session.HighestBet = node.Session.Players[idx].Bet
 		node.Session.Pot += a.Amount
 		node.advanceTurnLocked()
 	case ActionCall:
@@ -358,11 +352,28 @@ func (node *Node) validateActionAgainstSession(a *Action) error {
 		return fmt.Errorf("out-of-turn")
 	}
 	// amount checks for bet/raise
-	if a.Type == ActionBet || a.Type == ActionRaise {
-		if a.Amount == 0 {
-			return fmt.Errorf("bad amount")
+	if a.Type == ActionBet || a.Type == ActionCall || a.Type == ActionRaise {
+			if a.Amount == 0 {
+				return fmt.Errorf("bad amount")
+			}
+			if node.Session.Players[idx].Pot < a.Amount {
+				return fmt.Errorf("insufficient funds")
+			}
+		}
+
+	if a.Type == ActionRaise {
+		
+		if a.Amount < node.Session.HighestBet - node.Session.Players[idx].Bet {
+			return fmt.Errorf("raise must at least match highest bet")
 		}
 	}
+
+	if a.Type == ActionCheck {
+		if node.Session.Players[idx].Bet != node.Session.HighestBet {
+			return fmt.Errorf("cannot check, must call or raise")
+		}
+	}
+
 	return nil
 }
 

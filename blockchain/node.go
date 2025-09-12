@@ -4,8 +4,9 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
-	
+
 	"github.com/luca-patrignani/mental-poker/common"
 	"github.com/luca-patrignani/mental-poker/poker"
 )
@@ -45,6 +46,20 @@ func NewNode(id string, p *common.Peer, pub ed25519.PublicKey, priv ed25519.Priv
 		votes:     make(map[string]map[string]VoteMsg),
 		peer: p,
 	}
+}
+
+// findPlayerIndex helper
+func (node *Node) findPlayerIndex(playerID string) int {
+	for i, p := range node.Session.Players {
+		pID,err := strconv.Atoi(playerID)
+		if err != nil {
+			return -1
+		}
+		if p.Rank == pID {
+			return i
+		}
+	}
+	return -1
 }
 
 // WaitForProposalAndProcess blocks until the barrier returns the proposal sent by the
