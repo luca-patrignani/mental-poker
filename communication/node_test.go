@@ -1,4 +1,4 @@
-package blockchain
+package communication
 
 import (
 	"crypto/ed25519"
@@ -31,8 +31,8 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	playersPK := map[string]ed25519.PublicKey{"0": pub0, "1": pub1}
 
 	// create nodes with the peers
-	node0 := NewNode("n0", &p0, pub0, priv0, playersPK)
-	node1 := NewNode("n1", &p1, pub1, priv1, playersPK)
+	node0 := NewNode(&p0, pub0, priv0, playersPK)
+	node1 := NewNode(&p1, pub1, priv1, playersPK)
 
 	// set node1.Session.CurrentTurn = 0 so it expects proposer rank 0
 	// use reflection-free approach: fill Session.Players minimally via helper used earlier in other tests

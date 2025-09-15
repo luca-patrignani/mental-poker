@@ -1,4 +1,4 @@
-package blockchain
+package communication
 
 import (
 	"encoding/json"

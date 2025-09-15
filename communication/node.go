@@ -1,4 +1,4 @@
-package blockchain
+package communication
 
 import (
 	"crypto/ed25519"
@@ -29,10 +29,10 @@ type Node struct {
 }
 
 // NewNode constructs a Node. playersPK is the map of all player pubkeys (including this node)
-func NewNode(id string, p *common.Peer, pub ed25519.PublicKey, priv ed25519.PrivateKey, playersPK map[string]ed25519.PublicKey) *Node {
+func NewNode(p *common.Peer, pub ed25519.PublicKey, priv ed25519.PrivateKey, playersPK map[string]ed25519.PublicKey) *Node {
 	n := len(playersPK)
 	return &Node{
-		ID:        id,
+		ID:        fromRank(p.Rank),
 		Pub:       pub,
 		Priv:      priv,
 		PlayersPK: playersPK,
@@ -42,6 +42,18 @@ func NewNode(id string, p *common.Peer, pub ed25519.PublicKey, priv ed25519.Priv
 		votes:     make(map[string]map[string]VoteMsg),
 		peer:      p,
 	}
+}
+
+func fromRank(rank int) string {
+	return strconv.Itoa(rank)
+}
+
+func (node *Node) Rank() int {
+	rank, err := strconv.Atoi(node.ID)
+	if err != nil {
+		return -1
+	}
+	return rank
 }
 
 // Ceiling for Byzantine fault tolerance

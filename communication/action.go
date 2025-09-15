@@ -1,4 +1,4 @@
-package blockchain
+package communication
 
 import (
 	"crypto/ed25519"
@@ -13,6 +13,7 @@ const (
 	ActionBet    ActionType = "bet"
 	ActionCall   ActionType = "call"
 	ActionRaise  ActionType = "raise"
+	ActionAllIn  ActionType = "allin"
 	ActionFold   ActionType = "fold"
 	ActionCheck  ActionType = "check"
 	ActionReveal ActionType = "reveal"

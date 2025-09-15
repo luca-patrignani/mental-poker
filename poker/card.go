@@ -36,7 +36,7 @@ func NewCard(suit uint8, rank uint8) (Card, error) {
 }
 
 // Convert the raw input card with the following suit order: ♣clubs -> ♦diamonds -> ♥hearts -> ♠spades
-func convertCard(rawCard int) (Card, error) {
+func ConvertCard(rawCard int) (Card, error) {
 	if rawCard > 52 || rawCard < 1 {
 		return Card{}, errors.New("the card to convert have an invalid value")
 	}
