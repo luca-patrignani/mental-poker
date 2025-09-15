@@ -1,4 +1,4 @@
-package blockchain
+package communication
 
 import (
 	"crypto/ed25519"

@@ -1,4 +1,4 @@
-package blockchain
+package communication
 
 import (
 	"crypto/ed25519"
@@ -323,19 +323,19 @@ func (node *Node) applyActionToSession(a *Action, idx int) error {
 		if node.Session.Players[idx].Bet > node.Session.HighestBet {
 			node.Session.HighestBet = node.Session.Players[idx].Bet
 		}
-		node.Session.Pot += a.Amount
+		node.Session.Pots[0].Amount += a.Amount
 		node.advanceTurn()
 	case ActionRaise:
 		node.Session.Players[idx].Bet += a.Amount
 		node.Session.Players[idx].Pot -= a.Amount
 		node.Session.HighestBet = node.Session.Players[idx].Bet
-		node.Session.Pot += a.Amount
+		node.Session.Pots[0].Amount += a.Amount
 		node.advanceTurn()
 	case ActionCall:
 		diff := node.Session.HighestBet - node.Session.Players[idx].Bet
 		node.Session.Players[idx].Bet += diff
 		node.Session.Players[idx].Pot -= diff
-		node.Session.Pot += diff
+		node.Session.Pots[0].Amount += diff
 		node.advanceTurn()
 	case ActionCheck:
 		node.advanceTurn()

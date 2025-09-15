@@ -1,4 +1,4 @@
-package blockchain
+package communication
 
 import (
 	"crypto/ed25519"
@@ -19,6 +19,7 @@ import (
 // - Board e Hands sono lasciati a zero-value (da popolare dal test se serve)
 func SampleSessionForTest(ids []string) poker.Session {
 	players := make([]poker.Player, len(ids))
+	idsInt := make([]int, len(ids))
 	for i, id := range ids {
 		players[i] = poker.Player{
 			Name:      id,
@@ -28,13 +29,14 @@ func SampleSessionForTest(ids []string) poker.Session {
 			Bet:       0,
 			Pot:       100,
 		}
+		idsInt[i] = i
 	}
 
 	return poker.Session{
 		Board:       [5]poker.Card{}, // empty board
 		Players:     players,
 		Deck:        deck.Deck{},
-		Pot:         0,
+		Pots:         []poker.Pot{{Amount: 0, Eligible: idsInt}},
 		HighestBet:  0,
 		Dealer:      0,
 		CurrentTurn: 0,
@@ -377,7 +379,7 @@ func TestProposeReceive(t *testing.T) {
 	// create nodes
 	nodes := make([]*Node, 3)
 	for i := 0; i < 3; i++ {
-		nodes[i] = NewNode(ids[i], peers[i], playersPK[ids[i]], privs[i], playersPK)
+		nodes[i] = NewNode(peers[i], playersPK[ids[i]], privs[i], playersPK)
 	}
 
 	// set identical session state on all nodes (simple)
@@ -433,9 +435,9 @@ func TestProposeReceive(t *testing.T) {
 	// 3. Check that commit affected session state (e.g. pot updated)
 	expectedPot := uint(10)
 	for i := 0; i < 3; i++ {
-		if nodes[i].Session.Pot != expectedPot {
+		if nodes[i].Session.Pots[0].Amount != expectedPot {
 			t.Fatalf("expected pot=%d, got %d on node %d",
-				expectedPot, nodes[i].Session.Pot, i)
+				expectedPot, nodes[i].Session.Pots[0].Amount, i)
 		}
 	}
 }
@@ -469,7 +471,7 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	// create nodes
 	nodes := make([]*Node, 3)
 	for i := 0; i < 3; i++ {
-		nodes[i] = NewNode(ids[i], peers[i], playersPK[ids[i]], privs[i], playersPK)
+		nodes[i] = NewNode(peers[i], playersPK[ids[i]], privs[i], playersPK)
 	}
 
 	// set identical session state on all nodes (simple)
@@ -524,9 +526,9 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	// 3. Check that commit did NOT affect session state (e.g. pot unchanged)
 	expectedPot := uint(0)
 	for i := 0; i < 3; i++ {
-		if nodes[i].Session.Pot != expectedPot {
+		if nodes[i].Session.Pots[0].Amount != expectedPot {
 			t.Fatalf("expected pot=%d, got %d on node %d",
-				expectedPot, nodes[i].Session.Pot, i)
+				expectedPot, nodes[i].Session.Pots[0].Amount, i)
 		}
 	}
 
