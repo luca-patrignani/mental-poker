@@ -4,7 +4,7 @@ import "testing"
 
 func TestConvertCard(t *testing.T) {
 	expectedCard := Card{suit: Heart, rank: 2}
-	testCard, err := convertCard(28)
+	testCard, err := ConvertCard(28)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -15,7 +15,7 @@ func TestConvertCard(t *testing.T) {
 }
 func TestAllCardConvert(t *testing.T) {
 	for i := 1; i < 53; i++ {
-		_, err := convertCard(i)
+		_, err := ConvertCard(i)
 		if err != nil {
 			t.Fatal(err)
 		}
