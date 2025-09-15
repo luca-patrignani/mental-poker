@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/luca-patrignani/mental-poker/poker"
 )
 
 func Sha256Hex(b []byte) string {
@@ -309,13 +311,14 @@ func (node *Node) removePlayerByID(playerID string, reason string) error {
 
 // applyActionToSession applies validated actions to the Session
 func (node *Node) applyActionToSession(a *Action, idx int) error {
-	err := checkPokerLogic(a, node, idx)
+	err := checkPokerLogic(a, &node.Session, idx)
 	if err != nil {
 		return err
 	}
 	switch a.Type {
 	case ActionFold:
 		node.Session.Players[idx].HasFolded = true
+		node.Session.RecalculatePots()
 		node.advanceTurn()
 	case ActionBet:
 		node.Session.Players[idx].Bet += a.Amount
@@ -323,20 +326,29 @@ func (node *Node) applyActionToSession(a *Action, idx int) error {
 		if node.Session.Players[idx].Bet > node.Session.HighestBet {
 			node.Session.HighestBet = node.Session.Players[idx].Bet
 		}
-		node.Session.Pots[0].Amount += a.Amount
+		node.Session.RecalculatePots()
 		node.advanceTurn()
 	case ActionRaise:
 		node.Session.Players[idx].Bet += a.Amount
 		node.Session.Players[idx].Pot -= a.Amount
 		node.Session.HighestBet = node.Session.Players[idx].Bet
-		node.Session.Pots[0].Amount += a.Amount
+		node.Session.RecalculatePots()
 		node.advanceTurn()
 	case ActionCall:
 		diff := node.Session.HighestBet - node.Session.Players[idx].Bet
 		node.Session.Players[idx].Bet += diff
 		node.Session.Players[idx].Pot -= diff
-		node.Session.Pots[0].Amount += diff
+		node.Session.RecalculatePots()
 		node.advanceTurn()
+	case ActionAllIn:
+		node.Session.Players[idx].Bet += node.Session.Players[idx].Pot
+		node.Session.Players[idx].Pot = 0
+		if node.Session.Players[idx].Bet >= node.Session.HighestBet {
+			node.Session.HighestBet = node.Session.Players[idx].Bet
+		}
+		node.Session.RecalculatePots()
+		node.advanceTurn()
+
 	case ActionCheck:
 		node.advanceTurn()
 	default:
@@ -371,7 +383,7 @@ func (node *Node) validateActionAgainstSession(a *Action) error {
 		return fmt.Errorf("out-of-turn")
 	}
 
-	err := checkPokerLogic(a, node, idx)
+	err := checkPokerLogic(a, &node.Session, idx)
 	if err != nil {
 		return err
 	}
@@ -379,25 +391,30 @@ func (node *Node) validateActionAgainstSession(a *Action) error {
 	return nil
 }
 
-func checkPokerLogic(a *Action, node *Node, idx int) error {
+func checkPokerLogic(a *Action, session *poker.Session, idx int) error {
 	switch a.Type {
 	case ActionFold:
 		return nil
 	case ActionBet:
-		if node.Session.Players[idx].Pot < a.Amount {
+		if session.Players[idx].Pot < a.Amount {
 			return fmt.Errorf("insufficient funds")
 		}
 	case ActionRaise:
-		if node.Session.Players[idx].Bet < node.Session.HighestBet {
+		if session.Players[idx].Bet < session.HighestBet {
 			return fmt.Errorf("raise must at least match highest bet")
 		}
 	case ActionCall:
-		diff := node.Session.HighestBet - node.Session.Players[idx].Bet
-		if diff > node.Session.Players[idx].Pot {
+		diff := session.HighestBet - session.Players[idx].Bet
+		if diff > session.Players[idx].Pot {
 			return fmt.Errorf("insufficient funds to call")
 		}
+	case ActionAllIn:
+		remaining := session.Players[idx].Pot + session.Players[idx].Bet
+		if remaining != a.Amount {
+			return fmt.Errorf("allin amount must match player's remaining pot")
+		}
 	case ActionCheck:
-		if node.Session.Players[idx].Bet != node.Session.HighestBet {
+		if session.Players[idx].Bet != session.HighestBet {
 			return fmt.Errorf("cannot check, must call, raise or fold")
 		}
 	default:

@@ -101,24 +101,73 @@ func (s *Session) WinnerEval() (map[int]uint, error) {
 	return results, nil
 }
 
-// GamePhase represents the current state of the poker game
-type GamePhase string
+func (s *Session) RecalculatePots() {
+	s.Pots = nil
 
-const (
-	StateWaitingForPlayers GamePhase = "waiting_for_players"
-	StatePreFlop           GamePhase = "pre_flop"
-	StateFlop              GamePhase = "flop"
-	StateTurn              GamePhase = "turn"
-	StateRiver             GamePhase = "river"
-	StateShowdown          GamePhase = "showdown"
-	StateHandComplete      GamePhase = "hand_complete"
-)
+	// copy bets
+	bets := make([]uint, len(s.Players))
+	for i, p := range s.Players {
+		bets[i] = p.Bet
+	}
 
-// BettingState tracks the betting within a round
-type BettingState string
+	for {
+		// players with remaining bet
+		contributors := []int{}
+		for i, b := range bets {
+			if b > 0 {
+				contributors = append(contributors, i)
+			}
+		}
+		if len(contributors) == 0 {
+			break
+		}
 
-const (
-	BettingNotStarted BettingState = "not_started"
-	BettingInProgress BettingState = "in_progress"
-	BettingComplete   BettingState = "complete"
-)
+		// min bet among contributors
+		minBet := bets[contributors[0]]
+		for _, idx := range contributors {
+			if bets[idx] < minBet {
+				minBet = bets[idx]
+			}
+		}
+
+		// compute pot amount
+		potAmount := uint(0)
+		for _, idx := range contributors {
+			potAmount += min(bets[idx], minBet)
+			bets[idx] -= minBet
+		}
+
+		// determine eligible players for this pot (must not be folded)
+		eligible := []int{}
+		for _, idx := range contributors {
+			if !s.Players[idx].HasFolded {
+				eligible = append(eligible, idx)
+			}
+		}
+
+		s.Pots = append(s.Pots, Pot{
+			Amount:   potAmount,
+			Eligible: eligible,
+		})
+	}
+
+	if onePlayerRemained(s.Pots) {
+		totalPot := 0
+		for _, p := range s.Pots {
+			totalPot += int(p.Amount)
+		}
+		s.Pots = []Pot{{
+			Amount:   uint(totalPot),
+			Eligible: []int{s.Pots[0].Eligible[0]},
+		}}
+	}
+}
+
+func onePlayerRemained(lists []Pot) bool {
+	for _, pot := range lists {
+		if len(pot.Eligible) != 1 {
+			return false
+		}
+	}
+	return true
+}
