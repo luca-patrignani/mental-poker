@@ -36,7 +36,7 @@ func SampleSessionForTest(ids []string) poker.Session {
 		Board:       [5]poker.Card{}, // empty board
 		Players:     players,
 		Deck:        deck.Deck{},
-		Pots:         []poker.Pot{{Amount: 0, Eligible: idsInt}},
+		Pots:        []poker.Pot{{Amount: 0, Eligible: idsInt}},
 		HighestBet:  0,
 		Dealer:      0,
 		CurrentTurn: 0,

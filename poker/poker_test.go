@@ -69,7 +69,7 @@ func TestWinnerEvalTie(t *testing.T) {
 	// expect p0 and p2 to split the pot evenly
 	totalTie := winners[session.Players[0].Rank] + winners[session.Players[2].Rank]
 
-	if winners[session.Players[0].Rank] !=20 {
+	if winners[session.Players[0].Rank] != 20 {
 		t.Fatalf("expected p0 to win 20, got %d", winners[session.Players[0].Rank])
 	}
 	if winners[session.Players[2].Rank] != 20 {
