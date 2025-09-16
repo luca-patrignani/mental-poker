@@ -507,5 +507,4 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	if idx := nodes[0].findPlayerIndex(nodes[0].ID); idx != -1 {
 		t.Fatalf("expected proposer to be banned, still found at index %d", idx)
 	}
-	t.Log("End")
 }
