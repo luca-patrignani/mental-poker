@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/luca-patrignani/mental-poker/common"
 	"github.com/luca-patrignani/mental-poker/poker"
@@ -25,7 +26,8 @@ type Node struct {
 	proposals map[string]ProposalMsg        // proposalID -> proposal
 	votes     map[string]map[string]VoteMsg // proposalID -> voterID -> vote
 
-	peer *common.Peer
+	peer 		*common.Peer
+	mu 			sync.Mutex
 }
 
 // NewNode constructs a Node. playersPK is the map of all player pubkeys (including this node)

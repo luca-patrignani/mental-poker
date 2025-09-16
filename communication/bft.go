@@ -48,7 +48,7 @@ func (node *Node) ProposeAction(a *Action) error {
 
 // Calls this when a proposal arrives
 func (node *Node) onReceiveProposal(p ProposalMsg) error {
-	fmt.Printf("Node %s received proposal from player %s\n", node.ID, p.Action.PlayerID)
+	//fmt.Printf("Node %s received proposal from player %s\n", node.ID, p.Action.PlayerID)
 
 	if p.Action == nil {
 		return errors.New("nil action in proposal")
@@ -87,7 +87,7 @@ func (node *Node) onReceiveProposal(p ProposalMsg) error {
 }
 
 func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason string) error {
-	fmt.Printf("Node %s voting %s for proposal from %s: %s\n", node.ID, v, p.Action.PlayerID, reason)
+	//fmt.Printf("Node %s voting %s for proposal from %s: %s\n", node.ID, v, p.Action.PlayerID, reason)
 
 	pid, _ := proposalID(p.Action)
 	vote := makeVoteMsg(pid, node.ID, v, reason)
@@ -110,7 +110,7 @@ func (node *Node) broadcastVoteForProposal(p ProposalMsg, v VoteValue, reason st
 	}
 	node.votes[pid][node.ID] = vote
 
-	fmt.Printf("Node %s broadcasting vote %s for proposal %s\n", node.ID, v, pid)
+	//fmt.Printf("Node %s broadcasting vote %s for proposal %s\n", node.ID, v, pid)
 	b, _ := json.Marshal(vote)
 	votesBytes, err := node.peer.AllToAll(b)
 	if err != nil {
@@ -155,7 +155,7 @@ func (node *Node) onReceiveVotes(votes []VoteMsg) error {
 		return err
 	}
 
-	fmt.Printf("Node %s processing %d votes\n", node.ID, len(votes))
+	//fmt.Printf("Node %s processing %d votes\n", node.ID, len(votes))
 
 	// cache valid votes
 	for _, v := range votes {
@@ -205,22 +205,20 @@ func (node *Node) checkAndCommit(proposalID string) error {
 
 	reason := ""
 	for _, vv := range rejectVotes {
-		if reason != vv.Reason {
+		if reason != vv.Reason + "; " {
 			reason += vv.Reason + "; "
-		} else {
-			reason = vv.Reason
 		}
 	}
 
 	if accepts >= node.quorum {
-		fmt.Printf("Node %s committing proposal %s\n", node.ID, proposalID)
+		//fmt.Printf("Node %s committing proposal %s\n", node.ID, proposalID)
 		cert := makeCommitCertificate(&prop, collectVotes(node.votes[proposalID], VoteAccept), true)
 		err := node.applyCommit(cert)
 		if err != nil {
 			return err
 		}
 	} else if rejects >= node.quorum {
-		fmt.Printf("Node %s banning player due to s\n", node.ID)
+		//fmt.Printf("Node %s banning player due to s\n", node.ID)
 		bc := makeBanCertificate(proposalID, prop.Action.PlayerID, reason, collectVotes(node.votes[proposalID], VoteReject))
 		err := node.handleBanCertificate(bc)
 		if err != nil {
@@ -242,7 +240,7 @@ func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
 
 // applyCommit verifies certificate and applies the action deterministically
 func (node *Node) applyCommit(cert CommitCertificate) error {
-	fmt.Printf("Node %s applying commit certificate for proposal %s\n", node.ID, cert.Proposal.Action.Type)
+	//fmt.Printf("Node %s applying commit certificate for proposal %s\n", node.ID, cert.Proposal.Action.Type)
 	if cert.Proposal == nil || cert.Proposal.Action == nil {
 		return errors.New("bad certificate format")
 	}
@@ -285,13 +283,16 @@ func (node *Node) handleBanCertificate(cert BanCertificate) error {
 
 // removePlayerByID removes a player from the session and adjusts turn
 func (node *Node) removePlayerByID(playerID string, reason string) error {
+	node.mu.Lock()
+	defer node.mu.Unlock()
+	
 	idx := node.findPlayerIndex(playerID)
 	if idx == -1 {
 		return fmt.Errorf("player %s to remove not found", playerID)
 	}
 	if node.ID == playerID {
 		node.peer.Close()
-		fmt.Printf("You have been banned for %s, shutting down Now\n", reason)
+		fmt.Printf("You have been banned for %s Shutting down Now\n", reason)
 		return nil
 	}
 	// remove player slice entry
@@ -305,7 +306,7 @@ func (node *Node) removePlayerByID(playerID string, reason string) error {
 	// recompute quorum
 	node.N = len(node.Session.Players)
 	node.quorum = ceil2n3(node.N)
-	fmt.Printf("Node %s removed player %s for %s, new N=%d quorum=%d\n", node.ID, playerID, reason, node.N, node.quorum)
+	fmt.Printf("Node %s removed player %s for %s new N=%d quorum=%d\n", node.ID, playerID, reason, node.N, node.quorum)
 	return nil
 }
 
