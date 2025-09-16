@@ -205,7 +205,7 @@ func (node *Node) checkAndCommit(proposalID string) error {
 
 	reason := ""
 	for _, vv := range rejectVotes {
-		if reason != vv.Reason + "; " {
+		if reason != vv.Reason+"; " {
 			reason += vv.Reason + "; "
 		}
 	}
@@ -285,7 +285,7 @@ func (node *Node) handleBanCertificate(cert BanCertificate) error {
 func (node *Node) removePlayerByID(playerID string, reason string) error {
 	node.mu.Lock()
 	defer node.mu.Unlock()
-	
+
 	idx := node.findPlayerIndex(playerID)
 	if idx == -1 {
 		return fmt.Errorf("player %s to remove not found", playerID)
