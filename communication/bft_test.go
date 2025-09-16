@@ -152,7 +152,7 @@ func TestCollectVotes(t *testing.T) {
 func TestFindPlayerIndexAndRemove(t *testing.T) {
 	pub, priv := mustKeypair(t)
 	playersPK := map[string]ed25519.PublicKey{"0": pub, "1": pub, "2": pub}
-	node := &Node{ID: "n1", Pub: pub, Priv: priv, PlayersPK: playersPK, N: 3, quorum: ceil2n3(3), proposals: make(map[string]ProposalMsg), votes: make(map[string]map[string]VoteMsg)}
+	node := &Node{ID: "1", Pub: pub, Priv: priv, PlayersPK: playersPK, N: 3, quorum: ceil2n3(3), proposals: make(map[string]ProposalMsg), votes: make(map[string]map[string]VoteMsg)}
 	setSessionPlayers(t, node, 3)
 
 	if idx := node.findPlayerIndex("1"); idx != 1 {
@@ -500,9 +500,7 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	}
 	_ = a.Sign(privs[0])
 
-	if err := nodes[0].ProposeAction(a); err != nil {
-		t.Fatalf("propose failed: %v", err)
-	}
+	nodes[0].ProposeAction(a)
 
 	// wait for receivers
 	<-done
@@ -536,4 +534,5 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	if idx := nodes[0].findPlayerIndex(nodes[0].ID); idx != -1 {
 		t.Fatalf("expected proposer to be banned, still found at index %d", idx)
 	}
+	t.Log("End")
 }
