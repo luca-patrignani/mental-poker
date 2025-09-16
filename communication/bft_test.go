@@ -473,7 +473,10 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	}
 	_ = a.Sign(privs[0])
 
-	nodes[0].ProposeAction(a)
+	err := nodes[0].ProposeAction(a)
+	if err != nil {
+		t.Fatalf("propose failed: %v", err)
+	}
 
 	// wait for receivers
 	<-done
