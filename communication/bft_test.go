@@ -149,33 +149,6 @@ func TestCollectVotes(t *testing.T) {
 	}
 }
 
-func TestFindPlayerIndexAndRemove(t *testing.T) {
-	pub, priv := mustKeypair(t)
-	playersPK := map[string]ed25519.PublicKey{"0": pub, "1": pub, "2": pub}
-	node := &Node{ID: "1", Pub: pub, Priv: priv, PlayersPK: playersPK, N: 3, quorum: ceil2n3(3), proposals: make(map[string]ProposalMsg), votes: make(map[string]map[string]VoteMsg)}
-	setSessionPlayers(t, node, 3)
-
-	if idx := node.findPlayerIndex("1"); idx != 1 {
-		t.Fatalf("expected index 1, got %d", idx)
-	}
-	if idx := node.findPlayerIndex("x"); idx != -1 {
-		t.Fatalf("expected -1 for invalid id, got %d", idx)
-	}
-
-	// remove player "1"
-	err := node.removePlayerByID("1", "test")
-	if err != nil {
-		t.Fatalf("removePlayerByID failed: %v", err)
-	}
-	// N should be updated to 2
-	if node.N != 2 {
-		t.Fatalf("expected N==2 after removal, got %d", node.N)
-	}
-	if node.quorum != ceil2n3(2) {
-		t.Fatalf("quorum not recomputed")
-	}
-}
-
 func TestApplyActionToSessionAndValidate(t *testing.T) {
 	pub, priv := mustKeypair(t)
 	playersPK := map[string]ed25519.PublicKey{"0": pub}

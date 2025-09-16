@@ -26,8 +26,8 @@ type Node struct {
 	proposals map[string]ProposalMsg        // proposalID -> proposal
 	votes     map[string]map[string]VoteMsg // proposalID -> voterID -> vote
 
-	peer 		*common.Peer
-	mu 			sync.Mutex
+	peer *common.Peer
+	mu   sync.Mutex
 }
 
 // NewNode constructs a Node. playersPK is the map of all player pubkeys (including this node)
