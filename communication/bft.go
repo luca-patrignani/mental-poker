@@ -212,7 +212,7 @@ func (node *Node) checkAndCommit(proposalID string) error {
 
 	if accepts >= node.quorum {
 		//fmt.Printf("Node %s committing proposal %s\n", node.ID, proposalID)
-		cert := makeCommitCertificate(&prop, collectVotes(node.votes[proposalID], VoteAccept), true)
+		cert := makeCommitCertificate(&prop, collectVotes(node.votes[proposalID], VoteAccept))
 		err := node.applyCommit(cert)
 		if err != nil {
 			return err
@@ -261,8 +261,7 @@ func (node *Node) applyCommit(cert CommitCertificate) error {
 	if err := node.applyActionToSession(cert.Proposal.Action, playerIdx); err != nil {
 		return err
 	}
-	// update LastIndex
-	node.Session.LastIndex++
+	// update blockchain
 	return nil
 }
 

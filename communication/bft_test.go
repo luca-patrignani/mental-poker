@@ -41,7 +41,6 @@ func SampleSessionForTest(ids []string) poker.Session {
 		Dealer:      0,
 		CurrentTurn: 0,
 		RoundID:     "round-0",
-		LastIndex:   0,
 	}
 }
 
@@ -53,7 +52,7 @@ func makeSignedVote(t *testing.T, proposalID, voterID string, value VoteValue, p
 		Value      VoteValue `json:"value"`
 	}{proposalID, voterID, value})
 	sig := ed25519.Sign(priv, toSign)
-	return VoteMsg{Type: "vote", ProposalID: proposalID, VoterID: voterID, Value: value, Reason: "test", Sig: sig}
+	return VoteMsg{ProposalID: proposalID, VoterID: voterID, Value: value, Reason: "test", Sig: sig}
 }
 
 // setSessionPlayers uses reflection to populate node.Session.Players with n
@@ -242,16 +241,13 @@ func TestProposalIDAndApplyCommitAndBanCert(t *testing.T) {
 
 	// create commit certificate with 1 vote (quorum==1)
 	votes := []VoteMsg{makeSignedVote(t, pid, "2", VoteAccept, privB)}
-	cert := makeCommitCertificate(&prop, votes, true)
+	cert := makeCommitCertificate(&prop, votes)
 
 	// applyCommit should succeed (playersPK contains actor pubkey and session has player)
 	if err := node.applyCommit(cert); err != nil {
 		t.Fatalf("applyCommit failed: %v", err)
 	}
-	// LastIndex should be incremented (default 0 -> 1)
-	if node.Session.LastIndex != 1 {
-		t.Fatalf("expected LastIndex==1, got %d", node.Session.LastIndex)
-	}
+	// LastIndex should be incremented
 
 	// Now test ban certificate validation and handling
 	// create reject votes signed by player 2 and meet quorum=1
@@ -286,7 +282,7 @@ func TestApplyCommitErrors(t *testing.T) {
 	}
 	prop := makeProposalMsg(a, a.Signature)
 	votes := []VoteMsg{} // none
-	cert := makeCommitCertificate(&prop, votes, true)
+	cert := makeCommitCertificate(&prop, votes)
 
 	// not enough votes
 	if err := node.applyCommit(cert); err == nil {
@@ -297,7 +293,7 @@ func TestApplyCommitErrors(t *testing.T) {
 	node.quorum = 1
 	node.PlayersPK = map[string]ed25519.PublicKey{}
 	votes = []VoteMsg{{}}
-	cert = makeCommitCertificate(&prop, votes, true)
+	cert = makeCommitCertificate(&prop, votes)
 	if err := node.applyCommit(cert); err == nil {
 		t.Fatalf("expected error for unknown player in cert")
 	}
@@ -307,7 +303,7 @@ func TestApplyCommitErrors(t *testing.T) {
 	aBad := *a
 	aBad.Signature = nil
 	propBad := makeProposalMsg(&aBad, nil)
-	cert = makeCommitCertificate(&propBad, []VoteMsg{{}}, true)
+	cert = makeCommitCertificate(&propBad, []VoteMsg{{}})
 	if err := node.applyCommit(cert); err == nil {
 		t.Fatalf("expected error for bad action signature in cert")
 	}
@@ -317,7 +313,7 @@ func TestApplyCommitErrors(t *testing.T) {
 	aUnknown := *a
 	aUnknown.PlayerID = "999"
 	propUnknown := makeProposalMsg(&aUnknown, aUnknown.Signature)
-	cert = makeCommitCertificate(&propUnknown, []VoteMsg{{}}, true)
+	cert = makeCommitCertificate(&propUnknown, []VoteMsg{{}})
 	if err := node.applyCommit(cert); err == nil {
 		t.Fatalf("expected error for player not in session")
 	}

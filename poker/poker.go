@@ -18,7 +18,6 @@ type Session struct {
 	Dealer      uint
 	CurrentTurn uint   // index into Players for who must act
 	RoundID     string // identifier for the current betting round/hand
-	LastIndex   uint64 // last committed transaction/block index
 }
 
 type Pot struct {

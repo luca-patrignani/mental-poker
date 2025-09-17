@@ -25,7 +25,6 @@ func makeMsgID() (string, error) {
 }
 
 type ProposalMsg struct {
-	Type       string  `json:"type,omitempty"` // "proposal"
 	ProposalID string  `json:"proposal_id"`
 	Action     *Action `json:"action"`
 	Signature  []byte  `json:"sig"`
@@ -34,7 +33,7 @@ type ProposalMsg struct {
 // Construnctor for ProposalMsg
 func makeProposalMsg(a *Action, sig []byte) ProposalMsg {
 	id, _ := makeMsgID()
-	return ProposalMsg{Type: "proposal", ProposalID: id, Action: a, Signature: sig}
+	return ProposalMsg{ProposalID: id, Action: a, Signature: sig}
 }
 
 func proposalID(a *Action) (string, error) {
@@ -53,7 +52,6 @@ const (
 )
 
 type VoteMsg struct {
-	Type       string    `json:"type,omitempty"` // "Vote"
 	ProposalID string    `json:"proposal_id"`
 	VoterID    string    `json:"voter_id"`
 	Value      VoteValue `json:"value"`
@@ -63,7 +61,6 @@ type VoteMsg struct {
 
 func makeVoteMsg(proposalID string, voterID string, value VoteValue, reason string) VoteMsg {
 	return VoteMsg{
-		Type:       "vote",
 		ProposalID: proposalID,
 		VoterID:    voterID,
 		Value:      value,
@@ -74,19 +71,16 @@ func makeVoteMsg(proposalID string, voterID string, value VoteValue, reason stri
 
 // CommitCertificate = Proposal + quorum votes
 type CommitCertificate struct {
-	Type      string       `json:"type,omitempty"` // "commit"
-	Proposal  *ProposalMsg `json:"proposal"`
-	Votes     []VoteMsg    `json:"votes"`
-	Committed bool         `json:"committed"`
+	Proposal *ProposalMsg `json:"proposal"`
+	Votes    []VoteMsg    `json:"votes"`
 }
 
-func makeCommitCertificate(prop *ProposalMsg, votes []VoteMsg, commit bool) CommitCertificate {
-	return CommitCertificate{Type: "commit", Proposal: prop, Votes: votes, Committed: commit}
+func makeCommitCertificate(prop *ProposalMsg, votes []VoteMsg) CommitCertificate {
+	return CommitCertificate{Proposal: prop, Votes: votes}
 }
 
 // BanCertificate contains the evidence that a given player behaved maliciously
 type BanCertificate struct {
-	Type       string    `json:"type,omitempty"` // "ban"
 	ProposalID string    `json:"proposal_id"`
 	Accused    string    `json:"accused"`
 	Reason     string    `json:"reason"`
@@ -95,7 +89,7 @@ type BanCertificate struct {
 
 // makeBanCertificate constructs a BanCertificate from the collected reject votes
 func makeBanCertificate(proposalID string, accused string, reason string, votes []VoteMsg) BanCertificate {
-	return BanCertificate{Type: "ban", ProposalID: proposalID, Accused: accused, Reason: reason, Votes: votes}
+	return BanCertificate{ProposalID: proposalID, Accused: accused, Reason: reason, Votes: votes}
 }
 
 func (node *Node) validateBanCertificate(cert BanCertificate) (bool, error) {
