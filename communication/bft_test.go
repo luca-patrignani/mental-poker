@@ -3,6 +3,7 @@ package communication
 import (
 	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -426,30 +427,82 @@ func TestProposeReceiveAndBan(t *testing.T) {
 		}
 	}()
 
-	// generate keys and players map
-	playersPK := make(map[string]ed25519.PublicKey)
-	privs := make([]ed25519.PrivateKey, 3)
-	ids := make([]string, 3)
+
+	fatal := make(chan error, 3)
+	nodes_chan := make(chan *Node, 3)
+
 	for i := 0; i < 3; i++ {
-		pub, priv := mustKeypair(t)
-		ids[i] = strconv.Itoa(peers[i].Rank)
-		playersPK[ids[i]] = pub
-		privs[i] = priv
+		go func() {
+			playersPK := make(map[string]ed25519.PublicKey)
+			pub, priv := mustKeypair(t)
+			node := NewNode(peers[i], pub, priv, playersPK)
+			
+			b, err := json.Marshal(pub)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			pkBytes,err := node.peer.AllToAll(b)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			pk := make(map[string]ed25519.PublicKey, len(pkBytes))
+			for i, pki := range pkBytes {
+			var p ed25519.PublicKey
+			if err := json.Unmarshal(pki, &p); err != nil {
+				fatal <- fmt.Errorf("failed to unmarshal vote: %v\n", err)
+				continue // skip malformed messages
+			}
+			pk[strconv.Itoa(i)] = p
+			}
+			node.PlayersPK = pk
+
+			deck := deck.Deck{
+				DeckSize: 52,
+				Peer:     *node.peer,
+			}
+
+			err = deck.PrepareDeck()
+			if err != nil {
+				fatal <- err
+				return
+			}
+			players := make([]poker.Player, len(pk))
+			i := 0
+			for k := range pk {
+			    players[i] = poker.Player{
+				Name:      k,
+				Rank:      i,
+				Hand:      [2]poker.Card{},
+				HasFolded: false,
+				Bet:       0,
+				Pot:       100,
+				}
+			    i++
+			}
+			
+			s := poker.Session{
+				Board:       [5]poker.Card{}, // empty board
+				Players:     players,
+				Deck:        deck,
+				Pots:        []poker.Pot{},
+				HighestBet:  0,
+				Dealer:      0,
+				CurrentTurn: 0,
+				RoundID:     "round-0",
+			}
+			node.Session = s
+			nodes_chan <- node
+			fatal <- nil
+		}()
 	}
 
-	// create nodes
-	nodes := make([]*Node, 3)
-	for i := 0; i < 3; i++ {
-		nodes[i] = NewNode(peers[i], playersPK[ids[i]], privs[i], playersPK)
-	}
-
-	// set identical session state on all nodes (simple)
-	session := SampleSessionForTest(ids)
-	for _, n := range nodes {
-		n.Session = session
-	}
-
-	// start receiver goroutines for non-proposers
+	
+	var nodes []*Node
+    for n := range nodes_chan {
+        nodes = append(nodes, n)
+    }
 	done := make(chan struct{})
 	for i := 1; i < 3; i++ {
 		go func(idx int) {
@@ -462,12 +515,12 @@ func TestProposeReceiveAndBan(t *testing.T) {
 
 	// proposer builds action and proposes
 	a := &Action{
-		RoundID:  session.RoundID,
+		RoundID:  nodes[0].Session.RoundID,
 		PlayerID: strconv.Itoa(nodes[0].peer.Rank),
 		Type:     poker.ActionBet,
 		Amount:   110, // too high, should trigger validation error
 	}
-	_ = a.Sign(privs[0])
+	_ = a.Sign(nodes[0].Priv)
 
 	err := nodes[0].ProposeAction(a)
 	if err != nil {
