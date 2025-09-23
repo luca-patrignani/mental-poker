@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/luca-patrignani/mental-poker/poker"
 )
 
 func TestNewEd25519KeypairAndSignVerify(t *testing.T) {
@@ -12,7 +14,7 @@ func TestNewEd25519KeypairAndSignVerify(t *testing.T) {
 	a := &Action{
 		RoundID:  "r1",
 		PlayerID: "alice",
-		Type:     ActionBet,
+		Type:     poker.ActionBet,
 		Amount:   10,
 	}
 	// sign will set Ts
@@ -35,7 +37,7 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 	a := &Action{
 		RoundID:  "r1",
 		PlayerID: "alice",
-		Type:     ActionRaise,
+		Type:     poker.ActionRaise,
 		Amount:   20,
 	}
 	if err := a.Sign(priv); err != nil {
@@ -58,7 +60,7 @@ func TestMarshalUnmarshalAction(t *testing.T) {
 	a := &Action{
 		RoundID:  "round-abc",
 		PlayerID: "bob",
-		Type:     ActionCall,
+		Type:     poker.ActionCall,
 		Amount:   5,
 	}
 	if err := a.Sign(priv); err != nil {
@@ -86,7 +88,7 @@ func TestSigningBytesDeterministic(t *testing.T) {
 	a := &Action{
 		RoundID:  "r2",
 		PlayerID: "carol",
-		Type:     ActionCheck,
+		Type:     poker.ActionCheck,
 		Amount:   0,
 		Ts:       time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixNano(),
 	}
@@ -98,7 +100,7 @@ func TestSigningBytesDeterministic(t *testing.T) {
 	a2 := &Action{
 		RoundID:  "r2",
 		PlayerID: "carol",
-		Type:     ActionCheck,
+		Type:     poker.ActionCheck,
 		Amount:   0,
 		Ts:       a.Ts,
 	}

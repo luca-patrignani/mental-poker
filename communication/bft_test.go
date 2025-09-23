@@ -155,7 +155,7 @@ func TestApplyActionToSessionAndValidate(t *testing.T) {
 	setSessionPlayers(t, node, 1)
 
 	// prepare an action and sign it
-	a := &Action{RoundID: "r1", PlayerID: "0", Type: ActionBet, Amount: 10}
+	a := &Action{RoundID: "r1", PlayerID: "0", Type: poker.ActionBet, Amount: 10}
 	err := a.Sign(priv)
 	if err != nil {
 		t.Fatalf("action sign failed: %v", err)
@@ -224,7 +224,7 @@ func TestProposalIDAndApplyCommitAndBanCert(t *testing.T) {
 	setSessionPlayers(t, node, 2)
 
 	// create action by player "1" and sign
-	a := &Action{RoundID: "r1", PlayerID: "1", Type: ActionCheck}
+	a := &Action{RoundID: "r1", PlayerID: "1", Type: poker.ActionCheck}
 	err := a.Sign(privA)
 	if err != nil {
 		t.Fatalf("action sign failed: %v", err)
@@ -275,7 +275,7 @@ func TestApplyCommitErrors(t *testing.T) {
 	setSessionPlayers(t, node, 1)
 
 	// prepare a valid proposal
-	a := &Action{RoundID: "r1", PlayerID: "1", Type: ActionFold}
+	a := &Action{RoundID: "r1", PlayerID: "1", Type: poker.ActionFold}
 	err := a.Sign(priv)
 	if err != nil {
 		t.Fatalf("action sign failed: %v", err)
@@ -371,7 +371,7 @@ func TestProposeReceive(t *testing.T) {
 	a := &Action{
 		RoundID:  nodes[0].Session.RoundID,
 		PlayerID: strconv.Itoa(nodes[0].peer.Rank),
-		Type:     ActionBet,
+		Type:     poker.ActionBet,
 		Amount:   10,
 	}
 	_ = a.Sign(privs[0])
@@ -464,7 +464,7 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	a := &Action{
 		RoundID:  session.RoundID,
 		PlayerID: strconv.Itoa(nodes[0].peer.Rank),
-		Type:     ActionBet,
+		Type:     poker.ActionBet,
 		Amount:   110, // too high, should trigger validation error
 	}
 	_ = a.Sign(privs[0])
