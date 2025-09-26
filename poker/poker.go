@@ -181,6 +181,7 @@ const (
 	ActionFold   ActionType = "fold"
 	ActionCheck  ActionType = "check"
 	ActionReveal ActionType = "reveal"
+	ActionBan    ActionType = "ban"
 )
 
 func CheckPokerLogic(a ActionType, amount uint, session *Session, idx int) error {
