@@ -13,17 +13,6 @@ import (
 	"github.com/luca-patrignani/mental-poker/poker"
 )
 
-func makeSignedVote(t *testing.T, proposalID, voterID string, value VoteValue, priv ed25519.PrivateKey) VoteMsg {
-	t.Helper()
-	toSign, _ := json.Marshal(struct {
-		ProposalID string    `json:"proposal_id"`
-		VoterID    string    `json:"voter_id"`
-		Value      VoteValue `json:"value"`
-	}{proposalID, voterID, value})
-	sig := ed25519.Sign(priv, toSign)
-	return VoteMsg{ProposalID: proposalID, VoterID: voterID, Value: value, Reason: "test", Sig: sig}
-}
-
 func TestEnsureSameProposal(t *testing.T) {
 	v1 := VoteMsg{ProposalID: "p1"}
 	v2 := VoteMsg{ProposalID: "p1"}
