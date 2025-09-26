@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/luca-patrignani/mental-poker/poker"
+
 )
 
 func Sha256Hex(b []byte) string {
@@ -212,7 +213,7 @@ func (node *Node) checkAndCommit(proposalID string) error {
 
 	if accepts >= node.quorum {
 		//fmt.Printf("Node %s committing proposal %s\n", node.ID, proposalID)
-		cert := makeCommitCertificate(&prop, collectVotes(node.votes[proposalID], VoteAccept), true)
+		cert := makeCommitCertificate(&prop, collectVotes(node.votes[proposalID], VoteAccept))
 		err := node.applyCommit(cert)
 		if err != nil {
 			return err
@@ -224,9 +225,14 @@ func (node *Node) checkAndCommit(proposalID string) error {
 		if err != nil {
 			return err
 		}
+		err = node.applyBanCertificate(bc)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
+
 
 func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
 	out := []VoteMsg{}
@@ -236,6 +242,28 @@ func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
 		}
 	}
 	return out
+}
+
+func (node *Node) applyBanCertificate(bc BanCertificate) error {
+	prop, hasProp := node.proposals[bc.ProposalID]
+	if !hasProp {
+		return errors.New("missing proposal for ban cert")
+	}
+	act := prop.Action
+	if act == nil {
+		return errors.New("bad proposal format in ban cert")
+	}
+	// verify action signature
+	pub, present := node.PlayersPK[act.PlayerID]
+	if !present {
+		return errors.New("unknown player in ban cert")
+	}
+	okv, _ := act.VerifySignature(pub)
+	if !okv {
+		return errors.New("bad action signature in cert")
+	}
+	delete(node.PlayersPK, bc.Accused)
+	return nil
 }
 
 // applyCommit verifies certificate and applies the action deterministically
@@ -261,8 +289,7 @@ func (node *Node) applyCommit(cert CommitCertificate) error {
 	if err := node.applyActionToSession(cert.Proposal.Action, playerIdx); err != nil {
 		return err
 	}
-	// update LastIndex
-	node.Session.LastIndex++
+	// update blockchain
 	return nil
 }
 
@@ -297,7 +324,12 @@ func (node *Node) removePlayerByID(playerID string, reason string) error {
 	}
 	// remove player slice entry
 	//TODO: Check for problems when list index shift after removal
-	node.Session.Players = append(node.Session.Players[:idx], node.Session.Players[idx+1:]...)
+	for i, player := range node.Session.Players {
+    if player.Rank == idx {
+        node.Session.Players = append(node.Session.Players[:i], node.Session.Players[i+1:]...)
+        break
+    }
+}
 
 	// adjust CurrentTurn if necessary
 	if int(node.Session.CurrentTurn) >= len(node.Session.Players) {
@@ -312,64 +344,17 @@ func (node *Node) removePlayerByID(playerID string, reason string) error {
 
 // applyActionToSession applies validated actions to the Session
 func (node *Node) applyActionToSession(a *Action, idx int) error {
-	err := checkPokerLogic(a, &node.Session, idx)
+	err := poker.CheckPokerLogic(a.Type,a.Amount, &node.Session, idx)
 	if err != nil {
 		return err
 	}
-	switch a.Type {
-	case ActionFold:
-		node.Session.Players[idx].HasFolded = true
-		node.Session.RecalculatePots()
-		node.advanceTurn()
-	case ActionBet:
-		node.Session.Players[idx].Bet += a.Amount
-		node.Session.Players[idx].Pot -= a.Amount
-		if node.Session.Players[idx].Bet > node.Session.HighestBet {
-			node.Session.HighestBet = node.Session.Players[idx].Bet
-		}
-		node.Session.RecalculatePots()
-		node.advanceTurn()
-	case ActionRaise:
-		node.Session.Players[idx].Bet += a.Amount
-		node.Session.Players[idx].Pot -= a.Amount
-		node.Session.HighestBet = node.Session.Players[idx].Bet
-		node.Session.RecalculatePots()
-		node.advanceTurn()
-	case ActionCall:
-		diff := node.Session.HighestBet - node.Session.Players[idx].Bet
-		node.Session.Players[idx].Bet += diff
-		node.Session.Players[idx].Pot -= diff
-		node.Session.RecalculatePots()
-		node.advanceTurn()
-	case ActionAllIn:
-		node.Session.Players[idx].Bet += node.Session.Players[idx].Pot
-		node.Session.Players[idx].Pot = 0
-		if node.Session.Players[idx].Bet >= node.Session.HighestBet {
-			node.Session.HighestBet = node.Session.Players[idx].Bet
-		}
-		node.Session.RecalculatePots()
-		node.advanceTurn()
 
-	case ActionCheck:
-		node.advanceTurn()
-	default:
-		return fmt.Errorf("unknown action")
+	err = poker.ApplyAction(a.Type, a.Amount, &node.Session, idx)
+	if err != nil {
+		return err
 	}
+
 	return nil
-}
-
-func (node *Node) advanceTurn() {
-	n := len(node.Session.Players)
-	if n == 0 {
-		return
-	}
-	for i := 1; i <= n; i++ {
-		next := (int(node.Session.CurrentTurn) + i) % n
-		if !node.Session.Players[next].HasFolded {
-			node.Session.CurrentTurn = uint(next)
-			return
-		}
-	}
 }
 
 func (node *Node) validateActionAgainstSession(a *Action) error {
@@ -384,7 +369,7 @@ func (node *Node) validateActionAgainstSession(a *Action) error {
 		return fmt.Errorf("out-of-turn")
 	}
 
-	err := checkPokerLogic(a, &node.Session, idx)
+	err := poker.CheckPokerLogic(a.Type, a.Amount, &node.Session, idx)
 	if err != nil {
 		return err
 	}
@@ -392,34 +377,4 @@ func (node *Node) validateActionAgainstSession(a *Action) error {
 	return nil
 }
 
-func checkPokerLogic(a *Action, session *poker.Session, idx int) error {
-	switch a.Type {
-	case ActionFold:
-		return nil
-	case ActionBet:
-		if session.Players[idx].Pot < a.Amount {
-			return fmt.Errorf("insufficient funds")
-		}
-	case ActionRaise:
-		if session.Players[idx].Bet < session.HighestBet {
-			return fmt.Errorf("raise must at least match highest bet")
-		}
-	case ActionCall:
-		diff := session.HighestBet - session.Players[idx].Bet
-		if diff > session.Players[idx].Pot {
-			return fmt.Errorf("insufficient funds to call")
-		}
-	case ActionAllIn:
-		remaining := session.Players[idx].Pot + session.Players[idx].Bet
-		if remaining != a.Amount {
-			return fmt.Errorf("allin amount must match player's remaining pot")
-		}
-	case ActionCheck:
-		if session.Players[idx].Bet != session.HighestBet {
-			return fmt.Errorf("cannot check, must call, raise or fold")
-		}
-	default:
-		return fmt.Errorf("unknown action")
-	}
-	return nil
-}
+

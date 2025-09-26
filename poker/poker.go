@@ -18,7 +18,6 @@ type Session struct {
 	Dealer      uint
 	CurrentTurn uint   // index into Players for who must act
 	RoundID     string // identifier for the current betting round/hand
-	LastIndex   uint64 // last committed transaction/block index
 }
 
 type Pot struct {
@@ -170,4 +169,105 @@ func onePlayerRemained(lists []Pot) bool {
 		}
 	}
 	return true
+}
+
+type ActionType string
+
+const (
+	ActionBet    ActionType = "bet"
+	ActionCall   ActionType = "call"
+	ActionRaise  ActionType = "raise"
+	ActionAllIn  ActionType = "allin"
+	ActionFold   ActionType = "fold"
+	ActionCheck  ActionType = "check"
+	ActionReveal ActionType = "reveal"
+)
+
+func CheckPokerLogic(a ActionType, amount uint, session *Session, idx int) error {
+	switch a {
+	case ActionFold:
+		return nil
+	case ActionBet:
+		if session.Players[idx].Pot < amount {
+			return fmt.Errorf("insufficient funds")
+		}
+	case ActionRaise:
+		if session.Players[idx].Bet < session.HighestBet {
+			return fmt.Errorf("raise must at least match highest bet")
+		}
+	case ActionCall:
+		diff := session.HighestBet - session.Players[idx].Bet
+		if diff > session.Players[idx].Pot {
+			return fmt.Errorf("insufficient funds to call")
+		}
+	case ActionAllIn:
+		remaining := session.Players[idx].Pot + session.Players[idx].Bet
+		if remaining != amount {
+			return fmt.Errorf("allin amount must match player's remaining pot")
+		}
+	case ActionCheck:
+		if session.Players[idx].Bet != session.HighestBet {
+			return fmt.Errorf("cannot check, must call, raise or fold")
+		}
+	default:
+		return fmt.Errorf("unknown action")
+	}
+	return nil
+}
+
+func ApplyAction(a ActionType, amount uint, session *Session, idx int) error {
+	switch a {
+	case ActionFold:
+		session.Players[idx].HasFolded = true
+		session.RecalculatePots()
+		session.advanceTurn()
+	case ActionBet:
+		session.Players[idx].Bet += amount
+		session.Players[idx].Pot -= amount
+		if session.Players[idx].Bet > session.HighestBet {
+			session.HighestBet = session.Players[idx].Bet
+		}
+		session.RecalculatePots()
+		session.advanceTurn()
+	case ActionRaise:
+		session.Players[idx].Bet += amount
+		session.Players[idx].Pot -= amount
+		session.HighestBet = session.Players[idx].Bet
+		session.RecalculatePots()
+		session.advanceTurn()
+	case ActionCall:
+		diff := session.HighestBet - session.Players[idx].Bet
+		session.Players[idx].Bet += diff
+		session.Players[idx].Pot -= diff
+		session.RecalculatePots()
+		session.advanceTurn()
+	case ActionAllIn:
+		session.Players[idx].Bet += session.Players[idx].Pot
+		session.Players[idx].Pot = 0
+		if session.Players[idx].Bet >= session.HighestBet {
+			session.HighestBet = session.Players[idx].Bet
+		}
+		session.RecalculatePots()
+		session.advanceTurn()
+
+	case ActionCheck:
+		session.advanceTurn()
+	default:
+		return fmt.Errorf("unknown action")
+	}
+	return nil
+}
+
+func (session *Session) advanceTurn() {
+	n := len(session.Players)
+	if n == 0 {
+		return
+	}
+	for i := 1; i <= n; i++ {
+		next := (int(session.CurrentTurn) + i) % n
+		if !session.Players[next].HasFolded {
+			session.CurrentTurn = uint(next)
+			return
+		}
+	}
 }

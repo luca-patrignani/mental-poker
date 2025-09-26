@@ -24,47 +24,6 @@ func TestMakeMsgID(t *testing.T) {
 	}
 }
 
-// Test message constructors (makeProposalMsg, makeVoteMsg, makeCommitCertificate, makeBanCertificate)
-func TestMessageConstructors(t *testing.T) {
-	// create simple action
-	a := &Action{RoundID: "r", PlayerID: "1", Type: ActionFold}
-	prop := makeProposalMsg(a, nil)
-	if prop.Type != "proposal" {
-		t.Fatalf("expected proposal type, got %s", prop.Type)
-	}
-	if prop.Action == nil {
-		t.Fatalf("proposal action nil")
-	}
-
-	v := makeVoteMsg("pid", "voter", VoteAccept, "reason")
-	if v.Type != "vote" {
-		t.Fatalf("expected vote type, got %s", v.Type)
-	}
-	if v.Value != VoteAccept {
-		t.Fatalf("expected VoteAccept, got %s", v.Value)
-	}
-
-	vc := makeCommitCertificate(&prop, []VoteMsg{v}, true)
-	if vc.Type != "commit" || !vc.Committed {
-		t.Fatalf("commit certificate wrong")
-	}
-
-	bc := makeBanCertificate("pid", "acc", "reason", []VoteMsg{v})
-	if bc.Type != "ban" || bc.ProposalID != "pid" || bc.Accused != "acc" {
-		t.Fatalf("ban certificate wrong")
-	}
-
-	// Ensure types marshal/unmarshal properly (basic sanity)
-	bs, err := json.Marshal(vc)
-	if err != nil {
-		t.Fatalf("failed to marshal commit cert: %v", err)
-	}
-	var vc2 CommitCertificate
-	if err := json.Unmarshal(bs, &vc2); err != nil {
-		t.Fatalf("failed to unmarshal commit cert: %v", err)
-	}
-}
-
 // Test validateBanCertificate positive and negative cases
 func TestValidateBanCertificate(t *testing.T) {
 	// create two keypairs (accuser and voter)
@@ -91,7 +50,7 @@ func TestValidateBanCertificate(t *testing.T) {
 		Value      VoteValue `json:"value"`
 	}{pid, "voter", VoteReject})
 	sig := ed25519.Sign(privB, toSign)
-	vote := VoteMsg{Type: "vote", ProposalID: pid, VoterID: "voter", Value: VoteReject, Reason: "test", Sig: sig}
+	vote := VoteMsg{ProposalID: pid, VoterID: "voter", Value: VoteReject, Reason: "test", Sig: sig}
 	ban := makeBanCertificate(pid, "accused", "reason", []VoteMsg{vote})
 
 	ok, err := node.validateBanCertificate(ban)
@@ -130,7 +89,7 @@ func TestValidateBanCertificate(t *testing.T) {
 		Value      VoteValue `json:"value"`
 	}{pid, "voter", VoteAccept})
 	sigAccept := ed25519.Sign(privB, toSignAccept)
-	voteAccept := VoteMsg{Type: "vote", ProposalID: pid, VoterID: "voter", Value: VoteAccept, Reason: "test", Sig: sigAccept}
+	voteAccept := VoteMsg{ProposalID: pid, VoterID: "voter", Value: VoteAccept, Reason: "test", Sig: sigAccept}
 	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", "reason", []VoteMsg{voteAccept}))
 	if err == nil || ok {
 		t.Fatalf("expected wrong value error")
@@ -143,7 +102,7 @@ func TestValidateBanCertificate(t *testing.T) {
 		Value      VoteValue `json:"value"`
 	}{"other", "voter", VoteReject})
 	sig2 := ed25519.Sign(privB, toSign2)
-	voteMismatch := VoteMsg{Type: "vote", ProposalID: "other", VoterID: "voter", Value: VoteReject, Reason: "test", Sig: sig2}
+	voteMismatch := VoteMsg{ProposalID: "other", VoterID: "voter", Value: VoteReject, Reason: "test", Sig: sig2}
 	ok, err = node.validateBanCertificate(makeBanCertificate(pid, "accused", "reason", []VoteMsg{voteMismatch}))
 	if err == nil || ok {
 		t.Fatalf("expected proposal id mismatch error")

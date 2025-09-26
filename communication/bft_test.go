@@ -3,6 +3,7 @@ package communication
 import (
 	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -13,38 +14,6 @@ import (
 	"github.com/luca-patrignani/mental-poker/poker"
 )
 
-// SampleSessionForTest crea una sessione di test semplice e deterministica.
-// - ids: lista di player IDs (es. ["p0","p1","p2"])
-// - assegna Rank = indice, Pot iniziale = 1000 (configurabile qui), CurrentTurn = 0, Dealer = 0
-// - Board e Hands sono lasciati a zero-value (da popolare dal test se serve)
-func SampleSessionForTest(ids []string) poker.Session {
-	players := make([]poker.Player, len(ids))
-	idsInt := make([]int, len(ids))
-	for i, id := range ids {
-		players[i] = poker.Player{
-			Name:      id,
-			Rank:      i,
-			Hand:      [2]poker.Card{},
-			HasFolded: false,
-			Bet:       0,
-			Pot:       100,
-		}
-		idsInt[i] = i
-	}
-
-	return poker.Session{
-		Board:       [5]poker.Card{}, // empty board
-		Players:     players,
-		Deck:        deck.Deck{},
-		Pots:        []poker.Pot{{Amount: 0, Eligible: idsInt}},
-		HighestBet:  0,
-		Dealer:      0,
-		CurrentTurn: 0,
-		RoundID:     "round-0",
-		LastIndex:   0,
-	}
-}
-
 func makeSignedVote(t *testing.T, proposalID, voterID string, value VoteValue, priv ed25519.PrivateKey) VoteMsg {
 	t.Helper()
 	toSign, _ := json.Marshal(struct {
@@ -53,7 +22,7 @@ func makeSignedVote(t *testing.T, proposalID, voterID string, value VoteValue, p
 		Value      VoteValue `json:"value"`
 	}{proposalID, voterID, value})
 	sig := ed25519.Sign(priv, toSign)
-	return VoteMsg{Type: "vote", ProposalID: proposalID, VoterID: voterID, Value: value, Reason: "test", Sig: sig}
+	return VoteMsg{ProposalID: proposalID, VoterID: voterID, Value: value, Reason: "test", Sig: sig}
 }
 
 // setSessionPlayers uses reflection to populate node.Session.Players with n
@@ -156,7 +125,7 @@ func TestApplyActionToSessionAndValidate(t *testing.T) {
 	setSessionPlayers(t, node, 1)
 
 	// prepare an action and sign it
-	a := &Action{RoundID: "r1", PlayerID: "0", Type: ActionBet, Amount: 10}
+	a := &Action{RoundID: "r1", PlayerID: "0", Type: poker.ActionBet, Amount: 10}
 	err := a.Sign(priv)
 	if err != nil {
 		t.Fatalf("action sign failed: %v", err)
@@ -225,7 +194,7 @@ func TestProposalIDAndApplyCommitAndBanCert(t *testing.T) {
 	setSessionPlayers(t, node, 2)
 
 	// create action by player "1" and sign
-	a := &Action{RoundID: "r1", PlayerID: "1", Type: ActionCheck}
+	a := &Action{RoundID: "r1", PlayerID: "1", Type: poker.ActionCheck}
 	err := a.Sign(privA)
 	if err != nil {
 		t.Fatalf("action sign failed: %v", err)
@@ -242,16 +211,13 @@ func TestProposalIDAndApplyCommitAndBanCert(t *testing.T) {
 
 	// create commit certificate with 1 vote (quorum==1)
 	votes := []VoteMsg{makeSignedVote(t, pid, "2", VoteAccept, privB)}
-	cert := makeCommitCertificate(&prop, votes, true)
+	cert := makeCommitCertificate(&prop, votes)
 
 	// applyCommit should succeed (playersPK contains actor pubkey and session has player)
 	if err := node.applyCommit(cert); err != nil {
 		t.Fatalf("applyCommit failed: %v", err)
 	}
-	// LastIndex should be incremented (default 0 -> 1)
-	if node.Session.LastIndex != 1 {
-		t.Fatalf("expected LastIndex==1, got %d", node.Session.LastIndex)
-	}
+	// LastIndex should be incremented
 
 	// Now test ban certificate validation and handling
 	// create reject votes signed by player 2 and meet quorum=1
@@ -279,14 +245,14 @@ func TestApplyCommitErrors(t *testing.T) {
 	setSessionPlayers(t, node, 1)
 
 	// prepare a valid proposal
-	a := &Action{RoundID: "r1", PlayerID: "1", Type: ActionFold}
+	a := &Action{RoundID: "r1", PlayerID: "1", Type: poker.ActionFold}
 	err := a.Sign(priv)
 	if err != nil {
 		t.Fatalf("action sign failed: %v", err)
 	}
 	prop := makeProposalMsg(a, a.Signature)
 	votes := []VoteMsg{} // none
-	cert := makeCommitCertificate(&prop, votes, true)
+	cert := makeCommitCertificate(&prop, votes)
 
 	// not enough votes
 	if err := node.applyCommit(cert); err == nil {
@@ -297,7 +263,7 @@ func TestApplyCommitErrors(t *testing.T) {
 	node.quorum = 1
 	node.PlayersPK = map[string]ed25519.PublicKey{}
 	votes = []VoteMsg{{}}
-	cert = makeCommitCertificate(&prop, votes, true)
+	cert = makeCommitCertificate(&prop, votes)
 	if err := node.applyCommit(cert); err == nil {
 		t.Fatalf("expected error for unknown player in cert")
 	}
@@ -307,7 +273,7 @@ func TestApplyCommitErrors(t *testing.T) {
 	aBad := *a
 	aBad.Signature = nil
 	propBad := makeProposalMsg(&aBad, nil)
-	cert = makeCommitCertificate(&propBad, []VoteMsg{{}}, true)
+	cert = makeCommitCertificate(&propBad, []VoteMsg{{}})
 	if err := node.applyCommit(cert); err == nil {
 		t.Fatalf("expected error for bad action signature in cert")
 	}
@@ -317,7 +283,7 @@ func TestApplyCommitErrors(t *testing.T) {
 	aUnknown := *a
 	aUnknown.PlayerID = "999"
 	propUnknown := makeProposalMsg(&aUnknown, aUnknown.Signature)
-	cert = makeCommitCertificate(&propUnknown, []VoteMsg{{}}, true)
+	cert = makeCommitCertificate(&propUnknown, []VoteMsg{{}})
 	if err := node.applyCommit(cert); err == nil {
 		t.Fatalf("expected error for player not in session")
 	}
@@ -333,32 +299,97 @@ func TestProposeReceive(t *testing.T) {
 		peers[i] = &p
 	}
 	defer func() {
-		for i := 0; i < 3; i++ {
-			_ = peers[i].Close()
+		for i := 1; i < 3; i++ {
+			err := peers[i].Close()
+			if err != nil {
+				t.Logf("error closing peer %d: %v", i, err)
+			}
 		}
 	}()
 
-	// generate keys and players map
-	playersPK := make(map[string]ed25519.PublicKey)
-	privs := make([]ed25519.PrivateKey, 3)
-	ids := make([]string, 3)
-	for i := 0; i < 3; i++ {
-		pub, priv := mustKeypair(t)
-		ids[i] = strconv.Itoa(peers[i].Rank)
-		playersPK[ids[i]] = pub
-		privs[i] = priv
-	}
 
-	// create nodes
-	nodes := make([]*Node, 3)
-	for i := 0; i < 3; i++ {
-		nodes[i] = NewNode(peers[i], playersPK[ids[i]], privs[i], playersPK)
-	}
+	fatal := make(chan error, 3)
+	nodes_chan := make(chan *Node, 3)
 
-	// set identical session state on all nodes (simple)
-	for _, n := range nodes {
-		n.Session = SampleSessionForTest(ids)
+	for i := 0; i < 3; i++ {
+		go func() {
+			playersPK := make(map[string]ed25519.PublicKey)
+			pub, priv := mustKeypair(t)
+			node := NewNode(peers[i], pub, priv, playersPK)
+			
+			b, err := json.Marshal(pub)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			pkBytes,err := node.peer.AllToAll(b)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			pk := make(map[string]ed25519.PublicKey, len(pkBytes))
+			for i, pki := range pkBytes {
+			var p ed25519.PublicKey
+			if err := json.Unmarshal(pki, &p); err != nil {
+				fatal <- fmt.Errorf("failed to unmarshal vote: %v\n", err)
+				continue // skip malformed messages
+			}
+			pk[strconv.Itoa(i)] = p
+			}
+			node.PlayersPK = pk
+
+			deck := deck.Deck{
+				DeckSize: 52,
+				Peer:     *node.peer,
+			}
+
+			err = deck.PrepareDeck()
+			if err != nil {
+				fatal <- err
+				return
+			}
+			players := make([]poker.Player, len(pk))
+			i := 0
+			for k := range pk {
+			    players[i] = poker.Player{
+				Name:      k,
+				Rank:      i,
+				Hand:      [2]poker.Card{},
+				HasFolded: false,
+				Bet:       0,
+				Pot:       100,
+				}
+			    i++
+			}
+			
+			s := poker.Session{
+				Board:       [5]poker.Card{}, // empty board
+				Players:     players,
+				Deck:        deck,
+				Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0,1,2}}},
+				HighestBet:  0,
+				Dealer:      0,
+				CurrentTurn: 0,
+				RoundID:     "round-0",
+			}
+			node.Session = s
+			node.N = len(node.Session.Players)
+			node.quorum = ceil2n3(node.N)
+			nodes_chan <- node
+			fatal <- nil
+		}()
 	}
+	<-fatal
+	<-fatal
+	<-fatal
+	close(fatal)
+	close(nodes_chan)
+
+	
+	var nodes []*Node
+    for n := range nodes_chan {
+        nodes = append(nodes, n)
+    }
 
 	// start receiver goroutines for non-proposers
 	done := make(chan struct{})
@@ -375,10 +406,10 @@ func TestProposeReceive(t *testing.T) {
 	a := &Action{
 		RoundID:  nodes[0].Session.RoundID,
 		PlayerID: strconv.Itoa(nodes[0].peer.Rank),
-		Type:     ActionBet,
+		Type:     poker.ActionBet,
 		Amount:   10,
 	}
-	_ = a.Sign(privs[0])
+	_ = a.Sign(nodes[0].Priv)
 
 	if err := nodes[0].ProposeAction(a); err != nil {
 		t.Fatalf("propose failed: %v", err)
@@ -425,35 +456,97 @@ func TestProposeReceiveAndBan(t *testing.T) {
 		peers[i] = &p
 	}
 	defer func() {
-		for i := 0; i < 3; i++ {
-			_ = peers[i].Close()
+		for i := 1; i < 3; i++ {
+			err := peers[i].Close()
+			if err != nil {
+				t.Logf("error closing peer %d: %v", i, err)
+			}
 		}
 	}()
 
-	// generate keys and players map
-	playersPK := make(map[string]ed25519.PublicKey)
-	privs := make([]ed25519.PrivateKey, 3)
-	ids := make([]string, 3)
+
+	fatal := make(chan error, 3)
+	nodes_chan := make(chan *Node, 3)
+
 	for i := 0; i < 3; i++ {
-		pub, priv := mustKeypair(t)
-		ids[i] = strconv.Itoa(peers[i].Rank)
-		playersPK[ids[i]] = pub
-		privs[i] = priv
-	}
+		go func() {
+			playersPK := make(map[string]ed25519.PublicKey)
+			pub, priv := mustKeypair(t)
+			node := NewNode(peers[i], pub, priv, playersPK)
+			
+			b, err := json.Marshal(pub)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			pkBytes,err := node.peer.AllToAll(b)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			pk := make(map[string]ed25519.PublicKey, len(pkBytes))
+			for i, pki := range pkBytes {
+			var p ed25519.PublicKey
+			if err := json.Unmarshal(pki, &p); err != nil {
+				fatal <- fmt.Errorf("failed to unmarshal vote: %v\n", err)
+				continue // skip malformed messages
+			}
+			pk[strconv.Itoa(i)] = p
+			}
+			node.PlayersPK = pk
 
-	// create nodes
-	nodes := make([]*Node, 3)
-	for i := 0; i < 3; i++ {
-		nodes[i] = NewNode(peers[i], playersPK[ids[i]], privs[i], playersPK)
-	}
+			deck := deck.Deck{
+				DeckSize: 52,
+				Peer:     *node.peer,
+			}
 
-	// set identical session state on all nodes (simple)
-	session := SampleSessionForTest(ids)
-	for _, n := range nodes {
-		n.Session = session
+			err = deck.PrepareDeck()
+			if err != nil {
+				fatal <- err
+				return
+			}
+			players := make([]poker.Player, len(pk))
+			i := 0
+			for k := range pk {
+			    players[i] = poker.Player{
+				Name:      k,
+				Rank:      i,
+				Hand:      [2]poker.Card{},
+				HasFolded: false,
+				Bet:       0,
+				Pot:       100,
+				}
+			    i++
+			}
+			
+			s := poker.Session{
+				Board:       [5]poker.Card{}, // empty board
+				Players:     players,
+				Deck:        deck,
+				Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0,1,2}}},
+				HighestBet:  0,
+				Dealer:      0,
+				CurrentTurn: 0,
+				RoundID:     "round-0",
+			}
+			node.Session = s
+			node.N = len(node.Session.Players)
+			node.quorum = ceil2n3(node.N)
+			nodes_chan <- node
+			fatal <- nil
+		}()
 	}
+	<-fatal
+	<-fatal
+	<-fatal
+	close(fatal)
+	close(nodes_chan)
 
-	// start receiver goroutines for non-proposers
+	
+	var nodes []*Node
+    for n := range nodes_chan {
+        nodes = append(nodes, n)
+    }
 	done := make(chan struct{})
 	for i := 1; i < 3; i++ {
 		go func(idx int) {
@@ -466,12 +559,12 @@ func TestProposeReceiveAndBan(t *testing.T) {
 
 	// proposer builds action and proposes
 	a := &Action{
-		RoundID:  session.RoundID,
+		RoundID:  nodes[0].Session.RoundID,
 		PlayerID: strconv.Itoa(nodes[0].peer.Rank),
-		Type:     ActionBet,
+		Type:     poker.ActionBet,
 		Amount:   110, // too high, should trigger validation error
 	}
-	_ = a.Sign(privs[0])
+	_ = a.Sign(nodes[0].Priv)
 
 	err := nodes[0].ProposeAction(a)
 	if err != nil {
@@ -507,7 +600,9 @@ func TestProposeReceiveAndBan(t *testing.T) {
 	}
 
 	// 4. Check that proposer was removed from session (banned)
-	if idx := nodes[0].findPlayerIndex(nodes[0].ID); idx != -1 {
-		t.Fatalf("expected proposer to be banned, still found at index %d", idx)
+	for i := 1; i < 3; i++ {
+		if idx := nodes[i].findPlayerIndex(nodes[0].ID); idx != -1 {
+			t.Fatalf("expected proposer to be banned, still found at index %d", idx)
+		}
 	}
 }

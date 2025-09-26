@@ -5,25 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/luca-patrignani/mental-poker/poker"
 )
 
-type ActionType string
 
-const (
-	ActionBet    ActionType = "bet"
-	ActionCall   ActionType = "call"
-	ActionRaise  ActionType = "raise"
-	ActionAllIn  ActionType = "allin"
-	ActionFold   ActionType = "fold"
-	ActionCheck  ActionType = "check"
-	ActionReveal ActionType = "reveal"
-)
 
 // Action is the transaction that goes into the replicated log / block proposal
 type Action struct {
 	RoundID   string     `json:"round_id"`
 	PlayerID  string     `json:"player_id"`
-	Type      ActionType `json:"type"`
+	Type      poker.ActionType `json:"type"`
 	Amount    uint       `json:"amount"`
 	Ts        int64      `json:"ts"`
 	Signature []byte     `json:"sig,omitempty"`
@@ -55,7 +47,7 @@ func (a *Action) signingBytes() ([]byte, error) {
 	type sAction struct {
 		RoundID  string     `json:"round_id"`
 		PlayerID string     `json:"player_id"`
-		Type     ActionType `json:"type"`
+		Type     poker.ActionType `json:"type"`
 		Amount   uint       `json:"amount"`
 		Ts       int64      `json:"ts"`
 	}
