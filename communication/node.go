@@ -21,7 +21,7 @@ type Node struct {
 	quorum    int
 
 	// Session state (shared)
-	Session poker.Session
+	Session *poker.Session
 
 	proposals map[string]ProposalMsg        // proposalID -> proposal
 	votes     map[string]map[string]VoteMsg // proposalID -> voterID -> vote

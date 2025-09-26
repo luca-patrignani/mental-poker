@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/luca-patrignani/mental-poker/poker"
-
 )
 
 func Sha256Hex(b []byte) string {
@@ -233,7 +232,6 @@ func (node *Node) checkAndCommit(proposalID string) error {
 	return nil
 }
 
-
 func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
 	out := []VoteMsg{}
 	for _, v := range m {
@@ -325,11 +323,11 @@ func (node *Node) removePlayerByID(playerID string, reason string) error {
 	// remove player slice entry
 	//TODO: Check for problems when list index shift after removal
 	for i, player := range node.Session.Players {
-    if player.Rank == idx {
-        node.Session.Players = append(node.Session.Players[:i], node.Session.Players[i+1:]...)
-        break
-    }
-}
+		if player.Rank == idx {
+			node.Session.Players = append(node.Session.Players[:i], node.Session.Players[i+1:]...)
+			break
+		}
+	}
 
 	// adjust CurrentTurn if necessary
 	if int(node.Session.CurrentTurn) >= len(node.Session.Players) {
@@ -344,12 +342,12 @@ func (node *Node) removePlayerByID(playerID string, reason string) error {
 
 // applyActionToSession applies validated actions to the Session
 func (node *Node) applyActionToSession(a *Action, idx int) error {
-	err := poker.CheckPokerLogic(a.Type,a.Amount, &node.Session, idx)
+	err := poker.CheckPokerLogic(a.Type, a.Amount, node.Session, idx)
 	if err != nil {
 		return err
 	}
 
-	err = poker.ApplyAction(a.Type, a.Amount, &node.Session, idx)
+	err = poker.ApplyAction(a.Type, a.Amount, node.Session, idx)
 	if err != nil {
 		return err
 	}
@@ -369,12 +367,10 @@ func (node *Node) validateActionAgainstSession(a *Action) error {
 		return fmt.Errorf("out-of-turn")
 	}
 
-	err := poker.CheckPokerLogic(a.Type, a.Amount, &node.Session, idx)
+	err := poker.CheckPokerLogic(a.Type, a.Amount, node.Session, idx)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
-
-

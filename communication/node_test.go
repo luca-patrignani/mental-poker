@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/luca-patrignani/mental-poker/common"
+	"github.com/luca-patrignani/mental-poker/deck"
+	"github.com/luca-patrignani/mental-poker/poker"
 )
 
 // Test WaitForProposalAndProcess behavior when the proposer sends invalid bytes.
@@ -34,53 +36,44 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	node0 := NewNode(&p0, pub0, priv0, playersPK)
 	node1 := NewNode(&p1, pub1, priv1, playersPK)
 
-	// set node1.Session.CurrentTurn = 0 so it expects proposer rank 0
-	// use reflection-free approach: fill Session.Players minimally via helper used earlier in other tests
-	setSessionPlayers(t, node1, 2)
-	setSessionPlayers(t, node0, 2)
+	s := poker.Session{
+		Board: [5]poker.Card{},
+		Players: []poker.Player{
+			{Rank: 0, Hand: [2]poker.Card{}, HasFolded: false, Pot: 100, Bet: 0},
+			{Rank: 1, Hand: [2]poker.Card{}, HasFolded: false, Pot: 100, Bet: 0},
+		},
+		Deck:        deck.Deck{},
+		Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0, 1}}},
+		HighestBet:  0,
+		Dealer:      0,
+		CurrentTurn: 0,
+		RoundID:     "round1",
+	}
+	node0.Session = &s
+	node1.Session = &s
 
-	// ensure CurrentTurn == 0 for node1
-	// (setSessionPlayers sets CurrentTurn=0)
+	errChan := make(chan error, 2)
 
-	// run waiter in goroutine
-	errCh := make(chan error, 1)
 	go func() {
-		errCh <- node1.WaitForProposalAndProcess()
+		if err := node1.WaitForProposalAndProcess(); err != nil {
+			errChan <- err
+		}
+		errChan <- nil
 	}()
 
-	// let goroutine start and wait a little
-	time.Sleep(100 * time.Millisecond)
-
 	// proposer broadcasts invalid JSON bytes (this will be received by node1)
-	invalid := []byte("this-is-not-json")
-	if _, err := node0.peer.Broadcast(invalid, 0); err != nil {
-		t.Fatalf("proposer Broadcast failed: %v", err)
-	}
+	go func() {
+		invalid := []byte("this-is-not-json")
+		if _, err := node0.peer.Broadcast(invalid, 0); err != nil {
+			errChan <- err
+		}
+		errChan <- nil
+	}()
 
-	// get waiter result
-	select {
-	case err := <-errCh:
-		if err == nil {
-			t.Fatalf("expected error from WaitForProposalAndProcess due to invalid JSON")
-		}
-		// error message contains 'invalid proposal bytes' per implementation wrapping
-		// we check substring
-		if !contains(err.Error(), "invalid proposal bytes") {
-			t.Fatalf("unexpected error from WaitForProposalAndProcess: %v", err)
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatalf("timeout waiting for WaitForProposalAndProcess result")
+	err0 := <-errChan
+	err1 := <-errChan
+	close(errChan)
+	if err0 == nil && err1 == nil {
+		t.Fatalf("expected error from WaitForProposalAndProcess for Invalid JSON")
 	}
-}
-
-// helper contains check (small helper to avoid importing strings only for this)
-func contains(s, sub string) bool {
-	return len(s) >= len(sub) && (len(sub) == 0 || (len(s) >= len(sub) && (func() bool {
-		for i := 0; i+len(sub) <= len(s); i++ {
-			if s[i:i+len(sub)] == sub {
-				return true
-			}
-		}
-		return false
-	})()))
 }

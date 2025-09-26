@@ -9,16 +9,14 @@ import (
 	"github.com/luca-patrignani/mental-poker/poker"
 )
 
-
-
 // Action is the transaction that goes into the replicated log / block proposal
 type Action struct {
-	RoundID   string     `json:"round_id"`
-	PlayerID  string     `json:"player_id"`
+	RoundID   string           `json:"round_id"`
+	PlayerID  string           `json:"player_id"`
 	Type      poker.ActionType `json:"type"`
-	Amount    uint       `json:"amount"`
-	Ts        int64      `json:"ts"`
-	Signature []byte     `json:"sig,omitempty"`
+	Amount    uint             `json:"amount"`
+	Ts        int64            `json:"ts"`
+	Signature []byte           `json:"sig,omitempty"`
 }
 
 func (a *Action) Sign(priv ed25519.PrivateKey) error {
@@ -45,11 +43,11 @@ func (a *Action) VerifySignature(pub ed25519.PublicKey) (bool, error) {
 // return serialized bytes of the fields covered by the signature
 func (a *Action) signingBytes() ([]byte, error) {
 	type sAction struct {
-		RoundID  string     `json:"round_id"`
-		PlayerID string     `json:"player_id"`
+		RoundID  string           `json:"round_id"`
+		PlayerID string           `json:"player_id"`
 		Type     poker.ActionType `json:"type"`
-		Amount   uint       `json:"amount"`
-		Ts       int64      `json:"ts"`
+		Amount   uint             `json:"amount"`
+		Ts       int64            `json:"ts"`
 	}
 	s := sAction{
 		RoundID:  a.RoundID,
