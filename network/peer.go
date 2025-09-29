@@ -1,4 +1,4 @@
-package common
+package network
 
 import (
 	"context"
@@ -18,14 +18,14 @@ import (
 // Addresses[i] contains the address to reach the Peer with Rank i.
 type Peer struct {
 	Rank      int
-	Addresses []string
+	Addresses map[int]string
 	clock     uint64
 	server    *http.Server
 	handler   *broadcastHandler
 	timeout   time.Duration
 }
 
-func NewPeer(rank int, addresses []string, l net.Listener, timeout time.Duration) Peer {
+func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Duration) Peer {
 	handler := &broadcastHandler{
 		contentChannel: make(chan []byte),
 		errChannel:     make(chan error),
@@ -131,29 +131,29 @@ func (p Peer) barrier() error {
 }
 
 // helper function for creating n addresses localhost:PORT
-func CreateAddresses(n int) []string {
-	addresses := []string{}
+func CreateAddresses(n int) map[int]string {
+	addresses := make(map[int]string)
 	for i := 0; i < n; i++ {
 		l, err := net.Listen("tcp", "localhost:0")
 		if err != nil {
 			panic(err)
 		}
-		addresses = append(addresses, l.Addr().String())
+		addresses[i] = l.Addr().String()
 		l.Close()
 	}
 	return addresses
 }
 
-func CreateListeners(n int) ([]net.Listener, []string) {
-	listeners := []net.Listener{}
-	addresses := []string{}
+func CreateListeners(n int) (map[int]net.Listener, map[int]string) {
+	listeners := make(map[int]net.Listener)
+	addresses := make(map[int]string)
 	for i := 0; i < n; i++ {
 		l, err := net.Listen("tcp", "localhost:0")
 		if err != nil {
 			panic(err)
 		}
-		listeners = append(listeners, l)
-		addresses = append(addresses, l.Addr().String())
+		listeners[i] = l
+		addresses[i] = l.Addr().String()
 	}
 	return listeners, addresses
 }
