@@ -18,7 +18,7 @@ type Vote struct {
 }
 
 type Metadata struct {
-	ProposerID int            `json:"proposer_id"`
+	ProposerID int               `json:"proposer_id"`
 	Quorum     int               `json:"quorum"`
 	Extra      map[string]string `json:"extra,omitempty"`
 }
