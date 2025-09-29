@@ -224,10 +224,6 @@ func (node *Node) checkAndCommit(proposalID string) error {
 		if err != nil {
 			return err
 		}
-		err = node.applyBanCertificate(bc)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -240,28 +236,6 @@ func collectVotes(m map[string]VoteMsg, filter VoteValue) []VoteMsg {
 		}
 	}
 	return out
-}
-
-func (node *Node) applyBanCertificate(bc BanCertificate) error {
-	prop, hasProp := node.proposals[bc.ProposalID]
-	if !hasProp {
-		return errors.New("missing proposal for ban cert")
-	}
-	act := prop.Action
-	if act == nil {
-		return errors.New("bad proposal format in ban cert")
-	}
-	// verify action signature
-	pub, present := node.PlayersPK[act.PlayerID]
-	if !present {
-		return errors.New("unknown player in ban cert")
-	}
-	okv, _ := act.VerifySignature(pub)
-	if !okv {
-		return errors.New("bad action signature in cert")
-	}
-	delete(node.PlayersPK, bc.Accused)
-	return nil
 }
 
 // applyCommit verifies certificate and applies the action deterministically
@@ -295,6 +269,23 @@ func (node *Node) applyCommit(cert CommitCertificate) error {
 // If it's valid, removes the accused player.
 func (node *Node) handleBanCertificate(cert BanCertificate) error {
 	ok, err := node.validateBanCertificate(cert)
+	prop, hasProp := node.proposals[cert.ProposalID]
+	if !hasProp {
+		return errors.New("missing proposal for ban cert")
+	}
+	act := prop.Action
+	if act == nil {
+		return errors.New("bad proposal format in ban cert")
+	}
+	// verify action signature
+	pub, present := node.PlayersPK[act.PlayerID]
+	if !present {
+		return errors.New("unknown player in ban cert")
+	}
+	okv, _ := act.VerifySignature(pub)
+	if !okv {
+		return errors.New("bad action signature in cert")
+	}
 	if err != nil || !ok {
 		return fmt.Errorf("invalid ban certificate: %w", err)
 	}
@@ -303,6 +294,8 @@ func (node *Node) handleBanCertificate(cert BanCertificate) error {
 	if err != nil {
 		return err
 	}
+	delete(node.PlayersPK, cert.Accused)
+
 	return nil
 }
 

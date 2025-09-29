@@ -18,7 +18,7 @@ type Block struct {
 }
 
 // Calcolo hash includendo tutti i dati principali
-func CalculateHash(block Block) string {
+func calculateHash(block Block) string {
 	data := fmt.Sprintf("%d%s%v%d%v", block.Index, block.PrevHash, block.Action, block.Ts, block.Votes)
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
@@ -26,5 +26,5 @@ func CalculateHash(block Block) string {
 
 // Un singolo struct (o slice) rappresenta la chain
 type Blockchain struct {
-	Blocks []Block
+	Blocks map[string]Block //Hash -> block
 }
