@@ -25,7 +25,6 @@ type NetworkLayer interface {
 
 	GetPeerCount() int
 
-
 	Close() error
 }
 

@@ -31,7 +31,7 @@ func (psm *StateMachine) Validate(actionData []byte) error {
 	index := psm.findPlayerIndex(pa.PlayerID)
 	if index == -1 {
 		return fmt.Errorf("player %d not in session", pa.PlayerID)
-	}	
+	}
 
 	// Verifica turno
 	if uint(index) != psm.session.CurrentTurn {

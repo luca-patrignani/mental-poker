@@ -27,7 +27,7 @@ type ConsensusNode struct {
 // Action rappresenta un'azione generica nel sistema di consenso
 type Action struct {
 	Id        string `json:"id"`
-	PlayerID   int    `json:"actor_id"`
+	PlayerID  int    `json:"actor_id"`
 	Payload   []byte `json:"payload"` // JSON serialized domain action
 	Timestamp int64  `json:"ts"`
 	Signature []byte `json:"sig,omitempty"`
@@ -39,14 +39,14 @@ func makeAction(actorId int, payload []byte) (Action, error) {
 	if err != nil {
 		return Action{}, err
 	}
-	raw := fmt.Sprintf("%d%x%x", actorId,payload, randBytes)
-	b,_ := json.Marshal(raw)
+	raw := fmt.Sprintf("%d%x%x", actorId, payload, randBytes)
+	b, _ := json.Marshal(raw)
 	id := hex.EncodeToString(b[:8])
 
 	return Action{
-		Id: id,
+		Id:       id,
 		PlayerID: actorId,
-		Payload: payload,
+		Payload:  payload,
 	}, nil
 }
 

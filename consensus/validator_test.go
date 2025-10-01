@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewEd25519KeypairAndSignVerify(t *testing.T) {
-	pub, priv,_ := ed25519.GenerateKey(nil)
+	pub, priv, _ := ed25519.GenerateKey(nil)
 	pa := poker.PokerAction{
 		RoundID:  "preflop",
 		PlayerID: 1,
@@ -18,9 +18,9 @@ func TestNewEd25519KeypairAndSignVerify(t *testing.T) {
 	}
 	payload, _ := pa.ToConsensusPayload()
 	a := &Action{
-		Id:         "test",
-		PlayerID:    1,
-		Payload:    payload,
+		Id:       "test",
+		PlayerID: 1,
+		Payload:  payload,
 	}
 	// sign will set Ts
 	if err := a.Sign(priv); err != nil {
@@ -41,23 +41,23 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(nil)
 
 	pa := poker.PokerAction{
-		RoundID: "river",
+		RoundID:  "river",
 		PlayerID: 17,
-		Type: poker.ActionAllIn,
-		Amount: 100,
+		Type:     poker.ActionAllIn,
+		Amount:   100,
 	}
-	bpa,_ := pa.ToConsensusPayload()
+	bpa, _ := pa.ToConsensusPayload()
 
-	a,err := makeAction(17,bpa)
+	a, err := makeAction(17, bpa)
 	if err != nil {
-		t.Fatalf("Failed to make an action, %v",err)
+		t.Fatalf("Failed to make an action, %v", err)
 	}
 	if err := a.Sign(priv); err != nil {
 		t.Fatalf("Sign failed: %v", err)
 	}
 	// copy bytes & tamper a field not covered by signature? all fields used in signingBytes are signed.
 	// Tamper with Amount (signed field)
-	a.PlayerID= 10
+	a.PlayerID = 10
 	ok, err := a.VerifySignature(pub)
 	if err != nil {
 		t.Fatalf("Verify returned err: %v", err)
@@ -70,19 +70,19 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 func TestMarshalUnmarshalAction(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(nil)
 	act := poker.PokerAction{
-		RoundID: "preflop",
+		RoundID:  "preflop",
 		PlayerID: 15,
-		Type: poker.ActionBet,
-		Amount: 150,
+		Type:     poker.ActionBet,
+		Amount:   150,
 	}
 	bAct, err := act.ToConsensusPayload()
 	if err != nil {
-		t.Fatalf("%v",err)
+		t.Fatalf("%v", err)
 	}
 
-	a,err := makeAction(15, bAct)
+	a, err := makeAction(15, bAct)
 	if err != nil {
-		t.Fatalf("Failed to make an action, %v",err)
+		t.Fatalf("Failed to make an action, %v", err)
 	}
 
 	if err := a.Sign(priv); err != nil {
