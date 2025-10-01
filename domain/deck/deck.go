@@ -23,6 +23,9 @@ type NetworkLayer interface {
 	// GetPeerCount return the addresses
 	GetAddresses() map[int]string
 
+	GetPeerCount() int
+
+
 	Close() error
 }
 
@@ -105,7 +108,7 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 func (d *Deck) DrawCard(drawer int) (int, error) {
 	d.lastDrawnCard++
 	cj := d.EncryptedDeck[d.lastDrawnCard].Clone()
-	for j := 0; j < len(d.Peer.GetAddresses()); j++ {
+	for j := 0; j < d.Peer.GetPeerCount(); j++ {
 		if j != drawer {
 			xj_1 := suite.Scalar().Inv(d.SecretKey)
 			cj.Mul(xj_1, cj)
@@ -157,8 +160,8 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 		return nil, err
 	}
 
-	dataReceived := make([]kyber.Point, len(d.Peer.GetAddresses()))
-	for i := 0; i < len(d.Peer.GetAddresses()); i++ {
+	dataReceived := make([]kyber.Point, d.Peer.GetPeerCount())
+	for i := 0; i < d.Peer.GetPeerCount(); i++ {
 		dataReceived[i] = suite.Point()
 		err := dataReceived[i].UnmarshalBinary([]byte(ataResponse[i]))
 		if err != nil {
