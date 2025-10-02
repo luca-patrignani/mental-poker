@@ -114,6 +114,9 @@ func ApplyAction(a ActionType, amount uint, session *Session, idx int) error {
 		session.advanceTurn()
 	case ActionBan:
 		session.Players = append(session.Players[:idx], session.Players[idx+1:]...)
+		if session.CurrentTurn >= uint(len(session.Players)) {
+			session.CurrentTurn = 0
+		}
 		session.advanceTurn()
 
 	default:

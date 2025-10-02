@@ -12,8 +12,10 @@ type Block struct {
 }
 
 type Vote struct {
+	ActionId  string `json:"proposal_id"`
 	VoterID   string `json:"voter_id"`
 	Value     string `json:"value"` // "ACCEPT" or "REJECT"
+	Reason    string `json:"reason,omitempty"`
 	Signature []byte `json:"signature"`
 }
 

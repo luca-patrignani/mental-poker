@@ -17,18 +17,18 @@ func NewPokerStateMachine(session *Session) *StateMachine {
 
 // Validate verifica se un'azione è valida nello stato corrente
 func (psm *StateMachine) Validate(actionData []byte) error {
-	var pa PokerAction
-	if err := json.Unmarshal(actionData, &pa); err != nil {
-		return fmt.Errorf("invalid action format: %w", err)
-	}
+	pa, err := FromConsensusPayload(actionData)
 
+	if err != nil {
+		return fmt.Errorf("Wrong data format")
+	}
 	// Verifica round ID
 	if pa.RoundID != psm.session.RoundID {
 		return fmt.Errorf("wrong round: expected %s, got %s", psm.session.RoundID, pa.RoundID)
 	}
 
 	// Trova player index
-	index := psm.findPlayerIndex(pa.PlayerID)
+	index := psm.FindPlayerIndex(pa.PlayerID)
 	if index == -1 {
 		return fmt.Errorf("player %d not in session", pa.PlayerID)
 	}
@@ -44,12 +44,12 @@ func (psm *StateMachine) Validate(actionData []byte) error {
 
 // Apply applica un'azione validata allo stato
 func (psm *StateMachine) Apply(actionData []byte) error {
-	var pa PokerAction
-	if err := json.Unmarshal(actionData, &pa); err != nil {
+	pa, err := FromConsensusPayload(actionData)
+	if err != nil {
 		return err
 	}
 
-	idx := psm.findPlayerIndex(pa.PlayerID)
+	idx := psm.FindPlayerIndex(pa.PlayerID)
 	if idx == -1 {
 		return fmt.Errorf("player not found")
 	}
@@ -58,11 +58,25 @@ func (psm *StateMachine) Apply(actionData []byte) error {
 }
 
 // GetCurrentActor ritorna l'ID del giocatore che deve agire
-func (psm *StateMachine) GetCurrentActor() string {
+func (psm *StateMachine) GetCurrentPlayer() int {
 	if psm.session.CurrentTurn >= uint(len(psm.session.Players)) {
-		return ""
+		return -1
 	}
-	return fmt.Sprintf("%d", psm.session.Players[psm.session.CurrentTurn].Id)
+	return psm.session.Players[psm.session.CurrentTurn].Id
+}
+
+func (psm *StateMachine) NotifyBan(id int) ([]byte, error) {
+	pa := PokerAction{
+		RoundID:  psm.session.RoundID,
+		PlayerID: id,
+		Type:     ActionBan,
+		Amount:   0,
+	}
+	b, err := pa.ToConsensusPayload()
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 // Snapshot serializza lo stato corrente
@@ -75,7 +89,7 @@ func (psm *StateMachine) Restore(data []byte) error {
 	return json.Unmarshal(data, &psm.session)
 }
 
-func (psm *StateMachine) findPlayerIndex(playerID int) int {
+func (psm *StateMachine) FindPlayerIndex(playerID int) int {
 	for i, p := range psm.session.Players {
 		if p.Id == playerID {
 			return i

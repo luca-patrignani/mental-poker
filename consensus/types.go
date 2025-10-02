@@ -10,18 +10,17 @@ import (
 
 // ConsensusNode è il nodo di consenso generico
 type ConsensusNode struct {
-	id     string
-	pub    ed25519.PublicKey
-	priv   ed25519.PrivateKey
-	peers  []ed25519.PublicKey
-	quorum int
+	pub       ed25519.PublicKey
+	priv      ed25519.PrivateKey
+	playersPK map[int]ed25519.PublicKey
+	quorum    int
 
-	stateMachine StateMachine
-	ledger       Ledger
-	network      NetworkLayer
+	pokerSM StateMachine
+	ledger  Ledger
+	network NetworkLayer
 
-	proposals []ProposalMsg
-	votes     []VoteMsg
+	proposal *Action
+	votes    map[int]Vote
 }
 
 // Action rappresenta un'azione generica nel sistema di consenso
@@ -50,11 +49,6 @@ func makeAction(actorId int, payload []byte) (Action, error) {
 	}, nil
 }
 
-type ProposalMsg struct {
-	ProposalID string  `json:"proposal_id"`
-	Action     *Action `json:"action"`
-	Signature  []byte  `json:"sig"`
-}
 type VoteValue string
 
 const (
@@ -62,24 +56,18 @@ const (
 	VoteReject VoteValue = "REJECT"
 )
 
-type VoteMsg struct {
-	ProposalID string    `json:"proposal_id"`
-	VoterID    string    `json:"voter_id"`
-	Value      VoteValue `json:"value"`
-	Reason     string    `json:"reason,omitempty"`
-	Sig        []byte    `json:"sig"`
+type Vote struct {
+	ActionId  string    `json:"proposal_id"`
+	VoterID   int       `json:"voter_id"`
+	Value     VoteValue `json:"value"`
+	Reason    string    `json:"reason,omitempty"`
+	Signature []byte    `json:"signature,omitempty"`
 }
 
-// CommitCertificate = Proposal + quorum votes
-type CommitCertificate struct {
-	Proposal *ProposalMsg `json:"proposal"`
-	Votes    []VoteMsg    `json:"votes"`
-}
-
-// BanCertificate contains the evidence that a given player behaved maliciously
-type BanCertificate struct {
-	ProposalID string    `json:"proposal_id"`
-	Accused    string    `json:"accused"`
-	Reason     string    `json:"reason"`
-	Votes      []VoteMsg `json:"votes"`
+// Certificate = Proposal + quorum votes
+// Certificate for commit action (including banning)
+type Certificate struct {
+	Proposal *Action `json:"proposal"`
+	Votes    []Vote  `json:"votes"`
+	Reason   string  `json:"reason,omitempty"`
 }
