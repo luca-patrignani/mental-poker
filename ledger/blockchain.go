@@ -20,13 +20,14 @@ func NewBlockchain() *Blockchain {
 	bc := &Blockchain{
 		blocks: make([]Block, 0),
 	}
+	genAct, _ := json.Marshal(map[string]string{"type": "genesis"})
 
 	// Crea genesis block
 	genesis := Block{
 		Index:     0,
 		Timestamp: time.Now().Unix(),
 		PrevHash:  "0",
-		Action:    map[string]string{"type": "genesis"},
+		Action:    genAct,
 		Votes:     []Vote{},
 		Metadata:  Metadata{ProposerID: -1, Quorum: 0},
 	}
@@ -37,9 +38,11 @@ func NewBlockchain() *Blockchain {
 }
 
 // Append aggiunge un nuovo blocco validato
-func (bc *Blockchain) Append(action interface{}, votes []Vote, proposerID int, quorum int) error {
+func (bc *Blockchain) Append(action []byte, votesBytes [][]byte, proposerID int, quorum int) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
+
+	votes := convertVotes(votesBytes)
 
 	latest := bc.blocks[len(bc.blocks)-1]
 
@@ -52,6 +55,7 @@ func (bc *Blockchain) Append(action interface{}, votes []Vote, proposerID int, q
 		Metadata: Metadata{
 			ProposerID: proposerID,
 			Quorum:     quorum,
+			Extra:      map[string]string{"Reason": votes[0].Reason},
 		},
 	}
 
@@ -65,6 +69,19 @@ func (bc *Blockchain) Append(action interface{}, votes []Vote, proposerID int, q
 	bc.blocks = append(bc.blocks, newBlock)
 
 	return nil
+}
+
+func convertVotes(votesBytes [][]byte) []Vote {
+	votes := make([]Vote, 0, len(votesBytes))
+	for _, vb := range votesBytes {
+		var v Vote
+		if err := json.Unmarshal(vb, &v); err != nil {
+			fmt.Printf("failed to unmarshal vote: %v\n", err)
+			continue // skip malformed messages
+		}
+		votes = append(votes, v)
+	}
+	return votes
 }
 
 // GetLatest ritorna l'ultimo blocco

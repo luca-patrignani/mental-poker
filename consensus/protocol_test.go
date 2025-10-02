@@ -3,6 +3,12 @@ package consensus
 import (
 	"crypto/ed25519"
 	"testing"
+	"time"
+
+	"github.com/luca-patrignani/mental-poker/domain/deck"
+	"github.com/luca-patrignani/mental-poker/domain/poker"
+	"github.com/luca-patrignani/mental-poker/ledger"
+	"github.com/luca-patrignani/mental-poker/network"
 )
 
 func makeSignedVote(t *testing.T, actionID string, voterID int, value VoteValue, reason string, priv ed25519.PrivateKey) Vote {
@@ -52,8 +58,76 @@ func TestCollectVotes(t *testing.T) {
 	}
 }
 
-/*// Full integration test: proposer sends proposal, followers receive, validate, vote, commit
-func TestProposeReceive(t *testing.T) {
+func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
+	// create two listeners and addresses
+	listeners, addresses := network.CreateListeners(2)
+	defer func() {
+		for _, l := range listeners {
+			_ = l.Close()
+		}
+	}()
+
+	// create peers (use short timeout)
+	timeout := 2 * time.Second
+	peer0 := network.NewPeer(0, addresses, listeners[0], timeout)
+	peer1 := network.NewPeer(1, addresses, listeners[1], timeout)
+	p0 := network.NewP2P(&peer0)
+	p1 := network.NewP2P(&peer1)
+	defer p0.Close()
+	defer p1.Close()
+
+	// create simple keypairs and playersPK (both nodes know both pubkeys)
+	pub0, priv0, _ := ed25519.GenerateKey(nil)
+	pub1, priv1, _ := ed25519.GenerateKey(nil)
+	playersPK := map[int]ed25519.PublicKey{0: pub0, 1: pub1}
+
+	// create nodes with the peers
+	s := poker.Session{
+		Board: [5]poker.Card{},
+		Players: []poker.Player{
+			{Name: "Alice", Id: 0, Hand: [2]poker.Card{}, HasFolded: false, Pot: 100, Bet: 0},
+			{Name: "Bob", Id: 1, Hand: [2]poker.Card{}, HasFolded: false, Pot: 100, Bet: 0},
+		},
+		Deck:        deck.Deck{},
+		Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0, 1}}},
+		HighestBet:  0,
+		Dealer:      0,
+		CurrentTurn: 0,
+		RoundID:     "round1",
+	}
+	psm := poker.NewPokerStateMachine(&s)
+	ldg := ledger.NewBlockchain()
+
+	node0 := NewConsensusNode(pub0, priv0, playersPK, psm, ldg, p0)
+	node1 := NewConsensusNode(pub1, priv1, playersPK, psm, ldg, p1)
+	errChan := make(chan error, 2)
+
+	go func() {
+		if err := node1.WaitForProposal(); err != nil {
+			errChan <- err
+		}
+		errChan <- nil
+	}()
+
+	// proposer broadcasts invalid JSON bytes (this will be received by node1)
+	go func() {
+		invalid := []byte("this-is-not-json")
+		if _, err := node0.network.Broadcast(invalid, 0); err != nil {
+			errChan <- err
+		}
+		errChan <- nil
+	}()
+
+	err0 := <-errChan
+	err1 := <-errChan
+	close(errChan)
+	if err0 == nil && err1 == nil {
+		t.Fatalf("expected error from WaitForProposalAndProcess for Invalid JSON")
+	}
+}
+
+// Full integration test: proposer sends proposal, followers receive, validate, vote, commit
+/*func TestProposeReceive(t *testing.T) {
 	// create listeners and peers
 	listeners, addresses := common.CreateListeners(3)
 	peers := make([]*common.Peer, 3)
@@ -364,4 +438,5 @@ func TestProposeReceiveAndBan(t *testing.T) {
 			t.Fatalf("expected proposer to be banned, still found at index %d", idx)
 		}
 	}
-}*/
+}
+*/

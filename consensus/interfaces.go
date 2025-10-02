@@ -17,7 +17,7 @@ type StateMachine interface {
 	NotifyBan(id int) ([]byte, error)
 
 	// Snapshot crea uno snapshot dello stato corrente
-	Snapshot() []byte
+	Snapshot() ([]byte, error)
 
 	// Restore ripristina lo stato da uno snapshot
 	Restore(data []byte) error
@@ -26,24 +26,24 @@ type StateMachine interface {
 // Ledger è l'interfaccia per registrare azioni committate
 type Ledger interface {
 	// Append aggiunge un nuovo blocco con l'azione committata
-	Append(action *Action, votes []Vote, quorum int) error
+	Append(action []byte, votes [][]byte, proposerId int, quorum int) error
 
 	// GetLatest ritorna l'ultimo blocco
-	GetLatest() (Block, error)
+	//GetLatest() (Block, error)
 
 	// Verify verifica l'integrità della chain
 	Verify() error
 }
 
 // Block rappresenta un blocco nel ledger
-type Block struct {
+/*type Block struct {
 	Index     int
 	PrevHash  string
 	Hash      string
 	Action    *Action
 	Votes     []Vote
 	Timestamp int64
-}
+}*/
 
 // NetworkLayer astrae la comunicazione P2P
 type NetworkLayer interface {
@@ -54,7 +54,7 @@ type NetworkLayer interface {
 	AllToAll(data []byte) ([][]byte, error)
 
 	// GetRank ritorna il rank di questo nodo
-	GetId() int
+	GetRank() int
 
 	// GetPeerCount ritorna il numero di peer
 	GetPeerCount() int

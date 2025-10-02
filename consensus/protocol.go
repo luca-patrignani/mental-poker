@@ -24,7 +24,7 @@ func (node *ConsensusNode) ProposeAction(a *Action) error {
 	node.proposal = a
 
 	b, _ := json.Marshal(*node.proposal)
-	if _, err := node.BroadcastwithTimeout(b, node.network.GetId(), 30*time.Second); err != nil {
+	if _, err := node.BroadcastwithTimeout(b, node.network.GetRank(), 30*time.Second); err != nil {
 		return err
 	}
 	err := node.onReceiveProposal(node.proposal)
@@ -94,7 +94,7 @@ func (node *ConsensusNode) broadcastVoteForProposal(p *Action, v VoteValue, reas
 	//fmt.Printf("Node %s voting %s for proposal from %s: %s\n", node.ID, v, p.Action.PlayerID, reason)
 
 	vote := Vote{ActionId: p.Id,
-		VoterID: node.network.GetId(),
+		VoterID: node.network.GetRank(),
 		Value:   v,
 		Reason:  reason}
 
@@ -108,7 +108,7 @@ func (node *ConsensusNode) broadcastVoteForProposal(p *Action, v VoteValue, reas
 		node.proposal = p
 	}
 
-	node.votes[node.network.GetId()] = vote
+	node.votes[node.network.GetRank()] = vote
 
 	//fmt.Printf("Node %s broadcasting vote %s for proposal %s\n", node.ID, v, pid)
 	b, _ := json.Marshal(vote)
@@ -151,7 +151,7 @@ func ensureSameProposal(votes []Vote) error {
 func (node *ConsensusNode) onReceiveVotes(votes []Vote) error {
 	err := ensureSameProposal(votes)
 	if err != nil {
-		fmt.Printf("Node %d received invalid votes: %v\n", node.network.GetId(), err)
+		fmt.Printf("Node %d received invalid votes: %v\n", node.network.GetRank(), err)
 		return err
 	}
 
@@ -225,7 +225,7 @@ func (node *ConsensusNode) checkAndCommit() error {
 		if err != nil {
 			return err
 		}
-		if node.network.GetId() == cert.Proposal.PlayerID {
+		if node.network.GetRank() == cert.Proposal.PlayerID {
 			err := node.network.Close()
 			if err != nil {
 				return err
@@ -267,7 +267,16 @@ func (node *ConsensusNode) applyCommit(cert Certificate) error {
 	}
 	node.pokerSM.Apply(cert.Proposal.Payload)
 
-	err := node.ledger.Append(cert.Proposal, cert.Votes, node.quorum)
+	votesBytes := make([][]byte, len(cert.Votes))
+	for _, v := range cert.Votes {
+		vb, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		votesBytes = append(votesBytes, vb)
+	}
+
+	err := node.ledger.Append(cert.Proposal.Payload, votesBytes, cert.Proposal.PlayerID, node.quorum)
 	if err != nil {
 		return err
 	}

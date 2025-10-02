@@ -9,7 +9,6 @@ import (
 
 // NewConsensusNode crea un nuovo nodo di consenso
 func NewConsensusNode(
-	id string,
 	pub ed25519.PublicKey,
 	priv ed25519.PrivateKey,
 	peers map[int]ed25519.PublicKey,
