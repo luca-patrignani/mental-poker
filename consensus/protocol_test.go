@@ -95,7 +95,7 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 		CurrentTurn: 0,
 		RoundID:     "round1",
 	}
-	psm := poker.NewPokerStateMachine(&s)
+	psm := poker.NewPokerManager(&s)
 	ldg := ledger.NewBlockchain()
 
 	node0 := NewConsensusNode(pub0, priv0, playersPK, psm, ldg, p0)

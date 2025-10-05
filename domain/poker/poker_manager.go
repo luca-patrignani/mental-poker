@@ -5,18 +5,19 @@ import (
 	"fmt"
 )
 
-// StateMachine implementa l'interfaccia consensus.StateMachine
+// PokerManager implementa l'interfaccia consensus.PokerManager
 // ma vive nel domain layer senza dipendenze dal consensus
-type StateMachine struct {
+// TODO: la chiamerei più che altro poker manager
+type PokerManager struct {
 	session *Session
 }
 
-func NewPokerStateMachine(session *Session) *StateMachine {
-	return &StateMachine{session: session}
+func NewPokerManager(session *Session) *PokerManager {
+	return &PokerManager{session: session}
 }
 
 // Validate verifica se un'azione è valida nello stato corrente
-func (psm *StateMachine) Validate(actionData []byte) error {
+func (psm *PokerManager) Validate(actionData []byte) error {
 	pa, err := FromConsensusPayload(actionData)
 
 	if err != nil {
@@ -43,7 +44,7 @@ func (psm *StateMachine) Validate(actionData []byte) error {
 }
 
 // Apply applica un'azione validata allo stato
-func (psm *StateMachine) Apply(actionData []byte) error {
+func (psm *PokerManager) Apply(actionData []byte) error {
 	pa, err := FromConsensusPayload(actionData)
 	if err != nil {
 		return err
@@ -58,14 +59,14 @@ func (psm *StateMachine) Apply(actionData []byte) error {
 }
 
 // GetCurrentActor ritorna l'ID del giocatore che deve agire
-func (psm *StateMachine) GetCurrentPlayer() int {
+func (psm *PokerManager) GetCurrentPlayer() int {
 	if psm.session.CurrentTurn >= uint(len(psm.session.Players)) {
 		return -1
 	}
 	return psm.session.Players[psm.session.CurrentTurn].Id
 }
 
-func (psm *StateMachine) NotifyBan(id int) ([]byte, error) {
+func (psm *PokerManager) NotifyBan(id int) ([]byte, error) {
 	pa := PokerAction{
 		RoundID:  psm.session.RoundID,
 		PlayerID: id,
@@ -80,16 +81,16 @@ func (psm *StateMachine) NotifyBan(id int) ([]byte, error) {
 }
 
 // Snapshot serializza lo stato corrente
-func (psm *StateMachine) Snapshot() ([]byte, error) {
+func (psm *PokerManager) Snapshot() ([]byte, error) {
 	return json.Marshal(psm.session)
 }
 
 // Restore ripristina lo stato da uno snapshot
-func (psm *StateMachine) Restore(data []byte) error {
+func (psm *PokerManager) Restore(data []byte) error {
 	return json.Unmarshal(data, &psm.session)
 }
 
-func (psm *StateMachine) FindPlayerIndex(playerID int) int {
+func (psm *PokerManager) FindPlayerIndex(playerID int) int {
 	for i, p := range psm.session.Players {
 		if p.Id == playerID {
 			return i
@@ -99,7 +100,7 @@ func (psm *StateMachine) FindPlayerIndex(playerID int) int {
 }
 
 // GetSession espone la sessione (read-only idealmente)
-func (psm *StateMachine) GetSession() *Session {
+func (psm *PokerManager) GetSession() *Session {
 	return psm.session
 }
 
