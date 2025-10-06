@@ -41,7 +41,7 @@ func TestNewCard_ValidCard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if card.Suit() != Heart || card.Rank() != Ace {
 		t.Fatal("card has wrong suit or rank")
 	}
@@ -77,7 +77,7 @@ func TestConvertCard_BoundaryValues(t *testing.T) {
 	if card.Suit() != Club || card.Rank() != Ace {
 		t.Fatalf("card 1 should be Ace of Clubs, got %s", card.String())
 	}
-	
+
 	// Test card 52 (King of Spades)
 	card, err = ConvertCard(52)
 	if err != nil {
@@ -90,7 +90,7 @@ func TestConvertCard_BoundaryValues(t *testing.T) {
 
 func TestConvertCard_InvalidValues(t *testing.T) {
 	tests := []int{0, 53, -1, 100}
-	
+
 	for _, val := range tests {
 		_, err := ConvertCard(val)
 		if err == nil {
@@ -109,7 +109,7 @@ func TestCardString_AllSuits(t *testing.T) {
 		{Heart, "A♥"},
 		{Spade, "A♠"},
 	}
-	
+
 	for _, tc := range suits {
 		card := Card{suit: tc.suit, rank: Ace}
 		if card.String() != tc.expected {

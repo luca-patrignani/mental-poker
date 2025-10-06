@@ -7,7 +7,6 @@ import (
 
 // PokerManager implementa l'interfaccia consensus.PokerManager
 // ma vive nel domain layer senza dipendenze dal consensus
-// TODO: la chiamerei più che altro poker manager
 type PokerManager struct {
 	session *Session
 }
@@ -100,8 +99,8 @@ func (psm *PokerManager) FindPlayerIndex(playerID int) int {
 }
 
 // GetSession espone la sessione (read-only idealmente)
-func (psm *PokerManager) GetSession() *Session {
-	return psm.session
+func (psm *PokerManager) GetSession() ([]byte, error) {
+	return json.Marshal(psm.session)
 }
 
 // ToConsensusPayload serializza per il consensus layer

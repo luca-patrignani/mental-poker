@@ -159,16 +159,16 @@ func TestApplyAction_Fold(t *testing.T) {
 		},
 		CurrentTurn: 0,
 	}
-	
+
 	err := ApplyAction(ActionFold, 0, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if !session.Players[0].HasFolded {
 		t.Fatal("player should be folded")
 	}
-	
+
 	if session.CurrentTurn != 1 {
 		t.Fatalf("turn should advance to 1, got %d", session.CurrentTurn)
 	}
@@ -182,20 +182,20 @@ func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {
 		CurrentTurn: 0,
 		HighestBet:  0,
 	}
-	
+
 	err := ApplyAction(ActionBet, 50, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if session.Players[0].Bet != 50 {
 		t.Fatalf("expected bet 50, got %d", session.Players[0].Bet)
 	}
-	
+
 	if session.Players[0].Pot != 50 {
 		t.Fatalf("expected pot 50, got %d", session.Players[0].Pot)
 	}
-	
+
 	if session.HighestBet != 50 {
 		t.Fatalf("expected highest bet 50, got %d", session.HighestBet)
 	}
@@ -209,16 +209,16 @@ func TestApplyAction_Raise_UpdatesHighestBet(t *testing.T) {
 		CurrentTurn: 0,
 		HighestBet:  50,
 	}
-	
+
 	err := ApplyAction(ActionRaise, 50, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if session.Players[0].Bet != 100 {
 		t.Fatalf("expected bet 100, got %d", session.Players[0].Bet)
 	}
-	
+
 	if session.HighestBet != 100 {
 		t.Fatalf("expected highest bet 100, got %d", session.HighestBet)
 	}
@@ -232,16 +232,16 @@ func TestApplyAction_Call_MatchesHighestBet(t *testing.T) {
 		CurrentTurn: 0,
 		HighestBet:  100,
 	}
-	
+
 	err := ApplyAction(ActionCall, 0, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if session.Players[0].Bet != 100 {
 		t.Fatalf("expected bet 100, got %d", session.Players[0].Bet)
 	}
-	
+
 	if session.Players[0].Pot != 50 {
 		t.Fatalf("expected pot 50, got %d", session.Players[0].Pot)
 	}
@@ -255,16 +255,16 @@ func TestApplyAction_AllIn_EmptiesPot(t *testing.T) {
 		CurrentTurn: 0,
 		HighestBet:  100,
 	}
-	
+
 	err := ApplyAction(ActionAllIn, 0, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if session.Players[0].Pot != 0 {
 		t.Fatalf("expected pot 0, got %d", session.Players[0].Pot)
 	}
-	
+
 	if session.Players[0].Bet != 125 {
 		t.Fatalf("expected bet 125, got %d", session.Players[0].Bet)
 	}
@@ -279,16 +279,16 @@ func TestApplyAction_Check_NoStateChange(t *testing.T) {
 		CurrentTurn: 0,
 		HighestBet:  50,
 	}
-	
+
 	err := ApplyAction(ActionCheck, 0, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if session.Players[0].Bet != 50 {
 		t.Fatal("bet should not change on check")
 	}
-	
+
 	if session.CurrentTurn != 1 {
 		t.Fatalf("turn should advance to 1, got %d", session.CurrentTurn)
 	}
@@ -301,19 +301,19 @@ func TestApplyAction_Ban_RemovesPlayer(t *testing.T) {
 			{Name: "Bob", Id: 2},
 			{Name: "Carol", Id: 3},
 		},
-		Dealer: 	0,
+		Dealer:      0,
 		CurrentTurn: 1,
 	}
-	
+
 	err := ApplyAction(ActionBan, 0, session, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	
+
 	if len(session.Players) != 2 {
 		t.Fatalf("expected 2 players, got %d", len(session.Players))
 	}
-	
+
 	if session.Players[1].Name != "Carol" {
 		t.Fatal("wrong player was removed")
 	}
@@ -328,9 +328,9 @@ func TestAdvanceTurn_SkipsFoldedPlayers(t *testing.T) {
 		},
 		CurrentTurn: 0,
 	}
-	
+
 	session.advanceTurn()
-	
+
 	if session.CurrentTurn != 2 {
 		t.Fatalf("expected turn 2, got %d", session.CurrentTurn)
 	}
@@ -344,9 +344,9 @@ func TestAdvanceTurn_WrapsAround(t *testing.T) {
 		},
 		CurrentTurn: 1,
 	}
-	
+
 	session.advanceTurn()
-	
+
 	if session.CurrentTurn != 0 {
 		t.Fatalf("expected turn to wrap to 0, got %d", session.CurrentTurn)
 	}
