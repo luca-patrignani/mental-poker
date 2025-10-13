@@ -9,12 +9,12 @@ import (
 
 	"github.com/luca-patrignani/mental-poker/application"
 )
-
+*/
 func main() {
-
+}
 	// Setup network
 	//TODO
-
+/*
 	// Setup crypto keys per tutti i player
 	playerKeys := make(map[string]ed25519.PublicKey)
 	pub, priv, _ := ed25519.GenerateKey(nil)
