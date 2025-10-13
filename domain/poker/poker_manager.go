@@ -16,12 +16,7 @@ func NewPokerManager(session *Session) *PokerManager {
 }
 
 // Validate verifica se un'azione è valida nello stato corrente
-func (psm *PokerManager) Validate(actionData []byte) error {
-	pa, err := FromConsensusPayload(actionData)
-
-	if err != nil {
-		return fmt.Errorf("Wrong data format")
-	}
+func (psm *PokerManager) Validate(pa PokerAction) error {
 	// Verifica round ID
 	if pa.RoundID != psm.session.RoundID {
 		return fmt.Errorf("wrong round: expected %s, got %s", psm.session.RoundID, pa.RoundID)
@@ -43,12 +38,7 @@ func (psm *PokerManager) Validate(actionData []byte) error {
 }
 
 // Apply applica un'azione validata allo stato
-func (psm *PokerManager) Apply(actionData []byte) error {
-	pa, err := FromConsensusPayload(actionData)
-	if err != nil {
-		return err
-	}
-
+func (psm *PokerManager) Apply(pa PokerAction) error {
 	idx := psm.FindPlayerIndex(pa.PlayerID)
 	if idx == -1 {
 		return fmt.Errorf("player not found")
@@ -65,18 +55,20 @@ func (psm *PokerManager) GetCurrentPlayer() int {
 	return psm.session.Players[psm.session.CurrentTurn].Id
 }
 
-func (psm *PokerManager) NotifyBan(id int) ([]byte, error) {
+func (psm *PokerManager) NotifyBan(id int) (PokerAction, error) {
+
+	err := psm.FindPlayerIndex(id)
+	if err == -1 {
+		return PokerAction{}, fmt.Errorf("player not found")
+	}
 	pa := PokerAction{
 		RoundID:  psm.session.RoundID,
 		PlayerID: id,
 		Type:     ActionBan,
 		Amount:   0,
 	}
-	b, err := pa.ToConsensusPayload()
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
+
+	return pa, nil
 }
 
 // Snapshot serializza lo stato corrente
@@ -99,8 +91,8 @@ func (psm *PokerManager) FindPlayerIndex(playerID int) int {
 }
 
 // GetSession espone la sessione (read-only idealmente)
-func (psm *PokerManager) GetSession() ([]byte, error) {
-	return json.Marshal(psm.session)
+func (psm *PokerManager) GetSession() *Session {
+	return psm.session
 }
 
 // ToConsensusPayload serializza per il consensus layer

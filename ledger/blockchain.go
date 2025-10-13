@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/luca-patrignani/mental-poker/consensus"
+	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
 
 // Blockchain gestisce la catena di blocchi
@@ -20,15 +23,15 @@ func NewBlockchain() *Blockchain {
 	bc := &Blockchain{
 		blocks: make([]Block, 0),
 	}
-	genAct, _ := json.Marshal(map[string]string{"type": "genesis"})
 
 	// Crea genesis block
 	genesis := Block{
 		Index:     0,
 		Timestamp: time.Now().Unix(),
 		PrevHash:  "0",
-		Action:    genAct,
-		Votes:     []Vote{},
+		Session:   poker.Session{},
+		Action:    poker.PokerAction{Type: "genesis"},
+		Votes:     []consensus.Vote{},
 		Metadata:  Metadata{ProposerID: -1, Quorum: 0},
 	}
 	genesis.Hash = bc.calculateHash(genesis)
@@ -38,24 +41,27 @@ func NewBlockchain() *Blockchain {
 }
 
 // Append aggiunge un nuovo blocco validato
-func (bc *Blockchain) Append(action []byte, votesBytes [][]byte, proposerID int, quorum int) error {
+func (bc *Blockchain) Append(session poker.Session, pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	votes := convertVotes(votesBytes)
-
+	var extraMsg map[string]string
+	if len(extra) > 0 {
+		extraMsg = extra[0]
+	}
 	latest := bc.blocks[len(bc.blocks)-1]
 
 	newBlock := Block{
 		Index:     latest.Index + 1,
 		Timestamp: time.Now().Unix(),
 		PrevHash:  latest.Hash,
-		Action:    action,
+		Session:   session,
+		Action:    pa,
 		Votes:     votes,
 		Metadata: Metadata{
 			ProposerID: proposerID,
 			Quorum:     quorum,
-			Extra:      map[string]string{"Reason": votes[0].Reason},
+			Extra:      extraMsg,
 		},
 	}
 
@@ -69,19 +75,6 @@ func (bc *Blockchain) Append(action []byte, votesBytes [][]byte, proposerID int,
 	bc.blocks = append(bc.blocks, newBlock)
 
 	return nil
-}
-
-func convertVotes(votesBytes [][]byte) []Vote {
-	votes := make([]Vote, 0, len(votesBytes))
-	for _, vb := range votesBytes {
-		var v Vote
-		if err := json.Unmarshal(vb, &v); err != nil {
-			fmt.Printf("failed to unmarshal vote: %v\n", err)
-			continue // skip malformed messages
-		}
-		votes = append(votes, v)
-	}
-	return votes
 }
 
 // GetLatest ritorna l'ultimo blocco
@@ -221,12 +214,12 @@ func (bc *Blockchain) Replay(stateMachine StateMachine) error {
 
 	// Skip genesis block
 	for i := 1; i < len(bc.blocks); i++ {
-		actionBytes, err := json.Marshal(bc.blocks[i].Action)
+		pa, err := bc.blocks[i].Action.ToConsensusPayload()
 		if err != nil {
-			return fmt.Errorf("block %d: failed to marshal action: %w", i, err)
+			return fmt.Errorf("block %d: failed to serialize action: %w", i, err)
 		}
 
-		if err := stateMachine.Apply(actionBytes); err != nil {
+		if err := stateMachine.Apply(pa); err != nil {
 			return fmt.Errorf("block %d: failed to apply action: %w", i, err)
 		}
 	}

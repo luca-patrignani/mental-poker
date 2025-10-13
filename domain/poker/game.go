@@ -115,10 +115,8 @@ func ApplyAction(a ActionType, amount uint, session *Session, idx int) error {
 	case ActionBan:
 		session.Players = append(session.Players[:idx], session.Players[idx+1:]...)
 		n := len(session.Players)
-		if session.Dealer == uint(idx) {
-			session.Dealer = (uint(idx) + 1) % uint(n)
-		}
-		session.CurrentTurn = session.Dealer + 1
+		session.Dealer %= uint(n)
+		session.CurrentTurn = (session.Dealer + 1) % uint(n)
 
 	default:
 		return fmt.Errorf("unknown action")

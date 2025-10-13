@@ -48,6 +48,7 @@ func (cn *ConsensusNode) UpdatePeers() error {
 		pk[i] = p
 	}
 	cn.playersPK = pk
+	cn.quorum = computeQuorum(len(pk))
 	return nil
 }
 
@@ -64,18 +65,19 @@ func (node *ConsensusNode) AllToAllwithTimeout(data []byte, timeout time.Duratio
 
 		responses, err := node.network.AllToAll(data)
 		if err != nil {
-			fmt.Printf("Error in broadcasting votes: %v, retry in 5 seconds\n", err)
-			time.Sleep(5000 * time.Millisecond)
-			continue
+			fmt.Printf("Error in broadcasting: %v\n", err)
 		}
 
-		if len(responses) >= expected {
-			break
+		if responses == nil {
+			fmt.Printf("Error in broadcasting: responses of length %d instead of %d\n", len(responses), expected)
 		}
+		if len(responses) >= expected {
+			return responses, nil
+		}
+		fmt.Print("Retry in 5 seconds. . .\n")
 		time.Sleep(5000 * time.Millisecond)
 	}
 
-	return responses, nil
 }
 
 // Funzione all-to-all con timeout
@@ -89,13 +91,13 @@ func (node *ConsensusNode) BroadcastwithTimeout(data []byte, rank int, timeout t
 		}
 
 		response, err := node.network.Broadcast(data, rank)
-		if err != nil {
-			fmt.Printf("Error in broadcasting votes: %v, retry in 5 seconds\n", err)
-			time.Sleep(5000 * time.Millisecond)
-			continue
-		}
+		if err == nil {
 
-		return response, nil
+			return response, nil
+		}
+		fmt.Printf("Error in broadcasting votes: %s, retry in 5 seconds\n", err)
+		time.Sleep(5000 * time.Millisecond)
+
 	}
 
 }

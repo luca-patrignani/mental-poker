@@ -2,14 +2,57 @@ package consensus
 
 import (
 	"crypto/ed25519"
+	"fmt"
+	"sort"
 	"testing"
 	"time"
 
 	"github.com/luca-patrignani/mental-poker/domain/deck"
 	"github.com/luca-patrignani/mental-poker/domain/poker"
-	"github.com/luca-patrignani/mental-poker/ledger"
 	"github.com/luca-patrignani/mental-poker/network"
 )
+
+type mockBlock struct {
+	Session poker.Session     `json:"session"`
+	Action  poker.PokerAction `json:"poker_action"` // Generic action data
+	Votes   []Vote            `json:"votes"`
+}
+type mockBlockChain struct {
+	blocks []mockBlock
+}
+
+func NewBlockchain() *mockBlockChain {
+	bc := &mockBlockChain{
+		blocks: make([]mockBlock, 0),
+	}
+
+	// Crea genesis block
+	genesis := mockBlock{
+		Session: poker.Session{},
+		Action:  poker.PokerAction{Type: "genesis"},
+		Votes:   []Vote{},
+	}
+	bc.blocks = append(bc.blocks, genesis)
+
+	return bc
+}
+
+func (m *mockBlockChain) Append(session poker.Session, pa poker.PokerAction, votes []Vote, proposerID int, quorum int, extra ...map[string]string) error {
+
+	newBlock := mockBlock{
+		Session: session,
+		Action:  pa,
+		Votes:   votes,
+	}
+	m.blocks = append(m.blocks, newBlock)
+	return nil
+
+}
+
+// Verify verifica l'integrità della chain
+func (m *mockBlockChain) Verify() error {
+	return nil
+}
 
 func makeSignedVote(t *testing.T, actionID string, voterID int, value VoteValue, reason string, priv ed25519.PrivateKey) Vote {
 	t.Helper()
@@ -59,6 +102,7 @@ func TestCollectVotes(t *testing.T) {
 }
 
 func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
+
 	// create two listeners and addresses
 	listeners, addresses := network.CreateListeners(2)
 	defer func() {
@@ -96,7 +140,7 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 		RoundID:     "round1",
 	}
 	psm := poker.NewPokerManager(&s)
-	ldg := ledger.NewBlockchain()
+	ldg := NewBlockchain()
 
 	node0 := NewConsensusNode(pub0, priv0, playersPK, psm, ldg, p0)
 	node1 := NewConsensusNode(pub1, priv1, playersPK, psm, ldg, p1)
@@ -112,7 +156,8 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	// proposer broadcasts invalid JSON bytes (this will be received by node1)
 	go func() {
 		invalid := []byte("this-is-not-json")
-		if _, err := node0.network.Broadcast(invalid, 0); err != nil {
+		a, err := node0.network.Broadcast(invalid, 0)
+		if err != nil || a == nil {
 			errChan <- err
 		}
 		errChan <- nil
@@ -127,16 +172,17 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 }
 
 // Full integration test: proposer sends proposal, followers receive, validate, vote, commit
-/*func TestProposeReceive(t *testing.T) {
+func TestProposeReceive(t *testing.T) {
 	// create listeners and peers
-	listeners, addresses := common.CreateListeners(3)
-	peers := make([]*common.Peer, 3)
-	for i := 0; i < 3; i++ {
-		p := common.NewPeer(i, addresses, listeners[i], 5*time.Second)
+	n := 3
+	listeners, addresses := network.CreateListeners(n)
+	peers := make([]*network.Peer, n)
+	for i := 0; i < n; i++ {
+		p := network.NewPeer(i, addresses, listeners[i], 3*time.Second)
 		peers[i] = &p
 	}
 	defer func() {
-		for i := 1; i < 3; i++ {
+		for i := 0; i < n; i++ {
 			err := peers[i].Close()
 			if err != nil {
 				t.Logf("error closing peer %d: %v", i, err)
@@ -144,122 +190,158 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 		}
 	}()
 
-	fatal := make(chan error, 3)
-	nodes_chan := make(chan *Node, 3)
-
-	for i := 0; i < 3; i++ {
-		go func() {
-			playersPK := make(map[string]ed25519.PublicKey)
-			pub, priv := mustKeypair(t)
-			node := NewNode(peers[i], pub, priv, playersPK)
-
-			b, err := json.Marshal(pub)
+	fatal := make(chan error, n)
+	nodes_chan := make(chan *ConsensusNode, n)
+	for i := 0; i < n; i++ {
+		go func(idx int) {
+			playersPK := make(map[int]ed25519.PublicKey)
+			pub, priv, err := ed25519.GenerateKey(nil)
 			if err != nil {
 				fatal <- err
 				return
 			}
-			pkBytes, err := node.peer.AllToAll(b)
+			p2p := network.NewP2P(peers[idx])
+			psm := poker.PokerManager{}
+			ldg := NewBlockchain()
+			node := NewConsensusNode(pub, priv, playersPK, &psm, ldg, p2p)
+
+			err = node.UpdatePeers()
 			if err != nil {
 				fatal <- err
 				return
 			}
-			pk := make(map[string]ed25519.PublicKey, len(pkBytes))
-			for i, pki := range pkBytes {
-				var p ed25519.PublicKey
-				if err := json.Unmarshal(pki, &p); err != nil {
-					fatal <- fmt.Errorf("failed to unmarshal vote: %v\n", err)
-					continue // skip malformed messages
-				}
-				pk[strconv.Itoa(i)] = p
-			}
-			node.PlayersPK = pk
 
-			deck := deck.Deck{
-				DeckSize: 52,
-				Peer:     *node.peer,
-			}
-
-			err = deck.PrepareDeck()
-			if err != nil {
-				fatal <- err
-				return
-			}
-			players := make([]poker.Player, len(pk))
-			i := 0
-			for k := range pk {
-				players[i] = poker.Player{
-					Name:      k,
-					Rank:      i,
+			players := make([]poker.Player, 0, n)
+			for k := range node.playersPK {
+				player := poker.Player{
+					Name:      "Player" + fmt.Sprint(k),
+					Id:        k,
 					Hand:      [2]poker.Card{},
 					HasFolded: false,
 					Bet:       0,
 					Pot:       100,
 				}
-				i++
+				players = append(players, player)
+			}
+			sort.Slice(players, func(i, j int) bool {
+				return players[i].Id < players[j].Id
+			})
+
+			d := deck.Deck{DeckSize: 52, Peer: p2p}
+			err = d.PrepareDeck()
+			if err != nil {
+				fatal <- err
+				return
 			}
 
 			s := poker.Session{
-				Board:       [5]poker.Card{}, // empty board
+				Board:       [5]poker.Card{},
 				Players:     players,
-				Deck:        deck,
+				Deck:        d,
 				Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0, 1, 2}}},
 				HighestBet:  0,
 				Dealer:      0,
 				CurrentTurn: 0,
-				RoundID:     "round-0",
+				RoundID:     "preflop-1",
 			}
-			node.Session = &s
-			node.N = len(node.Session.Players)
-			node.quorum = ceil2n3(node.N)
+
+			psm = *poker.NewPokerManager(&s)
+			node.pokerSM = &psm
+
 			nodes_chan <- node
 			fatal <- nil
-		}()
-	}
-	<-fatal
-	<-fatal
-	<-fatal
-	close(fatal)
-	close(nodes_chan)
-
-	var nodes []*Node
-	for n := range nodes_chan {
-		nodes = append(nodes, n)
-	}
-
-	// start receiver goroutines for non-proposers
-	done := make(chan struct{})
-	for i := 1; i < 3; i++ {
-		go func(idx int) {
-			if err := nodes[idx].WaitForProposalAndProcess(); err != nil {
-				t.Logf("node %d receive error: %v", idx, err)
-			}
-			done <- struct{}{}
 		}(i)
 	}
 
-	// proposer builds action and proposes
-	a := &Action{
-		RoundID:    nodes[0].Session.RoundID,
-		PlayerID:   strconv.Itoa(nodes[0].peer.Rank),
-		CommitType: poker.ActionBet,
-		Amount:     10,
+	// Wait for all nodes to initialize
+	for i := 0; i < n; i++ {
+		if err := <-fatal; err != nil {
+			t.Fatalf("node initialization failed: %v", err)
+		}
 	}
-	_ = a.Sign(nodes[0].Priv)
+	close(fatal)
+	close(nodes_chan)
 
-	if err := nodes[0].ProposeAction(a); err != nil {
-		t.Fatalf("propose failed: %v", err)
+	var nodes []*ConsensusNode
+	for node := range nodes_chan {
+		nodes = append(nodes, node)
+	}
+
+	// Initialize votes map for all nodes
+	for i := 0; i < n; i++ {
+		nodes[i].votes = make(map[int]Vote)
+	}
+
+	// start receiver goroutines for non-proposers
+	done := make(chan struct{}, n-1)
+	errChan := make(chan error, n-1)
+
+	// Sync barrier: ensure all receivers are ready
+	ready := make(chan struct{}, n-1)
+
+	for i := 0; i < n; i++ {
+		idx := nodes[i].pokerSM.FindPlayerIndex(nodes[i].network.GetRank())
+		if idx != 0 {
+			go func(nodeIdx int) {
+				ready <- struct{}{} // Signal ready
+				if err := nodes[nodeIdx].WaitForProposal(); err != nil {
+					t.Logf("node %d receive error: %v", nodeIdx, err)
+					errChan <- err
+				} else {
+					errChan <- nil
+				}
+				done <- struct{}{}
+			}(i)
+		}
+	}
+
+	// Wait for all receivers to be ready
+	for i := 0; i < n-1; i++ {
+		<-ready
+	}
+
+	// Small delay to ensure handlers are listening
+	time.Sleep(100 * time.Millisecond)
+
+	// Now proposer sends
+	for i := 0; i < n; i++ {
+		idx := nodes[i].pokerSM.FindPlayerIndex(nodes[i].network.GetRank())
+		if idx == 0 {
+			// proposer builds action and proposes
+			pa := poker.PokerAction{
+				RoundID:  "preflop-1",
+				PlayerID: nodes[i].network.GetRank(),
+				Type:     poker.ActionRaise,
+				Amount:   30,
+			}
+
+			a, err := makeAction(nodes[i].network.GetRank(), pa)
+			if err != nil {
+				t.Fatalf("%s", err.Error())
+			}
+			err = a.Sign(nodes[i].priv)
+			if err != nil {
+				t.Fatalf("%s", err.Error())
+			}
+
+			if err := nodes[i].ProposeAction(&a); err != nil {
+				t.Fatalf("propose failed: %v", err)
+			}
+			break
+		}
 	}
 
 	// wait for receivers
-	<-done
-	<-done
-
-	time.Sleep(500 * time.Millisecond) // wait a bit for votes to be processed
+	for i := 0; i < n-1; i++ {
+		<-done
+		if err := <-errChan; err != nil {
+			t.Fatalf("receiver error: %v", err)
+		}
+	}
 
 	// 1. Check that proposal was stored on each node
 	for i := 0; i < 3; i++ {
-		//t.Logf("Node %d proposals: %+v\n", i, nodes[i].proposals)
-		if nodes[i].proposals == nil || len(nodes[i].proposals) != 1 {
+		if nodes[i].proposal == nil {
 			t.Fatalf("node %d did not store proposal", i)
 		}
 	}
@@ -272,26 +354,37 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	}
 
 	// 3. Check that commit affected session state (e.g. pot updated)
-	expectedPot := uint(10)
+	expectedPot := uint(30)
 	for i := 0; i < 3; i++ {
-		if nodes[i].Session.Pots[0].Amount != expectedPot {
-			t.Fatalf("expected pot=%d, got %d on node %d",
-				expectedPot, nodes[i].Session.Pots[0].Amount, i)
+		s := nodes[i].pokerSM.GetSession()
+
+		if s.HighestBet != 30 {
+			t.Fatalf("expected HighestBet=%d, got %d on node %d",
+				expectedPot, s.HighestBet, i)
+		}
+
+		if s.CurrentTurn != 1 {
+			t.Fatalf("expected currentTurn=1, got %d on node %d",
+				s.CurrentTurn, i)
+		}
+		if s.Pots[0].Amount != 30 {
+			t.Fatalf("expected pot=30, got %d on node %d",
+				s.Pots[0].Amount, i)
 		}
 	}
 }
 
-// Full integration test: proposer sends malformed proposal. Followers should reject it and not update state.
-func TestProposeReceiveAndBan(t *testing.T) {
+func TestProposeReceiveBan(t *testing.T) {
 	// create listeners and peers
-	listeners, addresses := common.CreateListeners(3)
-	peers := make([]*common.Peer, 3)
-	for i := 0; i < 3; i++ {
-		p := common.NewPeer(i, addresses, listeners[i], 5*time.Second)
+	n := 3
+	listeners, addresses := network.CreateListeners(n)
+	peers := make([]*network.Peer, n)
+	for i := 0; i < n; i++ {
+		p := network.NewPeer(i, addresses, listeners[i], 3*time.Second)
 		peers[i] = &p
 	}
 	defer func() {
-		for i := 1; i < 3; i++ {
+		for i := 0; i < n-1; i++ {
 			err := peers[i].Close()
 			if err != nil {
 				t.Logf("error closing peer %d: %v", i, err)
@@ -299,119 +392,158 @@ func TestProposeReceiveAndBan(t *testing.T) {
 		}
 	}()
 
-	fatal := make(chan error, 3)
-	nodes_chan := make(chan *Node, 3)
-
-	for i := 0; i < 3; i++ {
-		go func() {
-			playersPK := make(map[string]ed25519.PublicKey)
-			pub, priv := mustKeypair(t)
-			node := NewNode(peers[i], pub, priv, playersPK)
-
-			b, err := json.Marshal(pub)
+	fatal := make(chan error, n)
+	nodes_chan := make(chan *ConsensusNode, n)
+	for i := 0; i < n; i++ {
+		go func(idx int) {
+			playersPK := make(map[int]ed25519.PublicKey)
+			pub, priv, err := ed25519.GenerateKey(nil)
 			if err != nil {
 				fatal <- err
 				return
 			}
-			pkBytes, err := node.peer.AllToAll(b)
+			p2p := network.NewP2P(peers[idx])
+			psm := poker.PokerManager{}
+			ldg := NewBlockchain()
+			node := NewConsensusNode(pub, priv, playersPK, &psm, ldg, p2p)
+
+			err = node.UpdatePeers()
 			if err != nil {
 				fatal <- err
 				return
 			}
-			pk := make(map[string]ed25519.PublicKey, len(pkBytes))
-			for i, pki := range pkBytes {
-				var p ed25519.PublicKey
-				if err := json.Unmarshal(pki, &p); err != nil {
-					fatal <- fmt.Errorf("failed to unmarshal public key: %v\n", err)
-					continue // skip malformed messages
-				}
-				pk[strconv.Itoa(i)] = p
-			}
-			node.PlayersPK = pk
 
-			deck := deck.Deck{
-				DeckSize: 52,
-				Peer:     *node.peer,
-			}
-
-			err = deck.PrepareDeck()
-			if err != nil {
-				fatal <- err
-				return
-			}
-			players := make([]poker.Player, len(pk))
-			i := 0
-			for k := range pk {
-				players[i] = poker.Player{
-					Name:      k,
-					Rank:      i,
+			players := make([]poker.Player, 0, n)
+			for k := range node.playersPK {
+				player := poker.Player{
+					Name:      "Player" + fmt.Sprint(k),
+					Id:        k,
 					Hand:      [2]poker.Card{},
 					HasFolded: false,
 					Bet:       0,
 					Pot:       100,
 				}
-				i++
+				players = append(players, player)
+			}
+			sort.Slice(players, func(i, j int) bool {
+				return players[i].Id < players[j].Id
+			})
+
+			d := deck.Deck{DeckSize: 52, Peer: p2p}
+			err = d.PrepareDeck()
+			if err != nil {
+				fatal <- err
+				return
 			}
 
 			s := poker.Session{
-				Board:       [5]poker.Card{}, // empty board
+				Board:       [5]poker.Card{},
 				Players:     players,
-				Deck:        deck,
-				Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0, 1, 2}}},
-				HighestBet:  0,
-				Dealer:      0,
+				Deck:        d,
+				Pots:        []poker.Pot{{Amount: 50, Eligible: []int{0, 1, 2}}},
+				HighestBet:  50,
+				Dealer:      2,
 				CurrentTurn: 0,
-				RoundID:     "round-0",
+				RoundID:     "preflop-1",
 			}
-			node.Session = &s
-			node.N = len(node.Session.Players)
-			node.quorum = ceil2n3(node.N)
+
+			psm = *poker.NewPokerManager(&s)
+			node.pokerSM = &psm
+
 			nodes_chan <- node
 			fatal <- nil
-		}()
-	}
-	<-fatal
-	<-fatal
-	<-fatal
-	close(fatal)
-	close(nodes_chan)
-
-	var nodes []*Node
-	for n := range nodes_chan {
-		nodes = append(nodes, n)
-	}
-	done := make(chan struct{})
-	for i := 1; i < 3; i++ {
-		go func(idx int) {
-			if err := nodes[idx].WaitForProposalAndProcess(); err != nil {
-				t.Logf("node %d receive error: %v", idx, err)
-			}
-			done <- struct{}{}
 		}(i)
 	}
 
-	// proposer builds action and proposes
-	a := &Action{
-		RoundID:    nodes[0].Session.RoundID,
-		PlayerID:   strconv.Itoa(nodes[0].peer.Rank),
-		CommitType: poker.ActionBet,
-		Amount:     110, // too high, should trigger validation error
+	// Wait for all nodes to initialize
+	for i := 0; i < n; i++ {
+		if err := <-fatal; err != nil {
+			t.Fatalf("node initialization failed: %v", err)
+		}
 	}
-	_ = a.Sign(nodes[0].Priv)
+	close(fatal)
+	close(nodes_chan)
 
-	err := nodes[0].ProposeAction(a)
-	if err != nil {
-		t.Fatalf("propose failed: %v", err)
+	var nodes []*ConsensusNode
+	for node := range nodes_chan {
+		nodes = append(nodes, node)
+	}
+
+	// Initialize votes map for all nodes
+	for i := 0; i < n; i++ {
+		nodes[i].votes = make(map[int]Vote)
+	}
+
+	// start receiver goroutines for non-proposers
+	done := make(chan struct{}, n-1)
+	errChan := make(chan error, n-1)
+
+	// Sync barrier: ensure all receivers are ready
+	ready := make(chan struct{}, n-1)
+
+	for i := 0; i < n; i++ {
+		idx := nodes[i].pokerSM.FindPlayerIndex(nodes[i].network.GetRank())
+		if idx != 0 {
+			go func(nodeIdx int) {
+				ready <- struct{}{} // Signal ready
+				if err := nodes[nodeIdx].WaitForProposal(); err != nil {
+					t.Logf("node %d receive error: %v", nodeIdx, err)
+					errChan <- err
+				} else {
+					errChan <- nil
+				}
+				done <- struct{}{}
+			}(i)
+		}
+	}
+
+	// Wait for all receivers to be ready
+	for i := 0; i < n-1; i++ {
+		<-ready
+	}
+
+	// Small delay to ensure handlers are listening
+	time.Sleep(100 * time.Millisecond)
+
+	// Now proposer sends
+	for i := 0; i < n; i++ {
+		idx := nodes[i].pokerSM.FindPlayerIndex(nodes[i].network.GetRank())
+		if idx == 0 {
+			// proposer builds action and proposes
+			pa := poker.PokerAction{
+				RoundID:  "preflop-1",
+				PlayerID: nodes[i].network.GetRank(),
+				Type:     poker.ActionRaise,
+				Amount:   30,
+			}
+
+			a, err := makeAction(nodes[i].network.GetRank(), pa)
+			if err != nil {
+				t.Fatalf("%s", err.Error())
+			}
+			err = a.Sign(nodes[i].priv)
+			if err != nil {
+				t.Fatalf("%s", err.Error())
+			}
+
+			if err := nodes[i].ProposeAction(&a); err != nil {
+				t.Fatalf("propose failed: %v", err)
+			}
+			break
+		}
 	}
 
 	// wait for receivers
-	<-done
-	<-done
+	for i := 0; i < n-1; i++ {
+		<-done
+		if err := <-errChan; err != nil {
+			t.Fatalf("receiver error: %v", err)
+		}
+	}
 
 	// 1. Check that proposal was stored on each node
 	for i := 0; i < 3; i++ {
-		//t.Logf("Node %d proposals: %+v\n", i, nodes[i].proposals)
-		if nodes[i].proposals == nil || len(nodes[i].proposals) != 1 {
+		if nodes[i].proposal == nil {
 			t.Fatalf("node %d did not store proposal", i)
 		}
 	}
@@ -423,20 +555,31 @@ func TestProposeReceiveAndBan(t *testing.T) {
 		}
 	}
 
-	// 3. Check that commit did NOT affect session state (e.g. pot unchanged)
-	expectedPot := uint(0)
+	// 3. Check that commit affected session state (e.g. pot updated)
+	expectedPot := uint(50)
 	for i := 0; i < 3; i++ {
-		if nodes[i].Session.Pots[0].Amount != expectedPot {
-			t.Fatalf("expected pot=%d, got %d on node %d",
-				expectedPot, nodes[i].Session.Pots[0].Amount, i)
+		s := nodes[i].pokerSM.GetSession()
+
+		if s.HighestBet != 50 {
+			t.Fatalf("expected HighestBet=%d, got %d on node %d",
+				expectedPot, s.HighestBet, i)
+		}
+
+		if s.CurrentTurn != 1 {
+			t.Fatalf("expected currentTurn=1, got %d on node %d",
+				s.CurrentTurn, i)
+		}
+		if s.Pots[0].Amount != expectedPot {
+			t.Fatalf("expected pot=%d, got %d on node %d", expectedPot,
+				s.Pots[0].Amount, i)
 		}
 	}
 
 	// 4. Check that proposer was removed from session (banned)
 	for i := 1; i < 3; i++ {
-		if idx := nodes[i].findPlayerIndex(nodes[0].ID); idx != -1 {
+		if idx := nodes[i].pokerSM.FindPlayerIndex(nodes[0].network.GetRank()); idx != -1 {
 			t.Fatalf("expected proposer to be banned, still found at index %d", idx)
 		}
 	}
+
 }
-*/

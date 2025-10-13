@@ -9,7 +9,6 @@ import (
 
 // ProposeAction is called by the player who wants to act (the proposer)
 func (node *ConsensusNode) ProposeAction(a *Action) error {
-
 	idx := node.pokerSM.FindPlayerIndex(a.PlayerID)
 
 	if idx < 0 {
@@ -44,7 +43,7 @@ func (cn *ConsensusNode) WaitForProposal() error {
 	}
 	var p Action
 	if err := json.Unmarshal(data, &p); err != nil {
-		fmt.Printf("failed to unmarshal action proposal: %v\n", err)
+		return fmt.Errorf("failed to unmarshal action proposal: %v\n", err)
 	}
 
 	return cn.onReceiveProposal(&p)
@@ -54,9 +53,6 @@ func (cn *ConsensusNode) WaitForProposal() error {
 func (node *ConsensusNode) onReceiveProposal(p *Action) error {
 	//fmt.Printf("Node %s received proposal from player %s\n", node.ID, p.Action.PlayerID)
 
-	if p.Payload == nil {
-		return errors.New("empty poker action in proposal")
-	}
 	pub, find := node.playersPK[p.PlayerID]
 	if !find {
 		err := node.broadcastVoteForProposal(p, VoteReject, "unknown-player")
@@ -174,7 +170,7 @@ func (node *ConsensusNode) onReceiveVotes(votes []Vote) error {
 			continue
 		}
 
-		if _, ex := node.votes[v.VoterID]; !ex {
+		if idx := node.pokerSM.FindPlayerIndex(v.VoterID); idx == -1 {
 			fmt.Printf("Vote doesn't match any known player\n")
 			continue
 		}
@@ -214,9 +210,11 @@ func (node *ConsensusNode) checkAndCommit() error {
 		if err != nil {
 			return err
 		}
+		return nil
 	} else if rejects >= node.quorum {
 		//fmt.Printf("Node %s banning player due to s\n", node.ID)
 		payload, err := node.pokerSM.NotifyBan(cert.Proposal.PlayerID)
+
 		if err != nil {
 			return err
 		}
@@ -235,8 +233,10 @@ func (node *ConsensusNode) checkAndCommit() error {
 		}
 		delete(node.playersPK, cert.Proposal.PlayerID)
 		node.quorum = computeQuorum(node.network.GetPeerCount())
+		return nil
 	}
-	return nil
+
+	return fmt.Errorf("Not enough elegible votes to reach quorum yet, state not changed. (%d accepts, %d rejects, need %d)", accepts, rejects, node.quorum)
 }
 
 func collectVotes(m map[int]Vote, filter VoteValue) []Vote {
@@ -260,25 +260,36 @@ func getBanReason(rejectVotes []Vote) string {
 }
 
 // applyCommit verifies certificate and applies the action deterministically
-func (node *ConsensusNode) applyCommit(cert Certificate) error {
+func (node *ConsensusNode) applyCommit(cert Certificate, ban ...*Action) error {
 	//fmt.Printf("Node %s applying commit certificate for proposal %s\n", node.ID, cert.Proposal.Action.Type)
 	if cert.Proposal == nil {
 		return errors.New("bad certificate format")
 	}
 	node.pokerSM.Apply(cert.Proposal.Payload)
 
-	votesBytes := make([][]byte, len(cert.Votes))
-	for _, v := range cert.Votes {
-		vb, err := json.Marshal(v)
-		if err != nil {
-			continue
-		}
-		votesBytes = append(votesBytes, vb)
-	}
+	ses := node.pokerSM.GetSession()
 
-	err := node.ledger.Append(cert.Proposal.Payload, votesBytes, cert.Proposal.PlayerID, node.quorum)
-	if err != nil {
-		return err
+	if len(ban) > 0 {
+		banMsg, err := json.Marshal(ban[0])
+		if err != nil {
+			return err
+		}
+		var data map[string]string
+
+		err = json.Unmarshal([]byte(banMsg), &data)
+		if err != nil {
+			return err
+		}
+
+		err = node.ledger.Append(*ses, cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum, data)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := node.ledger.Append(*ses, cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

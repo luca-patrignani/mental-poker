@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
+	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
 
 // ConsensusNode è il nodo di consenso generico
@@ -25,14 +27,14 @@ type ConsensusNode struct {
 
 // Action rappresenta un'azione generica nel sistema di consenso
 type Action struct {
-	Id        string `json:"id"`
-	PlayerID  int    `json:"actor_id"`
-	Payload   []byte `json:"payload"` // JSON serialized domain action
-	Timestamp int64  `json:"ts"`
-	Signature []byte `json:"sig,omitempty"`
+	Id        string            `json:"id"`
+	PlayerID  int               `json:"actor_id"`
+	Payload   poker.PokerAction `json:"payload"` // JSON serialized domain action
+	Timestamp int64             `json:"ts"`
+	Signature []byte            `json:"sig,omitempty"`
 }
 
-func makeAction(actorId int, payload []byte) (Action, error) {
+func makeAction(actorId int, payload poker.PokerAction) (Action, error) {
 	randBytes := make([]byte, 16) // 128 bits entropy
 	_, err := rand.Read(randBytes)
 	if err != nil {

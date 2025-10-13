@@ -16,11 +16,11 @@ func TestNewEd25519KeypairAndSignVerify(t *testing.T) {
 		Type:     poker.ActionBet,
 		Amount:   10,
 	}
-	payload, _ := pa.ToConsensusPayload()
+
 	a := &Action{
 		Id:       "test",
 		PlayerID: 1,
-		Payload:  payload,
+		Payload:  pa,
 	}
 	// sign will set Ts
 	if err := a.Sign(priv); err != nil {
@@ -46,9 +46,8 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 		Type:     poker.ActionAllIn,
 		Amount:   100,
 	}
-	bpa, _ := pa.ToConsensusPayload()
 
-	a, err := makeAction(17, bpa)
+	a, err := makeAction(17, pa)
 	if err != nil {
 		t.Fatalf("Failed to make an action, %v", err)
 	}
@@ -75,12 +74,8 @@ func TestMarshalUnmarshalAction(t *testing.T) {
 		Type:     poker.ActionBet,
 		Amount:   150,
 	}
-	bAct, err := act.ToConsensusPayload()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 
-	a, err := makeAction(15, bAct)
+	a, err := makeAction(15, act)
 	if err != nil {
 		t.Fatalf("Failed to make an action, %v", err)
 	}
@@ -98,10 +93,10 @@ func TestMarshalUnmarshalAction(t *testing.T) {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
-	p2, _ := poker.FromConsensusPayload(a2.Payload)
+	p2 := a2.Payload
 	// Verify a2 signature (you need original pub but we can't get pub from priv here)
 	// Basic checks:
-	if *p2 != act || a2.PlayerID != a.PlayerID || a2.Id != a.Id {
+	if p2 != act || a2.PlayerID != a.PlayerID || a2.Id != a.Id {
 		t.Fatalf("unmarshaled action differs")
 	}
 }

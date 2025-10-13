@@ -1,24 +1,24 @@
 package consensus
 
+import "github.com/luca-patrignani/mental-poker/domain/poker"
+
 // StateMachine è l'interfaccia che il consensus layer usa per applicare azioni
 // Il dominio poker implementerà questa interfaccia senza sapere del consensus
 type StateMachine interface {
 	// Validate verifica se un'azione è valida nello stato corrente
-	Validate(payload []byte) error
+	Validate(payload poker.PokerAction) error
 
 	// Apply applica un'azione validata allo stato
-	Apply(payload []byte) error
+	Apply(payload poker.PokerAction) error
 
 	// GetCurrentActor ritorna chi deve agire ora
 	GetCurrentPlayer() int
 
 	FindPlayerIndex(id int) int
 
-	NotifyBan(id int) ([]byte, error)
+	NotifyBan(id int) (poker.PokerAction, error)
 
-	// Snapshot crea uno snapshot dello stato corrente
-	Snapshot() ([]byte, error)
-
+	GetSession() *poker.Session
 	// Restore ripristina lo stato da uno snapshot
 	Restore(data []byte) error
 }
@@ -26,24 +26,11 @@ type StateMachine interface {
 // Ledger è l'interfaccia per registrare azioni committate
 type Ledger interface {
 	// Append aggiunge un nuovo blocco con l'azione committata
-	Append(action []byte, votes [][]byte, proposerId int, quorum int) error
-
-	// GetLatest ritorna l'ultimo blocco
-	//GetLatest() (Block, error)
+	Append(session poker.Session, action poker.PokerAction, votes []Vote, proposerID int, quorum int, extra ...map[string]string) error
 
 	// Verify verifica l'integrità della chain
 	Verify() error
 }
-
-// Block rappresenta un blocco nel ledger
-/*type Block struct {
-	Index     int
-	PrevHash  string
-	Hash      string
-	Action    *Action
-	Votes     []Vote
-	Timestamp int64
-}*/
 
 // NetworkLayer astrae la comunicazione P2P
 type NetworkLayer interface {

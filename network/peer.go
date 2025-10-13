@@ -204,7 +204,7 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		return nil, err
 	case <-timeoutTicker:
 		err := p.Close()
-		return nil, errors.Join(err, fmt.Errorf("the peer wait for connection timed out"))
+		return nil, errors.Join(err, fmt.Errorf("the peer waiting for connection timed out"))
 	}
 	return recv, nil
 }

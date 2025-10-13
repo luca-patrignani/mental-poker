@@ -18,8 +18,8 @@ func TestManager_ValidateWrongRound(t *testing.T) {
 		Amount:   0,
 	}
 
-	payload, _ := action.ToConsensusPayload()
-	err := sm.Validate(payload)
+	payload := action
+	err := sm.Validate(*payload)
 
 	if err == nil {
 		t.Fatal("expected error for wrong round")
@@ -42,8 +42,8 @@ func TestManager_ValidatePlayerNotInSession(t *testing.T) {
 		Amount:   0,
 	}
 
-	payload, _ := action.ToConsensusPayload()
-	err := sm.Validate(payload)
+	payload := action
+	err := sm.Validate(*payload)
 
 	if err == nil {
 		t.Fatal("expected error for player not in session")
@@ -69,8 +69,8 @@ func TestManager_ValidateWrongTurn(t *testing.T) {
 		Amount:   0,
 	}
 
-	payload, _ := action.ToConsensusPayload()
-	err := sm.Validate(payload)
+	payload := action
+	err := sm.Validate(*payload)
 
 	if err == nil {
 		t.Fatal("expected error for wrong turn")
@@ -96,8 +96,8 @@ func TestManager_ApplyValidAction(t *testing.T) {
 		Amount:   50,
 	}
 
-	payload, _ := action.ToConsensusPayload()
-	err := sm.Apply(payload)
+	payload := action
+	err := sm.Apply(*payload)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -180,6 +180,8 @@ func TestManager_SnapshotAndRestore(t *testing.T) {
 func TestManager_NotifyBan(t *testing.T) {
 	session := &Session{
 		RoundID: "round1",
+		Players:    []Player{{Id: 123, Name: "Alice", Pot: 100}},
+
 	}
 
 	sm := NewPokerManager(session)
@@ -189,12 +191,7 @@ func TestManager_NotifyBan(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	action, err := FromConsensusPayload(payload)
-	if err != nil {
-		t.Fatalf("failed to deserialize: %v", err)
-	}
-
-	if action.Type != ActionBan || action.PlayerID != 123 {
+	if payload.Type != ActionBan || payload.PlayerID != 123 {
 		t.Fatal("ban notification has wrong content")
 	}
 }
