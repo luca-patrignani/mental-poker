@@ -265,7 +265,10 @@ func (node *ConsensusNode) applyCommit(cert Certificate, ban ...*Action) error {
 	if cert.Proposal == nil {
 		return errors.New("bad certificate format")
 	}
-	node.pokerSM.Apply(cert.Proposal.Payload)
+	err := node.pokerSM.Apply(cert.Proposal.Payload)
+	if err != nil {
+		return err
+	}
 
 	ses := node.pokerSM.GetSession()
 
