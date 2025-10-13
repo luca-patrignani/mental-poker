@@ -180,8 +180,7 @@ func TestManager_SnapshotAndRestore(t *testing.T) {
 func TestManager_NotifyBan(t *testing.T) {
 	session := &Session{
 		RoundID: "round1",
-		Players:    []Player{{Id: 123, Name: "Alice", Pot: 100}},
-
+		Players: []Player{{Id: 123, Name: "Alice", Pot: 100}},
 	}
 
 	sm := NewPokerManager(session)

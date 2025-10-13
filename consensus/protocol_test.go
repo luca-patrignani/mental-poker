@@ -54,16 +54,6 @@ func (m *mockBlockChain) Verify() error {
 	return nil
 }
 
-func makeSignedVote(t *testing.T, actionID string, voterID int, value VoteValue, reason string, priv ed25519.PrivateKey) Vote {
-	t.Helper()
-	v := Vote{ActionId: actionID,
-		VoterID: voterID,
-		Value:   value,
-		Reason:  reason}
-	_ = v.Sign(priv)
-	return v
-}
-
 func TestEnsureSameProposal(t *testing.T) {
 	v1 := Vote{ActionId: "p1"}
 	v2 := Vote{ActionId: "p1"}
@@ -383,14 +373,6 @@ func TestProposeReceiveBan(t *testing.T) {
 		p := network.NewPeer(i, addresses, listeners[i], 3*time.Second)
 		peers[i] = &p
 	}
-	defer func() {
-		for i := 0; i < n-1; i++ {
-			err := peers[i].Close()
-			if err != nil {
-				t.Logf("error closing peer %d: %v", i, err)
-			}
-		}
-	}()
 
 	fatal := make(chan error, n)
 	nodes_chan := make(chan *ConsensusNode, n)
@@ -504,11 +486,12 @@ func TestProposeReceiveBan(t *testing.T) {
 
 	// Small delay to ensure handlers are listening
 	time.Sleep(100 * time.Millisecond)
-
+	var bannedNodeId int
 	// Now proposer sends
 	for i := 0; i < n; i++ {
 		idx := nodes[i].pokerSM.FindPlayerIndex(nodes[i].network.GetRank())
 		if idx == 0 {
+			bannedNodeId = nodes[i].network.GetRank()
 			// proposer builds action and proposes
 			pa := poker.PokerAction{
 				RoundID:  "preflop-1",
@@ -532,6 +515,16 @@ func TestProposeReceiveBan(t *testing.T) {
 			break
 		}
 	}
+	defer func() {
+		for i := 0; i < n; i++ {
+			if peers[i].Rank != bannedNodeId {
+				err := peers[i].Close()
+				if err != nil {
+					t.Logf("error closing peer %d: %v", i, err)
+				}
+			}
+		}
+	}()
 
 	// wait for receivers
 	for i := 0; i < n-1; i++ {
@@ -577,7 +570,7 @@ func TestProposeReceiveBan(t *testing.T) {
 
 	// 4. Check that proposer was removed from session (banned)
 	for i := 1; i < 3; i++ {
-		if idx := nodes[i].pokerSM.FindPlayerIndex(nodes[0].network.GetRank()); idx != -1 {
+		if idx := nodes[i].pokerSM.FindPlayerIndex(bannedNodeId); idx != -1 {
 			t.Fatalf("expected proposer to be banned, still found at index %d", idx)
 		}
 	}
