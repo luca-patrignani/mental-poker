@@ -104,6 +104,30 @@ func (p *Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 	return bufferRecv, nil
 }
 
+// BroadcastwithTimeout executes a Broadcast communication to a specific peer rank with a
+// specified timeout duration. It retries every 5 seconds until a response is received or
+// the timeout is exceeded.
+func (p *Peer) BroadcastwithTimeout(data []byte, rank int, timeout time.Duration) ([]byte, error) {
+	var response []byte
+	start := time.Now()
+
+	for {
+		if time.Since(start) > timeout {
+			return response, fmt.Errorf("timeout: no message received\n")
+		}
+
+		response, err := p.Broadcast(data, rank)
+		if err == nil {
+
+			return response, nil
+		}
+		fmt.Printf("Error in broadcasting votes: %s, retry in 5 seconds\n", err)
+		time.Sleep(5000 * time.Millisecond)
+
+	}
+
+}
+
 // Each caller of AllToAll sends the content of bufferSend to every node.
 // bufferRecv[i] will contain the value sent by the Peer with Rank i.
 // This function will implicitly synchronize the peers.
@@ -117,6 +141,36 @@ func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 		bufferRecv[i] = recv
 	}
 	return
+}
+
+// AllToAllwithTimeout executes an AllToAll communication with a specified timeout duration.
+// It retries every 5 seconds until either all expected responses are received or the timeout
+// is exceeded. Returns partial results if timeout occurs.
+func (p *Peer) AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte, error) {
+	expected := len(p.Addresses)
+	var responses [][]byte
+	start := time.Now()
+
+	for {
+		if time.Since(start) > timeout {
+			return responses, fmt.Errorf("timeout: received %d of %d messages", len(responses), expected)
+		}
+
+		responses, err := p.AllToAll(data)
+		if err != nil {
+			fmt.Printf("Error in broadcasting: %v\n", err)
+		}
+
+		if responses == nil {
+			fmt.Printf("Error in broadcasting: responses of length %d instead of %d\n", len(responses), expected)
+		}
+		if len(responses) >= expected {
+			return responses, nil
+		}
+		fmt.Print("Retry in 5 seconds. . .\n")
+		time.Sleep(5000 * time.Millisecond)
+	}
+
 }
 
 // barrier synchronizes the peers.

@@ -12,13 +12,14 @@ import (
 	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
 
-// Blockchain gestisce la catena di blocchi
+
 type Blockchain struct {
 	mu     sync.RWMutex
 	blocks []Block
 }
 
-// NewBlockchain crea una nuova blockchain con genesis block
+// NewBlockchain creates a new blockchain with an initialized genesis block.
+// The genesis block has index 0, previous hash "0", and empty action/votes arrays
 func NewBlockchain() *Blockchain {
 	bc := &Blockchain{
 		blocks: make([]Block, 0),
@@ -40,7 +41,9 @@ func NewBlockchain() *Blockchain {
 	return bc
 }
 
-// Append aggiunge un nuovo blocco validato
+// Append adds a new validated block to the blockchain. It calculates the block hash,
+// validates the block against the previous block, and appends it. Returns an error if
+// the block is invalid. The extra parameter can optionally contain additional metadata.
 func (bc *Blockchain) Append(session poker.Session, pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
@@ -67,7 +70,6 @@ func (bc *Blockchain) Append(session poker.Session, pa poker.PokerAction, votes 
 
 	newBlock.Hash = bc.calculateHash(newBlock)
 
-	// Verifica che il blocco sia valido
 	if err := bc.validateBlock(newBlock, latest); err != nil {
 		return fmt.Errorf("invalid block: %w", err)
 	}
@@ -77,7 +79,8 @@ func (bc *Blockchain) Append(session poker.Session, pa poker.PokerAction, votes 
 	return nil
 }
 
-// GetLatest ritorna l'ultimo blocco
+// GetLatest returns the most recently added block in the blockchain.
+// Returns an error if the blockchain is empty.
 func (bc *Blockchain) GetLatest() (Block, error) {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
@@ -89,7 +92,8 @@ func (bc *Blockchain) GetLatest() (Block, error) {
 	return bc.blocks[len(bc.blocks)-1], nil
 }
 
-// GetByIndex ritorna un blocco per indice
+// GetByIndex retrieves a block by its index in the chain. Returns an error if the index
+// is out of range.
 func (bc *Blockchain) GetByIndex(index int) (*Block, error) {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
@@ -101,7 +105,7 @@ func (bc *Blockchain) GetByIndex(index int) (*Block, error) {
 	return &bc.blocks[index], nil
 }
 
-// GetAll ritorna tutti i blocchi
+// GetAll returns a copy of all blocks in the blockchain to prevent external modification.
 func (bc *Blockchain) GetAll() []Block {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
@@ -112,7 +116,8 @@ func (bc *Blockchain) GetAll() []Block {
 	return result
 }
 
-// Verify verifica l'integrità dell'intera chain
+// Verify validates the integrity of the entire blockchain by checking the genesis block
+// and verifying each subsequent block's hash, index continuity, and previous hash linkage.
 func (bc *Blockchain) Verify() error {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
@@ -139,7 +144,8 @@ func (bc *Blockchain) Verify() error {
 	return nil
 }
 
-// validateBlock verifica che un blocco sia valido rispetto al precedente
+// validateBlock verifies that a block is valid relative to the previous block. It checks
+// index continuity, previous hash linkage, current hash validity, and quorum requirements.
 func (bc *Blockchain) validateBlock(current, previous Block) error {
 	// Verifica indice
 	if current.Index != previous.Index+1 {
@@ -165,7 +171,9 @@ func (bc *Blockchain) validateBlock(current, previous Block) error {
 	return nil
 }
 
-// calculateHash calcola l'hash di un blocco
+// calculateHash computes the SHA256 hash of a block based on its index, timestamp, previous
+// hash, action, votes, proposer ID, and quorum. The action and votes are JSON marshaled
+// before hashing.
 func (bc *Blockchain) calculateHash(block Block) string {
 	// Serializza action
 	actionBytes, _ := json.Marshal(block.Action)
@@ -188,14 +196,15 @@ func (bc *Blockchain) calculateHash(block Block) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// Length ritorna il numero di blocchi
+// Length returns the total number of blocks in the blockchain.
 func (bc *Blockchain) Length() int {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
 	return len(bc.blocks)
 }
 
-// GetHistory ritorna lo storico delle azioni (senza genesis)
+// GetHistory returns a slice of all non-genesis block actions, representing the game action
+// sequence in chronological order.
 func (bc *Blockchain) GetHistory() []interface{} {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
@@ -207,17 +216,15 @@ func (bc *Blockchain) GetHistory() []interface{} {
 	return history
 }
 
-// Replay ricostruisce lo stato applicando tutte le azioni
-func (bc *Blockchain) Replay(stateMachine StateMachine) error {
+// Replay reconstructs state by sequentially applying all non-genesis block actions through
+// the provided StateMachine. Returns an error if any action fails to apply.
+func (bc *Blockchain) Replay(stateMachine StateManager) error {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
 
 	// Skip genesis block
 	for i := 1; i < len(bc.blocks); i++ {
-		pa, err := bc.blocks[i].Action.ToConsensusPayload()
-		if err != nil {
-			return fmt.Errorf("block %d: failed to serialize action: %w", i, err)
-		}
+		pa := bc.blocks[i].Action
 
 		if err := stateMachine.Apply(pa); err != nil {
 			return fmt.Errorf("block %d: failed to apply action: %w", i, err)
@@ -227,7 +234,7 @@ func (bc *Blockchain) Replay(stateMachine StateMachine) error {
 	return nil
 }
 
-// StateMachine interface per replay
-type StateMachine interface {
-	Apply(actionData []byte) error
+// StateManager interface for the poker manager
+type StateManager interface {
+	Apply(actionData poker.PokerAction) error
 }

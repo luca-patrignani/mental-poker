@@ -32,7 +32,7 @@ func TestWinnerEvalSingleWinner(t *testing.T) {
 	}
 	session.Pots = singleMainPot(session.Players)
 
-	winners, err := session.WinnerEval()
+	winners, err := session.winnerEval()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestWinnerEvalTie(t *testing.T) {
 	}
 	session.Pots = singleMainPot(session.Players)
 
-	winners, err := session.WinnerEval()
+	winners, err := session.winnerEval()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestWinnerEvalIgnoresFolded(t *testing.T) {
 	}
 	session.Pots = singleMainPot(session.Players)
 
-	winners, err := session.WinnerEval()
+	winners, err := session.winnerEval()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestWinnerEvalSidePots(t *testing.T) {
 		{Amount: 10, Eligible: []int{0}},
 	}
 
-	winners, err := session.WinnerEval()
+	winners, err := session.winnerEval()
 	if err != nil {
 		t.Fatal(err)
 	}

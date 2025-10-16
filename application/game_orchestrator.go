@@ -1,7 +1,7 @@
 package application
 
 
-// Trasformalo in GameOrchestrator con responsabilità chiare:
+// TODO:
 /*type GameOrchestrator struct {
 	consensus    *consensus.ConsensusNode // Gestisce consenso
 	stateMachine *poker.PokerManager      // Stato del gioco

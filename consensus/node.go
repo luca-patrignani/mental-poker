@@ -5,14 +5,70 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
 
-// NewConsensusNode crea un nuovo nodo di consenso
+type StateManager interface {
+	
+	Validate(payload poker.PokerAction) error
+
+	Apply(payload poker.PokerAction) error
+
+	GetCurrentPlayer() int
+
+	FindPlayerIndex(id int) int
+
+	NotifyBan(id int) (poker.PokerAction, error)
+
+	GetSession() *poker.Session
+}
+
+type Ledger interface {
+	Append(session poker.Session, action poker.PokerAction, votes []Vote, proposerID int, quorum int, extra ...map[string]string) error
+
+	Verify() error
+}
+
+// NetworkLayer abstract P2P
+type NetworkLayer interface {
+	Broadcast(data []byte, root int) ([]byte, error)
+
+	BroadcastwithTimeout(data []byte, rank int, timeout time.Duration) ([]byte, error)
+
+	AllToAll(data []byte) ([][]byte, error)
+
+	AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte, error)
+	
+	GetRank() int
+
+	GetPeerCount() int
+
+	Close() error
+}
+
+type ConsensusNode struct {
+	pub       ed25519.PublicKey
+	priv      ed25519.PrivateKey
+	playersPK map[int]ed25519.PublicKey
+	quorum    int
+
+	pokerSM StateManager
+	ledger  Ledger
+	network NetworkLayer
+
+	proposal *Action
+	votes    map[int]Vote
+}
+
+// NewConsensusNode creates and initializes a new consensus node with the given cryptographic keys,
+// peer public keys, state machine, ledger, and network layer. It sets up the node's quorum
+// threshold using Byzantine Fault Tolerance calculations (2n+2)/3.
 func NewConsensusNode(
 	pub ed25519.PublicKey,
 	priv ed25519.PrivateKey,
 	peers map[int]ed25519.PublicKey,
-	sm StateMachine,
+	sm StateManager,
 	ledger Ledger,
 	network NetworkLayer,
 ) *ConsensusNode {
@@ -30,12 +86,14 @@ func NewConsensusNode(
 	}
 }
 
-func (cn *ConsensusNode) UpdatePeers() error {
-	b, err := json.Marshal(cn.pub)
+// UpdatePeers exchanges public keys with all peers in an AllToAll operation and updates
+// the node's peer mapping and quorum threshold accordingly.
+func (node *ConsensusNode) UpdatePeers() error {
+	b, err := json.Marshal(node.pub)
 	if err != nil {
 		return err
 	}
-	pkBytes, err := cn.network.AllToAll(b)
+	pkBytes, err := node.network.AllToAll(b)
 	if err != nil {
 		return err
 	}
@@ -47,60 +105,11 @@ func (cn *ConsensusNode) UpdatePeers() error {
 		}
 		pk[i] = p
 	}
-	cn.playersPK = pk
-	cn.quorum = computeQuorum(len(pk))
+	node.playersPK = pk
+	node.quorum = computeQuorum(len(pk))
 	return nil
 }
 
-// Funzione all-to-all con timeout
-func (node *ConsensusNode) AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte, error) {
-	expected := node.network.GetPeerCount()
-	var responses [][]byte
-	start := time.Now()
-
-	for {
-		if time.Since(start) > timeout {
-			return responses, fmt.Errorf("timeout: received %d of %d messages", len(responses), expected)
-		}
-
-		responses, err := node.network.AllToAll(data)
-		if err != nil {
-			fmt.Printf("Error in broadcasting: %v\n", err)
-		}
-
-		if responses == nil {
-			fmt.Printf("Error in broadcasting: responses of length %d instead of %d\n", len(responses), expected)
-		}
-		if len(responses) >= expected {
-			return responses, nil
-		}
-		fmt.Print("Retry in 5 seconds. . .\n")
-		time.Sleep(5000 * time.Millisecond)
-	}
-
-}
-
-// Funzione all-to-all con timeout
-func (node *ConsensusNode) BroadcastwithTimeout(data []byte, rank int, timeout time.Duration) ([]byte, error) {
-	var response []byte
-	start := time.Now()
-
-	for {
-		if time.Since(start) > timeout {
-			return response, fmt.Errorf("timeout: no message received\n")
-		}
-
-		response, err := node.network.Broadcast(data, rank)
-		if err == nil {
-
-			return response, nil
-		}
-		fmt.Printf("Error in broadcasting votes: %s, retry in 5 seconds\n", err)
-		time.Sleep(5000 * time.Millisecond)
-
-	}
-
-}
-
-// Ceiling for Byzantine fault tolerance
+// computeQuorum calculates the minimum number of votes required to reach Byzantine Fault
+// Tolerance consensus. It returns ceiling((2n+2)/3) where n is the number of nodes.
 func computeQuorum(n int) int { return (2*n + 2) / 3 }

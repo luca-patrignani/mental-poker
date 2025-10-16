@@ -7,8 +7,10 @@ import (
 	"github.com/paulhankin/poker"
 )
 
-// Evaluate the final hand and return the peer rank of the winner
-func (s *Session) WinnerEval() (map[int]uint, error) {
+// WinnerEval evaluates the final hand for all players and distributes the pot among winners.
+// It uses 7-card hand evaluation for each eligible player in each pot, handles ties by splitting
+// the pot equally, and excludes folded players. Returns a map of player ID to winnings.
+func (s *Session) winnerEval() (map[int]uint, error) {
 	results := make(map[int]uint)
 
 	for _, pot := range s.Pots {

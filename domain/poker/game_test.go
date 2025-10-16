@@ -13,7 +13,7 @@ func TestRecalculatePotsBasic(t *testing.T) {
 		},
 	}
 
-	session.RecalculatePots()
+	session.recalculatePots()
 
 	if len(session.Pots) != 1 {
 		t.Fatalf("expected 1 pot, got %d", len(session.Pots))
@@ -36,7 +36,7 @@ func TestRecalculatePotsWithFold(t *testing.T) {
 		},
 	}
 
-	session.RecalculatePots()
+	session.recalculatePots()
 
 	// Expected pots: 50*3=150, 50*2=100, 100*1=100
 	expectedAmounts := []uint{150, 100, 100}
@@ -76,7 +76,7 @@ func TestRecalculatePotsAllIn(t *testing.T) {
 		},
 	}
 
-	session.RecalculatePots()
+	session.recalculatePots()
 
 	// Expected pots: 50*3=150, 50*2=100, 50*1=50
 	expectedAmounts := []uint{150, 100, 100}
@@ -115,7 +115,7 @@ func TestRecalculatePotsAllFoldExceptOne(t *testing.T) {
 		},
 	}
 
-	session.RecalculatePots()
+	session.recalculatePots()
 
 	if len(session.Pots) != 1 {
 		t.Fatalf("expected 1 pot, got %d", len(session.Pots))
@@ -138,7 +138,7 @@ func TestRecalculatePotsEqualBetsNoSide(t *testing.T) {
 		},
 	}
 
-	session.RecalculatePots()
+	session.recalculatePots()
 
 	if len(session.Pots) != 1 {
 		t.Fatalf("expected 1 pot, got %d", len(session.Pots))
@@ -160,7 +160,7 @@ func TestApplyAction_Fold(t *testing.T) {
 		CurrentTurn: 0,
 	}
 
-	err := ApplyAction(ActionFold, 0, session, 0)
+	err := applyAction(ActionFold, 0, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {
 		HighestBet:  0,
 	}
 
-	err := ApplyAction(ActionBet, 50, session, 0)
+	err := applyAction(ActionBet, 50, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -210,7 +210,7 @@ func TestApplyAction_Raise_UpdatesHighestBet(t *testing.T) {
 		HighestBet:  50,
 	}
 
-	err := ApplyAction(ActionRaise, 50, session, 0)
+	err := applyAction(ActionRaise, 50, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestApplyAction_Call_MatchesHighestBet(t *testing.T) {
 		HighestBet:  100,
 	}
 
-	err := ApplyAction(ActionCall, 0, session, 0)
+	err := applyAction(ActionCall, 0, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -256,7 +256,7 @@ func TestApplyAction_AllIn_EmptiesPot(t *testing.T) {
 		HighestBet:  100,
 	}
 
-	err := ApplyAction(ActionAllIn, 0, session, 0)
+	err := applyAction(ActionAllIn, 0, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestApplyAction_Check_NoStateChange(t *testing.T) {
 		HighestBet:  50,
 	}
 
-	err := ApplyAction(ActionCheck, 0, session, 0)
+	err := applyAction(ActionCheck, 0, session, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestApplyAction_Ban_RemovesPlayer(t *testing.T) {
 		CurrentTurn: 1,
 	}
 
-	err := ApplyAction(ActionBan, 0, session, 1)
+	err := applyAction(ActionBan, 0, session, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

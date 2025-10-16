@@ -147,36 +147,6 @@ func TestManager_FindPlayerIndex(t *testing.T) {
 	}
 }
 
-func TestManager_SnapshotAndRestore(t *testing.T) {
-	session := &Session{
-		RoundID:    "round1",
-		Players:    []Player{{Id: 1, Name: "Alice", Pot: 100}},
-		HighestBet: 50,
-	}
-
-	sm := NewPokerManager(session)
-
-	snapshot, err := sm.Snapshot()
-	if err != nil {
-		t.Fatalf("snapshot failed: %v", err)
-	}
-
-	// Modify session
-	session.HighestBet = 200
-
-	// Restore
-	newSession := &Session{}
-	newSm := NewPokerManager(newSession)
-	err = newSm.Restore(snapshot)
-	if err != nil {
-		t.Fatalf("restore failed: %v", err)
-	}
-
-	if newSm.session.HighestBet != 50 {
-		t.Fatalf("expected restored highest bet 50, got %d", newSm.session.HighestBet)
-	}
-}
-
 func TestManager_NotifyBan(t *testing.T) {
 	session := &Session{
 		RoundID: "round1",

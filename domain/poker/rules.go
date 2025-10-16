@@ -2,7 +2,10 @@ package poker
 
 import "fmt"
 
-func CheckPokerLogic(a ActionType, amount uint, session *Session, idx int) error {
+// CheckPokerLogic validates that a poker action complies with game rules for the given session
+// and player. It checks constraints like sufficient funds, bet consistency, and turn validity
+// specific to each action type. Returns an error if the action violates any rule.
+func checkPokerLogic(a ActionType, amount uint, session *Session, idx int) error {
 	switch a {
 	case ActionFold:
 		return nil

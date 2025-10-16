@@ -9,18 +9,14 @@ import (
 	"go.dedis.ch/kyber/v4/suites"
 )
 
-// NetworkLayer astrae la comunicazione P2P
 type NetworkLayer interface {
-	// Broadcast invia dati a tutti i peer
+
 	Broadcast(data []byte, root int) ([]byte, error)
 
-	// AllToAll invia dati da tutti a tutti
 	AllToAll(data []byte) ([][]byte, error)
 
-	// GetRank ritorna il rank di questo nodo
 	GetRank() int
 
-	// GetPeerCount return the addresses
 	GetAddresses() map[int]string
 
 	GetPeerCount() int

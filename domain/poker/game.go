@@ -2,9 +2,61 @@ package poker
 
 import (
 	"fmt"
+
+	"github.com/luca-patrignani/mental-poker/domain/deck"
 )
 
-func (s *Session) RecalculatePots() {
+type Player struct {
+	Name      string
+	Id        int //rank
+	Hand      [2]Card
+	HasFolded bool
+	Bet       uint // The amount of money bet in the current betting round
+	Pot       uint
+}
+
+// PokerAction è l'azione specifica del dominio poker
+type PokerAction struct {
+	RoundID  string     `json:"round_id"`
+	PlayerID int        `json:"player_id"`
+	Type     ActionType `json:"type"`
+	Amount   uint       `json:"amount"`
+}
+
+type ActionType string
+
+const (
+	ActionBet    ActionType = "bet"
+	ActionCall   ActionType = "call"
+	ActionRaise  ActionType = "raise"
+	ActionAllIn  ActionType = "allin"
+	ActionFold   ActionType = "fold"
+	ActionCheck  ActionType = "check"
+	ActionReveal ActionType = "reveal"
+	ActionBan    ActionType = "ban"
+)
+
+// Deck is the rappresentation of a game session.
+type Session struct {
+	Board       [5]Card
+	Players     []Player
+	Deck        deck.Deck
+	Pots        []Pot
+	HighestBet  uint
+	Dealer      uint
+	CurrentTurn uint   // index into Players for who must act
+	RoundID     string // identifier for the current betting round/hand
+}
+
+type Pot struct {
+	Amount   uint
+	Eligible []int // PlayerIDs che possono vincere questo piatto
+}
+
+// RecalculatePots recomputes the pot structure based on current player bets. It creates main
+// pots for minimum bets and side pots for additional bets, determining eligibility based on
+// non-folded players. Handles all-in scenarios where different players contribute different amounts.
+func (s *Session) recalculatePots() {
 	s.Pots = nil
 
 	// copy bets
@@ -66,6 +118,8 @@ func (s *Session) RecalculatePots() {
 	}
 }
 
+// onePlayerRemained checks if all pots have exactly one eligible player, which consolidates
+// multiple pots into a single pot for that player.
 func onePlayerRemained(lists []Pot) bool {
 	for _, pot := range lists {
 		if len(pot.Eligible) != 1 {
@@ -75,11 +129,14 @@ func onePlayerRemained(lists []Pot) bool {
 	return true
 }
 
-func ApplyAction(a ActionType, amount uint, session *Session, idx int) error {
+// ApplyAction applies a poker action to the session state and advances the turn to the next
+// eligible player. Supports fold, bet, raise, call, all-in, check, and ban actions.
+// Returns an error if the action type is unknown.
+func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 	switch a {
 	case ActionFold:
 		session.Players[idx].HasFolded = true
-		session.RecalculatePots()
+		session.recalculatePots()
 		session.advanceTurn()
 	case ActionBet:
 		session.Players[idx].Bet += amount
@@ -87,19 +144,19 @@ func ApplyAction(a ActionType, amount uint, session *Session, idx int) error {
 		if session.Players[idx].Bet > session.HighestBet {
 			session.HighestBet = session.Players[idx].Bet
 		}
-		session.RecalculatePots()
+		session.recalculatePots()
 		session.advanceTurn()
 	case ActionRaise:
 		session.Players[idx].Bet += amount
 		session.Players[idx].Pot -= amount
 		session.HighestBet = session.Players[idx].Bet
-		session.RecalculatePots()
+		session.recalculatePots()
 		session.advanceTurn()
 	case ActionCall:
 		diff := session.HighestBet - session.Players[idx].Bet
 		session.Players[idx].Bet += diff
 		session.Players[idx].Pot -= diff
-		session.RecalculatePots()
+		session.recalculatePots()
 		session.advanceTurn()
 	case ActionAllIn:
 		session.Players[idx].Bet += session.Players[idx].Pot
@@ -107,7 +164,7 @@ func ApplyAction(a ActionType, amount uint, session *Session, idx int) error {
 		if session.Players[idx].Bet >= session.HighestBet {
 			session.HighestBet = session.Players[idx].Bet
 		}
-		session.RecalculatePots()
+		session.recalculatePots()
 		session.advanceTurn()
 
 	case ActionCheck:
@@ -124,6 +181,9 @@ func ApplyAction(a ActionType, amount uint, session *Session, idx int) error {
 	return nil
 }
 
+// advanceTurn moves the current turn to the next non-folded player in the session.
+// It wraps around from the last player to the first and handles the case where all
+// other players have folded (no advancement occurs).
 func (session *Session) advanceTurn() {
 	n := len(session.Players)
 	if n == 0 {
