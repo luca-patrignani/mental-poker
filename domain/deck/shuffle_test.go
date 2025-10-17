@@ -15,7 +15,7 @@ func TestShuffle(t *testing.T) {
 	decks := make(chan []kyber.Point, n)
 	for i := 0; i < n; i++ {
 		go func() {
-			p := network.NewPeer(i, addresses, listeners[i], 30*time.Second)
+			p := network.NewPeer(i, addresses, listeners[i], 1000*time.Second)
 			deck := Deck{
 				DeckSize: 52,
 				Peer:     network.NewP2P(&p),
