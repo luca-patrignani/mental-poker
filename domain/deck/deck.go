@@ -5,10 +5,24 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/luca-patrignani/mental-poker/common"
 	"go.dedis.ch/kyber/v4"
 	"go.dedis.ch/kyber/v4/suites"
 )
+
+type NetworkLayer interface {
+
+	Broadcast(data []byte, root int) ([]byte, error)
+
+	AllToAll(data []byte) ([][]byte, error)
+
+	GetRank() int
+
+	GetAddresses() map[int]string
+
+	GetPeerCount() int
+
+	Close() error
+}
 
 // Deck is the rappresentation of a game session.
 type Deck struct {
@@ -17,7 +31,7 @@ type Deck struct {
 	EncryptedDeck  []kyber.Point //(b)
 	SecretKey      kyber.Scalar  //(x_j)
 	lastDrawnCard  int
-	Peer           common.Peer
+	Peer           NetworkLayer
 }
 
 var suite suites.Suite = suites.MustFind("Ed25519")
@@ -89,7 +103,7 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 func (d *Deck) DrawCard(drawer int) (int, error) {
 	d.lastDrawnCard++
 	cj := d.EncryptedDeck[d.lastDrawnCard].Clone()
-	for j := 0; j < len(d.Peer.Addresses); j++ {
+	for j := 0; j < d.Peer.GetPeerCount(); j++ {
 		if j != drawer {
 			xj_1 := suite.Scalar().Inv(d.SecretKey)
 			cj.Mul(xj_1, cj)
@@ -103,7 +117,7 @@ func (d *Deck) DrawCard(drawer int) (int, error) {
 		// 	// ZKA
 		// }
 	}
-	if d.Peer.Rank != drawer {
+	if d.Peer.GetRank() != drawer {
 		return 0, nil
 	}
 	xj_1 := suite.Scalar().Inv(d.SecretKey)
@@ -141,8 +155,8 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 		return nil, err
 	}
 
-	dataReceived := make([]kyber.Point, len(d.Peer.Addresses))
-	for i := 0; i < len(d.Peer.Addresses); i++ {
+	dataReceived := make([]kyber.Point, d.Peer.GetPeerCount())
+	for i := 0; i < d.Peer.GetPeerCount(); i++ {
 		dataReceived[i] = suite.Point()
 		err := dataReceived[i].UnmarshalBinary([]byte(ataResponse[i]))
 		if err != nil {
@@ -155,7 +169,7 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 // Broadcast of multiple card from a single source
 func (d *Deck) broadcastMultiple(bufferSend []kyber.Point, root int, size int) ([]kyber.Point, error) {
 	var jsonData []byte
-	if d.Peer.Rank == root {
+	if d.Peer.GetRank() == root {
 		dataSend := make([][]byte, len(bufferSend))
 		for i := 0; i < size; i++ {
 			temp, err := bufferSend[i].MarshalBinary()

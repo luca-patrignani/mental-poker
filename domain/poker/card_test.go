@@ -1,0 +1,129 @@
+package poker
+
+import (
+	"fmt"
+	"testing"
+)
+
+func TestConvertCard(t *testing.T) {
+	expectedCard := Card{suit: Heart, rank: 2}
+	testCard, err := ConvertCard(28)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if testCard != expectedCard {
+		t.Fatalf("expected %v, get %v", expectedCard, testCard)
+	}
+
+}
+func TestAllCardConvert(t *testing.T) {
+	for i := 1; i < 53; i++ {
+		_, err := ConvertCard(i)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestCardStringFaces(t *testing.T) {
+	c := Card{suit: Heart, rank: 1}
+	if c.String() != "A♥" {
+		t.Fatalf("expected A♥, got %s", c.String())
+	}
+	c = Card{suit: Club, rank: 11}
+	if c.String() != "J♣" {
+		t.Fatalf("expected J♣, got %s", c.String())
+	}
+}
+
+func TestNewCard_ValidCard(t *testing.T) {
+	card, err := NewCard(Heart, Ace)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if card.Suit() != Heart || card.Rank() != Ace {
+		t.Fatal("card has wrong suit or rank")
+	}
+}
+
+func TestNewCard_InvalidSuit(t *testing.T) {
+	_, err := NewCard(4, Ace)
+	if err == nil {
+		t.Fatal("expected error for invalid suit")
+	}
+}
+
+func TestNewCard_InvalidRank_Zero(t *testing.T) {
+	_, err := NewCard(Heart, 0)
+	if err == nil {
+		t.Fatal("expected error for rank 0")
+	}
+}
+
+func TestNewCard_InvalidRank_TooHigh(t *testing.T) {
+	_, err := NewCard(Heart, 14)
+	if err == nil {
+		t.Fatal("expected error for rank > 13")
+	}
+}
+
+func TestConvertCard_BoundaryValues(t *testing.T) {
+	// Test card 1 (Ace of Clubs)
+	card, err := ConvertCard(1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if card.Suit() != Club || card.Rank() != Ace {
+		t.Fatalf("card 1 should be Ace of Clubs, got %s", card.String())
+	}
+
+	// Test card 52 (King of Spades)
+	card, err = ConvertCard(52)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if card.Suit() != Spade || card.Rank() != King {
+		t.Fatalf("card 52 should be King of Spades, got %s", card.String())
+	}
+}
+
+func TestConvertCard_InvalidValues(t *testing.T) {
+	tests := []int{0, 53, -1, 100}
+
+	for _, val := range tests {
+		_, err := ConvertCard(val)
+		if err == nil {
+			t.Fatalf("expected error for card value %d", val)
+		}
+	}
+}
+
+func TestCardString_AllSuits(t *testing.T) {
+	suits := []struct {
+		suit     uint8
+		expected string
+	}{
+		{Club, "A♣"},
+		{Diamond, "A♦"},
+		{Heart, "A♥"},
+		{Spade, "A♠"},
+	}
+
+	for _, tc := range suits {
+		card := Card{suit: tc.suit, rank: Ace}
+		if card.String() != tc.expected {
+			t.Fatalf("expected %s, got %s", tc.expected, card.String())
+		}
+	}
+}
+
+func TestCardString_NumberCards(t *testing.T) {
+	for rank := uint8(2); rank <= 10; rank++ {
+		card := Card{suit: Heart, rank: rank}
+		expected := fmt.Sprintf("%d♥", rank)
+		if card.String() != expected {
+			t.Fatalf("expected %s, got %s", expected, card.String())
+		}
+	}
+}

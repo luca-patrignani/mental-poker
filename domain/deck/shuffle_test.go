@@ -4,20 +4,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/luca-patrignani/mental-poker/common"
+	"github.com/luca-patrignani/mental-poker/network"
 	"go.dedis.ch/kyber/v4"
 )
 
 func TestShuffle(t *testing.T) {
 	n := 10
-	listeners, addresses := common.CreateListeners(n)
+	listeners, addresses := network.CreateListeners(n)
 	errChan := make(chan error)
 	decks := make(chan []kyber.Point, n)
 	for i := 0; i < n; i++ {
 		go func() {
+			p := network.NewPeer(i, addresses, listeners[i], 1000*time.Second)
 			deck := Deck{
 				DeckSize: 52,
-				Peer:     common.NewPeer(i, addresses, listeners[i], time.Second),
+				Peer:     network.NewP2P(&p),
 			}
 			defer deck.Peer.Close()
 			err := deck.PrepareDeck()

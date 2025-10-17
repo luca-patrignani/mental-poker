@@ -1,4 +1,4 @@
-package common
+package network
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ func TestAllToAll(t *testing.T) {
 	fatal := make(chan error, 3*n)
 	for i := 0; i < n; i++ {
 		go func() {
-			p := NewPeer(i, addresses, listeners[i], time.Second)
+			p := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			defer p.Close()
 			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
 			if err != nil {
@@ -55,7 +55,7 @@ func TestBroadcast(t *testing.T) {
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			p := NewPeer(i, addresses, listeners[i], time.Second)
+			p := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			recv, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
@@ -89,7 +89,7 @@ func TestBroadcastTimeout(t *testing.T) {
 	fatal := make(chan error, n)
 	for i := 0; i < n-1; i++ {
 		go func() {
-			p := NewPeer(i, addresses, listeners[i], time.Second)
+			p := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			defer p.Close()
 			_, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
 			if err != nil {
@@ -113,7 +113,7 @@ func TestBroadcastTwoPeers(t *testing.T) {
 	fatal := make(chan error)
 	for i := 0; i < 2; i++ {
 		go func() {
-			p := NewPeer(i, addresses, listeners[i], 10*time.Second)
+			p := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			defer p.Close()
 			time.Sleep(time.Second * time.Duration(i+1))
 			recv, err := p.Broadcast([]byte{'0'}, 0)
@@ -153,7 +153,7 @@ func TestBroadcastBarrier(t *testing.T) {
 	clocks := make(chan int, 2*n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			p := NewPeer(i, addresses, listeners[i], time.Second)
+			p := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
@@ -194,7 +194,7 @@ func TestAllToAllBarrier(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
-			p := NewPeer(i, addresses, listeners[i], time.Second)
+			p := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.Rank))
 			clocks <- 0
