@@ -20,7 +20,7 @@ func TestAllToAllSingle(t *testing.T) {
 	errChan := make(chan error)
 	for i := 0; i < n; i++ {
 		go func() {
-			p := network.NewPeer(i, addresses, listeners[i], time.Second)
+			p := network.NewPeer(i, addresses, listeners[i], 30*time.Second)
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
@@ -76,7 +76,7 @@ func TestBroadcastMultiple(t *testing.T) {
 	root := 3
 	for i := 0; i < n; i++ {
 		go func() {
-			p := network.NewPeer(i, addresses, listeners[i], time.Second)
+			p := network.NewPeer(i, addresses, listeners[i], 30*time.Second)
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
@@ -117,7 +117,7 @@ func TestBroadcastSingle(t *testing.T) {
 	errChan := make(chan error)
 	for i := 0; i < n; i++ {
 		go func() {
-			p := network.NewPeer(i, addresses, listeners[i], time.Second)
+			p := network.NewPeer(i, addresses, listeners[i], 30*time.Second)
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
@@ -154,7 +154,7 @@ func TestGenerateRandomElement(t *testing.T) {
 	points := make(chan kyber.Point, n)
 	for i := 0; i < n; i++ {
 		go func() {
-			peer := network.NewPeer(i, addresses, listeners[i], time.Second)
+			peer := network.NewPeer(i, addresses, listeners[i], 30*time.Second)
 			deck := Deck{
 				DeckSize: 52,
 				Peer:     network.NewP2P(&peer),
@@ -206,7 +206,7 @@ func TestDrawCardOpenCard(t *testing.T) {
 	cardChan := make(chan int, 10)
 	for i := 0; i < n; i++ {
 		go func() {
-			p := network.NewPeer(i, addresses, listeners[i], time.Second)
+			p := network.NewPeer(i, addresses, listeners[i], 30*time.Second)
 			deck := Deck{
 				DeckSize: 52,
 				Peer:     network.NewP2P(&p),

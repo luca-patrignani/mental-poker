@@ -18,6 +18,11 @@ type Action struct {
 	Timestamp int64             `json:"ts"`
 	Signature []byte            `json:"sig,omitempty"`
 }
+// ToString returns the JSON string representation of the Action.
+func (a *Action) ToString() string {
+	b, _ := json.Marshal(a)
+	return string(b)
+}
 
 // makeAction creates a new Action with a unique ID derived from the actor ID and action
 // payload, along with random entropy. The ID is hex-encoded from the first 8 bytes of
@@ -291,7 +296,7 @@ func (node *ConsensusNode) checkAndCommit() error {
 			return err
 		}
 		cert.Proposal.Payload = payload
-		err = node.applyCommit(cert)
+		err = node.applyCommit(cert, cert.Proposal)
 		if err != nil {
 			return err
 		}
@@ -351,18 +356,9 @@ func (node *ConsensusNode) applyCommit(cert Certificate, ban ...*Action) error {
 	ses := node.pokerSM.GetSession()
 
 	if len(ban) > 0 {
-		banMsg, err := json.Marshal(ban[0])
-		if err != nil {
-			return err
-		}
-		var data map[string]string
+		data := map[string]string{"rejectedAction":ban[0].ToString()}
 
-		err = json.Unmarshal([]byte(banMsg), &data)
-		if err != nil {
-			return err
-		}
-
-		err = node.ledger.Append(*ses, cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum, data)
+		err = node.ledger.Append(*ses, cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum,  data)
 		if err != nil {
 			return err
 		}

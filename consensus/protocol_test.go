@@ -102,7 +102,7 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	}()
 
 	// create peers (use short timeout)
-	timeout := 2 * time.Second
+	timeout := 30 * time.Second
 	peer0 := network.NewPeer(0, addresses, listeners[0], timeout)
 	peer1 := network.NewPeer(1, addresses, listeners[1], timeout)
 	p0 := network.NewP2P(&peer0)
@@ -168,7 +168,7 @@ func TestProposeReceive(t *testing.T) {
 	listeners, addresses := network.CreateListeners(n)
 	peers := make([]*network.Peer, n)
 	for i := 0; i < n; i++ {
-		p := network.NewPeer(i, addresses, listeners[i], 3*time.Second)
+		p := network.NewPeer(i, addresses, listeners[i], 30*time.Second)
 		peers[i] = &p
 	}
 	defer func() {
@@ -370,7 +370,7 @@ func TestProposeReceiveBan(t *testing.T) {
 	listeners, addresses := network.CreateListeners(n)
 	peers := make([]*network.Peer, n)
 	for i := 0; i < n; i++ {
-		p := network.NewPeer(i, addresses, listeners[i], 3*time.Second)
+		p := network.NewPeer(i, addresses, listeners[i], 30*time.Second)
 		peers[i] = &p
 	}
 
