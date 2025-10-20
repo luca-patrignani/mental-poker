@@ -645,7 +645,10 @@ func TestVerifyTamperedBlockHash(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	bc.Append(session, action, votes, 0, 2)
+	err = bc.Append(session, action, votes, 0, 2)
+	if err != nil {
+		t.Fatalf("unexpected error appending block: %v", err)
+	}
 
 	// Tamper with the block hash
 	bc.blocks[1].Hash = "tamperedhash"
@@ -682,8 +685,15 @@ func TestVerifyBrokenChainLink(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	bc.Append(session, action, votes, 0, 2)
-	bc.Append(session, action, votes, 0, 2)
+	err = bc.Append(session, action, votes, 0, 2)
+	if err != nil {
+		t.Fatalf("unexpected error appending block: %v", err)
+	}
+	
+	err = bc.Append(session, action, votes, 0, 2)
+	if err != nil {
+		t.Fatalf("unexpected error appending block: %v", err)
+	}
 
 	// Break the chain link
 	bc.blocks[1].PrevHash = "wronghash"
