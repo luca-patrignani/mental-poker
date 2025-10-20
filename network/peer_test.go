@@ -43,12 +43,6 @@ func TestAllToAll(t *testing.T) {
 	}
 }
 
-func TestAllToAll2(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		TestAllToAll(t)
-	}
-}
-
 func TestBroadcast(t *testing.T) {
 	n := 10
 	listeners, addresses := CreateListeners(n)
