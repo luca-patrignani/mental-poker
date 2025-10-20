@@ -18,6 +18,7 @@ type Action struct {
 	Timestamp int64             `json:"ts"`
 	Signature []byte            `json:"sig,omitempty"`
 }
+
 // ToString returns the JSON string representation of the Action.
 func (a *Action) ToString() string {
 	b, _ := json.Marshal(a)
@@ -356,9 +357,9 @@ func (node *ConsensusNode) applyCommit(cert Certificate, ban ...*Action) error {
 	ses := node.pokerSM.GetSession()
 
 	if len(ban) > 0 {
-		data := map[string]string{"rejectedAction":ban[0].ToString()}
+		data := map[string]string{"rejectedAction": ban[0].ToString()}
 
-		err = node.ledger.Append(*ses, cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum,  data)
+		err = node.ledger.Append(*ses, cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum, data)
 		if err != nil {
 			return err
 		}

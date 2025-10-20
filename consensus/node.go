@@ -10,7 +10,6 @@ import (
 )
 
 type StateManager interface {
-	
 	Validate(payload poker.PokerAction) error
 
 	Apply(payload poker.PokerAction) error
@@ -39,7 +38,7 @@ type NetworkLayer interface {
 	AllToAll(data []byte) ([][]byte, error)
 
 	AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte, error)
-	
+
 	GetRank() int
 
 	GetPeerCount() int

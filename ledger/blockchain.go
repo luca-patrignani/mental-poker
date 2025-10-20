@@ -21,7 +21,7 @@ type Blockchain struct {
 // The genesis block captures the initial session state, has index 0, previous hash "0",
 // and empty action/votes arrays. This ensures the blockchain starts with a record of the
 // initial game state.
-func NewBlockchain(initialSession poker.Session) (*Blockchain,error) {
+func NewBlockchain(initialSession poker.Session) (*Blockchain, error) {
 	bc := &Blockchain{
 		blocks: make([]Block, 0),
 	}
@@ -184,8 +184,15 @@ func (bc *Blockchain) calculateHash(block Block) (string, error) {
 
 	// Serialize votes
 	votesBytes, err := json.Marshal(block.Votes)
+	if err != nil {
+		return "", err
+	}
 
 	sessionBytes, err := json.Marshal(block.Session)
+
+	if err != nil {
+		return "", err
+	}
 
 	// Concatenate all data
 	data := fmt.Sprintf("%d%d%s%s%s%s%d%d",

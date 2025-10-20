@@ -2,18 +2,21 @@ package main
 
 /*
 import (
+
 	"crypto/ed25519"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/luca-patrignani/mental-poker/application"
+
 )
 */
 func main() {
 }
-	// Setup network
-	//TODO
+
+// Setup network
+//TODO
 /*
 
 func printGameState(session *poker.Session) {

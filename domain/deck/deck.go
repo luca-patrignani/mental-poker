@@ -10,7 +10,6 @@ import (
 )
 
 type NetworkLayer interface {
-
 	Broadcast(data []byte, root int) ([]byte, error)
 
 	AllToAll(data []byte) ([][]byte, error)

@@ -138,8 +138,13 @@ func cleanupP2PInstances(p2ps []*network.P2P) error {
 // starts with the correct game state.
 func TestNewBlockchainWithInitialSession(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
@@ -147,9 +152,9 @@ func TestNewBlockchainWithInitialSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to prepare deck: %v", err)
 	}
-	
-	bc,err := NewBlockchain(initialSession)
-	if err != nil {	
+
+	bc, err := NewBlockchain(initialSession)
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	if bc == nil {
@@ -203,24 +208,34 @@ func TestNewBlockchainWithInitialSession(t *testing.T) {
 // different genesis block hashes. This ensures each blockchain instance is unique to its game.
 func TestNewBlockchainWithDifferentSessions(t *testing.T) {
 	n := 5
-	session1,p2ps1,err := createTestSession(n)
+	session1, p2ps1, err := createTestSession(n)
 	if err != nil {
 		t.Fatalf("failed to create test sessions 1: %v", err)
 	}
-	defer cleanupP2PInstances(p2ps1)
-	session2,p2ps2,err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps1)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
+	session2, p2ps2, err := createTestSession(n)
 	if err != nil {
 		t.Fatalf("failed to create test sessions 2: %v", err)
 	}
-	defer cleanupP2PInstances(p2ps2)
+	defer func() {
+		err := cleanupP2PInstances(p2ps2)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	session2.RoundID = "different-round"
 
 	bc1, err := NewBlockchain(session1)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain 1: %v", err)
 	}
 	bc2, err := NewBlockchain(session2)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain 2: %v", err)
 	}
 	if bc1.blocks[0].Hash == bc2.blocks[0].Hash {
@@ -228,18 +243,22 @@ func TestNewBlockchainWithDifferentSessions(t *testing.T) {
 	}
 }
 
-
 // TestAppendValidBlock verifies that a valid block can be successfully appended to the chain.
 // This test ensures the core append functionality works with valid data and maintains chain integrity.
 func TestAppendValidBlock(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
-	bc,err := NewBlockchain(initialSession)
-	if err != nil {	
+	bc, err := NewBlockchain(initialSession)
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -287,13 +306,18 @@ func TestAppendValidBlock(t *testing.T) {
 // invalid blocks from entering the chain.
 func TestAppendBlockInsufficientVotes(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
-	bc,err := NewBlockchain(initialSession)
-	if err != nil {	
+	bc, err := NewBlockchain(initialSession)
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -324,13 +348,18 @@ func TestAppendBlockInsufficientVotes(t *testing.T) {
 // is preserved in the ledger.
 func TestAppendWithExtraMetadata(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -369,13 +398,18 @@ func TestAppendWithExtraMetadata(t *testing.T) {
 // This test ensures the method correctly identifies the tail of the blockchain.
 func TestGetLatestBlock(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -386,7 +420,11 @@ func TestGetLatestBlock(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	bc.Append(session, action, votes, 0, 2)
+	err = bc.Append(session, action, votes, 0, 2)
+
+	if err != nil {
+		t.Fatalf("unexpected error appending block: %v", err)
+	}
 
 	latest, err := bc.GetLatest()
 	if err != nil {
@@ -418,13 +456,18 @@ func TestGetLatestEmptyBlockchain(t *testing.T) {
 // and maintains their integrity. This test ensures the block retrieval mechanism is reliable.
 func TestGetByIndexValid(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -435,7 +478,10 @@ func TestGetByIndexValid(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	bc.Append(session, action, votes, 0, 2)
+	err = bc.Append(session, action, votes, 0, 2)
+	if err != nil {
+		t.Fatalf("unexpected error appending block: %v", err)
+	}
 
 	block, err := bc.GetByIndex(1)
 	if err != nil {
@@ -465,13 +511,18 @@ func TestGetByIndexValid(t *testing.T) {
 // This test ensures proper boundary checking and prevents panics.
 func TestGetByIndexOutOfRange(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 
@@ -490,13 +541,18 @@ func TestGetByIndexOutOfRange(t *testing.T) {
 // This test ensures the verification algorithm correctly validates chains.
 func TestVerifyValidChain(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -514,7 +570,10 @@ func TestVerifyValidChain(t *testing.T) {
 			{ActionId: "a" + string(rune(i)), VoterID: 0, Value: consensus.VoteAccept},
 			{ActionId: "a" + string(rune(i)), VoterID: 1, Value: consensus.VoteAccept},
 		}
-		bc.Append(session, action, votes, i, 2)
+		err = bc.Append(session, action, votes, i, 2)
+		if err != nil {
+			t.Fatalf("unexpected error appending block: %v", err)
+		}
 	}
 
 	err = bc.Verify()
@@ -538,13 +597,18 @@ func TestVerifyEmptyBlockchain(t *testing.T) {
 // incorrect previous hash. This test ensures the root of trust is protected.
 func TestVerifyInvalidGenesis(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	bc.blocks[0].PrevHash = "invalid"
@@ -559,13 +623,18 @@ func TestVerifyInvalidGenesis(t *testing.T) {
 // has been tampered with. This test ensures cryptographic integrity is maintained.
 func TestVerifyTamperedBlockHash(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -591,13 +660,18 @@ func TestVerifyTamperedBlockHash(t *testing.T) {
 // link is broken. This test ensures chain continuity validation works.
 func TestVerifyBrokenChainLink(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -624,13 +698,18 @@ func TestVerifyBrokenChainLink(t *testing.T) {
 // are not sequential. This test ensures the block order is maintained.
 func TestVerifyIndexDiscontinuity(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession
@@ -656,13 +735,18 @@ func TestVerifyIndexDiscontinuity(t *testing.T) {
 // and maintain chain integrity throughout. This is a practical integration test.
 func TestAppendMultipleBlocks(t *testing.T) {
 	n := 5
-	initialSession,p2ps,err := createTestSession(n)
-	defer cleanupP2PInstances(p2ps)
+	initialSession, p2ps, err := createTestSession(n)
+	defer func() {
+		err := cleanupP2PInstances(p2ps)
+		if err != nil {
+			t.Fatalf("failed to cleanup P2P instances: %v", err)
+		}
+	}()
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}
 	bc, err := NewBlockchain(initialSession)
-	if err != nil {	
+	if err != nil {
 		t.Fatalf("failed to create blockchain : %v", err)
 	}
 	session := initialSession

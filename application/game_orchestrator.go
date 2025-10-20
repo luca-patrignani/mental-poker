@@ -1,6 +1,5 @@
 package application
 
-
 // TODO:
 /*type GameOrchestrator struct {
 	consensus    *consensus.ConsensusNode // Gestisce consenso
