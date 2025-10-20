@@ -44,7 +44,7 @@ func NewBlockchain() *Blockchain {
 // Append adds a new validated block to the blockchain. It calculates the block hash,
 // validates the block against the previous block, and appends it. Returns an error if
 // the block is invalid. The extra parameter can optionally contain additional metadata.
-func (bc *Blockchain) Append(session poker.Session, pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
+func (bc *Blockchain) append(session poker.Session, pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
@@ -103,17 +103,6 @@ func (bc *Blockchain) GetByIndex(index int) (*Block, error) {
 	}
 
 	return &bc.blocks[index], nil
-}
-
-// GetAll returns a copy of all blocks in the blockchain to prevent external modification.
-func (bc *Blockchain) GetAll() []Block {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
-
-	// Return a copy to prevent external modification
-	result := make([]Block, len(bc.blocks))
-	copy(result, bc.blocks)
-	return result
 }
 
 // Verify validates the integrity of the entire blockchain by checking the genesis block
@@ -194,47 +183,4 @@ func (bc *Blockchain) calculateHash(block Block) string {
 
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
-}
-
-// Length returns the total number of blocks in the blockchain.
-func (bc *Blockchain) Length() int {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
-	return len(bc.blocks)
-}
-
-// GetHistory returns a slice of all non-genesis block actions, representing the game action
-// sequence in chronological order.
-func (bc *Blockchain) GetHistory() []interface{} {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
-
-	history := make([]interface{}, 0, len(bc.blocks)-1)
-	for i := 1; i < len(bc.blocks); i++ {
-		history = append(history, bc.blocks[i].Action)
-	}
-	return history
-}
-
-// Replay reconstructs state by sequentially applying all non-genesis block actions through
-// the provided StateMachine. Returns an error if any action fails to apply.
-func (bc *Blockchain) Replay(stateMachine StateManager) error {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
-
-	// Skip genesis block
-	for i := 1; i < len(bc.blocks); i++ {
-		pa := bc.blocks[i].Action
-
-		if err := stateMachine.Apply(pa); err != nil {
-			return fmt.Errorf("block %d: failed to apply action: %w", i, err)
-		}
-	}
-
-	return nil
-}
-
-// StateManager interface for the poker manager
-type StateManager interface {
-	Apply(actionData poker.PokerAction) error
 }
