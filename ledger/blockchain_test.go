@@ -689,7 +689,7 @@ func TestVerifyBrokenChainLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
-	
+
 	err = bc.Append(session, action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
@@ -730,7 +730,10 @@ func TestVerifyIndexDiscontinuity(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	bc.Append(session, action, votes, 0, 2)
+	err = bc.Append(session, action, votes, 0, 2)
+	if err != nil {
+		t.Fatalf("unexpected error appending block: %v", err)
+	}
 
 	// Tamper with the block index
 	bc.blocks[1].Index = 5
