@@ -26,14 +26,15 @@ type PokerAction struct {
 type ActionType string
 
 const (
-	ActionBet    ActionType = "bet"
-	ActionCall   ActionType = "call"
-	ActionRaise  ActionType = "raise"
-	ActionAllIn  ActionType = "allin"
-	ActionFold   ActionType = "fold"
-	ActionCheck  ActionType = "check"
-	ActionReveal ActionType = "reveal"
-	ActionBan    ActionType = "ban"
+	ActionBet      ActionType = "bet"
+	ActionCall     ActionType = "call"
+	ActionRaise    ActionType = "raise"
+	ActionAllIn    ActionType = "allin"
+	ActionFold     ActionType = "fold"
+	ActionCheck    ActionType = "check"
+	ActionReveal   ActionType = "reveal"
+	ActionBan      ActionType = "ban"
+	ActionShowdown ActionType = "showdown"
 )
 
 // Deck is the rappresentation of a game session.
@@ -43,8 +44,9 @@ type Session struct {
 	Deck        deck.Deck
 	Pots        []Pot
 	HighestBet  uint
-	Dealer      uint
-	CurrentTurn uint   // index into Players for who must act
+	LastToRaise uint   // index of the Player who last raised
+	Dealer      uint   // index of the Player that is the dealer
+	CurrentTurn uint   // index of the Player who must act
 	RoundID     string // identifier for the current betting round/hand
 }
 
@@ -137,43 +139,86 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 	case ActionFold:
 		session.Players[idx].HasFolded = true
 		session.recalculatePots()
-		session.advanceTurn()
+		if session.isRoundFinished() {
+			session.advanceRound()
+		} else {
+			session.advanceTurn()
+		}
 	case ActionBet:
 		session.Players[idx].Bet += amount
 		session.Players[idx].Pot -= amount
 		if session.Players[idx].Bet > session.HighestBet {
 			session.HighestBet = session.Players[idx].Bet
+			session.LastToRaise = uint(idx)
 		}
 		session.recalculatePots()
-		session.advanceTurn()
+		if session.isRoundFinished() {
+			session.advanceRound()
+		} else {
+			session.advanceTurn()
+		}
 	case ActionRaise:
 		session.Players[idx].Bet += amount
 		session.Players[idx].Pot -= amount
 		session.HighestBet = session.Players[idx].Bet
+		session.LastToRaise = uint(idx)
 		session.recalculatePots()
-		session.advanceTurn()
+		if session.isRoundFinished() {
+			session.advanceRound()
+		} else {
+			session.advanceTurn()
+		}
 	case ActionCall:
 		diff := session.HighestBet - session.Players[idx].Bet
 		session.Players[idx].Bet += diff
 		session.Players[idx].Pot -= diff
 		session.recalculatePots()
-		session.advanceTurn()
+		if session.isRoundFinished() {
+			session.advanceRound()
+		} else {
+			session.advanceTurn()
+		}
 	case ActionAllIn:
 		session.Players[idx].Bet += session.Players[idx].Pot
 		session.Players[idx].Pot = 0
 		if session.Players[idx].Bet >= session.HighestBet {
 			session.HighestBet = session.Players[idx].Bet
+			session.LastToRaise = uint(idx)
 		}
 		session.recalculatePots()
-		session.advanceTurn()
-
+		if session.isRoundFinished() {
+			session.advanceRound()
+		} else {
+			session.advanceTurn()
+		}
 	case ActionCheck:
-		session.advanceTurn()
+		if session.isRoundFinished() {
+			session.advanceRound()
+		} else {
+			session.advanceTurn()
+		}
 	case ActionBan:
 		session.Players = append(session.Players[:idx], session.Players[idx+1:]...)
 		n := len(session.Players)
 		session.Dealer %= uint(n)
-		session.CurrentTurn = (session.Dealer + 1) % uint(n)
+		session.CurrentTurn = uint(session.getNextActivePlayer(session.Dealer))
+		if session.isRoundFinished() {
+			session.advanceRound()
+		}
+	case ActionShowdown:
+		winners, err := session.winnerEval()
+		if err != nil {
+			return err
+		}
+		// distribute pots to winners
+		for winnerId, amount := range winners {
+			winnerIdx := session.FindPlayerIndex(winnerId)
+			if winnerIdx == -1 {
+				continue // should not happen
+			}
+			session.Players[winnerIdx].Pot += amount
+		}
+		session.advanceRound()
 
 	default:
 		return fmt.Errorf("unknown action")
@@ -181,19 +226,12 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 	return nil
 }
 
-// advanceTurn moves the current turn to the next non-folded player in the session.
-// It wraps around from the last player to the first and handles the case where all
-// other players have folded (no advancement occurs).
-func (session *Session) advanceTurn() {
-	n := len(session.Players)
-	if n == 0 {
-		return
-	}
-	for i := 1; i <= n; i++ {
-		next := (int(session.CurrentTurn) + i) % n
-		if !session.Players[next].HasFolded {
-			session.CurrentTurn = uint(next)
-			return
+// FindPlayerIndex returns the session index of the player with the given ID, or -1 if not found.
+func (s *Session) FindPlayerIndex(playerID int) int {
+	for i, p := range s.Players {
+		if p.Id == playerID {
+			return i
 		}
 	}
+	return -1
 }

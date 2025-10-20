@@ -31,6 +31,10 @@ func checkPokerLogic(a ActionType, amount uint, session *Session, idx int) error
 		if session.Players[idx].Bet != session.HighestBet {
 			return fmt.Errorf("cannot check, must call, raise or fold")
 		}
+	case ActionShowdown:
+		if extractRoundName(session.RoundID) != Showdown {
+			return fmt.Errorf("cannot showdown before river")
+		}
 	default:
 		return fmt.Errorf("unknown action")
 	}

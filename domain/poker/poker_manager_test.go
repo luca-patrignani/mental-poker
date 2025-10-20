@@ -79,9 +79,10 @@ func TestManager_ValidateWrongTurn(t *testing.T) {
 
 func TestManager_ApplyValidAction(t *testing.T) {
 	session := &Session{
-		RoundID: "round1",
+		RoundID: "preflop1",
 		Players: []Player{
 			{Id: 1, Name: "Alice", Pot: 100, Bet: 0},
+			{Id: 2, Name: "Bob", Pot: 100, Bet: 0},
 		},
 		CurrentTurn: 0,
 		HighestBet:  0,
@@ -90,7 +91,7 @@ func TestManager_ApplyValidAction(t *testing.T) {
 	sm := NewPokerManager(session)
 
 	action := &PokerAction{
-		RoundID:  "round1",
+		RoundID:  "preflop1",
 		PlayerID: 1,
 		Type:     ActionBet,
 		Amount:   50,

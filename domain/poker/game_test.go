@@ -178,9 +178,11 @@ func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {
 	session := &Session{
 		Players: []Player{
 			{Name: "Alice", Pot: 100, Bet: 0},
+			{Name: "Bob", Pot: 100, Bet: 0},
 		},
 		CurrentTurn: 0,
 		HighestBet:  0,
+		RoundID:     "preflop",
 	}
 
 	err := applyAction(ActionBet, 50, session, 0)
@@ -205,9 +207,11 @@ func TestApplyAction_Raise_UpdatesHighestBet(t *testing.T) {
 	session := &Session{
 		Players: []Player{
 			{Name: "Alice", Pot: 200, Bet: 50},
+			{Name: "Bob", Pot: 100, Bet: 50},
 		},
 		CurrentTurn: 0,
 		HighestBet:  50,
+		RoundID:     PreFlop,
 	}
 
 	err := applyAction(ActionRaise, 50, session, 0)
@@ -228,9 +232,11 @@ func TestApplyAction_Call_MatchesHighestBet(t *testing.T) {
 	session := &Session{
 		Players: []Player{
 			{Name: "Alice", Pot: 100, Bet: 50},
+			{Name: "Bob", Pot: 100, Bet: 100},
 		},
 		CurrentTurn: 0,
 		HighestBet:  100,
+		RoundID:     PreFlop,
 	}
 
 	err := applyAction(ActionCall, 0, session, 0)
@@ -251,9 +257,11 @@ func TestApplyAction_AllIn_EmptiesPot(t *testing.T) {
 	session := &Session{
 		Players: []Player{
 			{Name: "Alice", Pot: 75, Bet: 50},
+			{Name: "Bob", Pot: 100, Bet: 100},
 		},
 		CurrentTurn: 0,
 		HighestBet:  100,
+		RoundID:     PreFlop,
 	}
 
 	err := applyAction(ActionAllIn, 0, session, 0)

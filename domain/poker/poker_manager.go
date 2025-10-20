@@ -76,15 +76,17 @@ func (psm *PokerManager) NotifyBan(id int) (PokerAction, error) {
 
 // FindPlayerIndex returns the session index of the player with the given ID, or -1 if not found.
 func (psm *PokerManager) FindPlayerIndex(playerID int) int {
-	for i, p := range psm.session.Players {
-		if p.Id == playerID {
-			return i
-		}
-	}
-	return -1
+	return psm.session.FindPlayerIndex(playerID)
 }
 
 // GetSession returns a pointer to the underlying poker session managed by this PokerManager.
 func (psm *PokerManager) GetSession() *Session {
 	return psm.session
+}
+
+func (psm *PokerManager) GetWinners() (map[int]uint, error) {
+	if extractRoundName(psm.session.RoundID) != Showdown {
+		return nil, fmt.Errorf("cannot get winners before showdown")
+	}
+	return psm.session.winnerEval()
 }
