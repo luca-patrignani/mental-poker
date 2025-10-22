@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+# Executables inside cmd/ directories
+cmd/cmd
+
 # Test binary, built with `go test -c`
 *.test
 
