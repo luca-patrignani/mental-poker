@@ -108,13 +108,23 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	pokerManager := poker.NewPokerManager(&session)
+	pokerManager := poker.PokerManager{
+		Session: &session,
+		Player: myRank,
+	}
 	consensusNode := consensus.NewConsensusNode(
 		pub, priv,
 		map[int]ed25519.PublicKey{myRank: pub},
-		pokerManager,
+		&pokerManager,
 		blockchain,
 		p2p,
 	)
-	consensusNode.UpdatePeers()
+	action, err := consensus.MakeAction(myRank, pokerManager.ActionAllIn())
+	if err != nil {
+		panic(err)
+	}
+	if err := consensusNode.ProposeAction(&action); err != nil {
+		panic(err)
+	}
+	consensusNode.WaitForProposal()
 }
