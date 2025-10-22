@@ -129,7 +129,7 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 		CurrentTurn: 0,
 		RoundID:     "round1",
 	}
-	psm := poker.NewPokerManager(&s)
+	psm := &poker.PokerManager{Session: &s,Player: 1}
 	ldg := NewBlockchain()
 
 	node0 := NewConsensusNode(pub0, priv0, playersPK, psm, ldg, p0)
@@ -235,7 +235,7 @@ func TestProposeReceive(t *testing.T) {
 				RoundID:     "preflop-1",
 			}
 
-			psm = *poker.NewPokerManager(&s)
+			psm = poker.PokerManager{Session: &s,Player: 1}
 			node.pokerSM = &psm
 
 			nodes_chan <- node
@@ -429,7 +429,7 @@ func TestProposeReceiveBan(t *testing.T) {
 				RoundID:     "preflop-1",
 			}
 
-			psm = *poker.NewPokerManager(&s)
+			psm = poker.PokerManager{Session: &s,Player: 1}
 			node.pokerSM = &psm
 
 			nodes_chan <- node
