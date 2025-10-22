@@ -9,7 +9,7 @@ func TestManager_ValidateWrongRound(t *testing.T) {
 		CurrentTurn: 0,
 	}
 
-	sm := NewPokerManager(session)
+	sm := &PokerManager{session,1}
 
 	action := &PokerAction{
 		RoundID:  "round2",
@@ -33,7 +33,7 @@ func TestManager_ValidatePlayerNotInSession(t *testing.T) {
 		CurrentTurn: 0,
 	}
 
-	sm := NewPokerManager(session)
+	sm := &PokerManager{session,1}
 
 	action := &PokerAction{
 		RoundID:  "round1",
@@ -60,7 +60,7 @@ func TestManager_ValidateWrongTurn(t *testing.T) {
 		CurrentTurn: 0,
 	}
 
-	sm := NewPokerManager(session)
+	sm := &PokerManager{session,1}
 
 	action := &PokerAction{
 		RoundID:  "round1",
@@ -88,7 +88,7 @@ func TestManager_ApplyValidAction(t *testing.T) {
 		HighestBet:  0,
 	}
 
-	sm := NewPokerManager(session)
+	sm := &PokerManager{session,1}
 
 	action := &PokerAction{
 		RoundID:  "preflop1",
@@ -118,7 +118,7 @@ func TestManager_GetCurrentPlayer(t *testing.T) {
 		CurrentTurn: 1,
 	}
 
-	sm := NewPokerManager(session)
+	sm := &PokerManager{session,1}
 
 	currentPlayer := sm.GetCurrentPlayer()
 	if currentPlayer != 200 {
@@ -135,7 +135,7 @@ func TestManager_FindPlayerIndex(t *testing.T) {
 		},
 	}
 
-	sm := NewPokerManager(session)
+	sm := &PokerManager{session,1}
 
 	idx := sm.FindPlayerIndex(200)
 	if idx != 1 {
@@ -154,7 +154,7 @@ func TestManager_NotifyBan(t *testing.T) {
 		Players: []Player{{Id: 123, Name: "Alice", Pot: 100}},
 	}
 
-	sm := NewPokerManager(session)
+	sm := &PokerManager{session,1}
 
 	payload, err := sm.NotifyBan(123)
 	if err != nil {
