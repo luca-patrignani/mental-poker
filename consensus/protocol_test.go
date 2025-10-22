@@ -305,7 +305,7 @@ func TestProposeReceive(t *testing.T) {
 				Amount:   30,
 			}
 
-			a, err := makeAction(nodes[i].network.GetRank(), pa)
+			a, err := MakeAction(nodes[i].network.GetRank(), pa)
 			if err != nil {
 				t.Fatalf("%s", err.Error())
 			}
@@ -500,7 +500,7 @@ func TestProposeReceiveBan(t *testing.T) {
 				Amount:   30,
 			}
 
-			a, err := makeAction(nodes[i].network.GetRank(), pa)
+			a, err := MakeAction(nodes[i].network.GetRank(), pa)
 			if err != nil {
 				t.Fatalf("%s", err.Error())
 			}

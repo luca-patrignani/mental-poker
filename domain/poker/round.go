@@ -47,7 +47,7 @@ func (session *Session) advanceRound() {
 	idx := session.getNextActivePlayer(session.Dealer)
 	session.CurrentTurn = uint(idx)
 	session.LastToRaise = uint(idx)
-	session.RoundID = makeRoundID(nextRound(session.RoundID))
+	session.RoundID = MakeRoundID(nextRound(session.RoundID))
 	if extractRoundName(session.RoundID) == PreFlop {
 		session.Dealer = uint(session.Dealer + 1%uint(len(session.Players)))
 		session.CurrentTurn = uint(session.Dealer + 1%uint(len(session.Players)))
@@ -78,7 +78,7 @@ func nextRound(current string) string {
 }
 
 // Combine round name and Unix timestamp
-func makeRoundID(round string) string {
+func MakeRoundID(round string) string {
 	return fmt.Sprintf("%s-%d", round, time.Now().Unix())
 }
 

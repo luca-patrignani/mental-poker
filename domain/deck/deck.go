@@ -26,11 +26,11 @@ type NetworkLayer interface {
 // Deck is the rappresentation of a game session.
 type Deck struct {
 	DeckSize       int
-	CardCollection []kyber.Point //(a) The index of the array rappresent the value of the card.
-	EncryptedDeck  []kyber.Point //(b)
-	SecretKey      kyber.Scalar  //(x_j)
-	lastDrawnCard  int
 	Peer           NetworkLayer
+	cardCollection []kyber.Point //(a) The index of the array rappresent the value of the card.
+	encryptedDeck  []kyber.Point //(b)
+	secretKey      kyber.Scalar  //(x_j)
+	lastDrawnCard  int
 }
 
 var suite suites.Suite = suites.MustFind("Ed25519")
@@ -48,7 +48,7 @@ func (d *Deck) PrepareDeck() error {
 		}
 		deck[i] = card
 	}
-	d.CardCollection = deck
+	d.cardCollection = deck
 	d.lastDrawnCard = 0
 	return nil
 }
@@ -101,10 +101,10 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 // It returns a face up card to the drawer player.
 func (d *Deck) DrawCard(drawer int) (int, error) {
 	d.lastDrawnCard++
-	cj := d.EncryptedDeck[d.lastDrawnCard].Clone()
+	cj := d.encryptedDeck[d.lastDrawnCard].Clone()
 	for j := 0; j < d.Peer.GetPeerCount(); j++ {
 		if j != drawer {
-			xj_1 := suite.Scalar().Inv(d.SecretKey)
+			xj_1 := suite.Scalar().Inv(d.secretKey)
 			cj.Mul(xj_1, cj)
 		}
 		var err error
@@ -119,10 +119,10 @@ func (d *Deck) DrawCard(drawer int) (int, error) {
 	if d.Peer.GetRank() != drawer {
 		return 0, nil
 	}
-	xj_1 := suite.Scalar().Inv(d.SecretKey)
+	xj_1 := suite.Scalar().Inv(d.secretKey)
 	cj.Mul(xj_1, cj)
 	for i := 1; i <= d.DeckSize; i++ {
-		if d.CardCollection[i].Equal(cj) {
+		if d.cardCollection[i].Equal(cj) {
 			return i, nil
 		}
 	}

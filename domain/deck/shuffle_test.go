@@ -31,7 +31,7 @@ func TestShuffle(t *testing.T) {
 				errChan <- err
 				return
 			}
-			decks <- deck.EncryptedDeck
+			decks <- deck.encryptedDeck
 			errChan <- nil
 		}()
 	}

@@ -7,25 +7,25 @@ import (
 )
 
 func (d *Deck) Shuffle() error {
-	d.EncryptedDeck = make([]kyber.Point, d.DeckSize+1)
-	for i, card := range d.CardCollection {
-		d.EncryptedDeck[i] = card.Clone()
+	d.encryptedDeck = make([]kyber.Point, d.DeckSize+1)
+	for i, card := range d.cardCollection {
+		d.encryptedDeck[i] = card.Clone()
 	}
 	for j := 0; j < len(d.Peer.GetAddresses()); j++ {
 		if j == d.Peer.GetRank() {
 			x := suite.Scalar().Pick(suite.RandomStream())
-			d.SecretKey = x
+			d.secretKey = x
 			perm := permutation(d.DeckSize)
 			tmp := make([]kyber.Point, d.DeckSize+1)
-			for i, card := range d.EncryptedDeck {
+			for i, card := range d.encryptedDeck {
 				tmp[i] = card.Clone()
 			}
 			for i := 0; i <= d.DeckSize; i++ {
-				d.EncryptedDeck[i].Mul(x, tmp[perm[i]])
+				d.encryptedDeck[i].Mul(x, tmp[perm[i]])
 			}
 		}
 		var err error
-		d.EncryptedDeck, err = d.broadcastMultiple(d.EncryptedDeck, j, d.DeckSize+1)
+		d.encryptedDeck, err = d.broadcastMultiple(d.encryptedDeck, j, d.DeckSize+1)
 		if err != nil {
 			return err
 		}

@@ -25,10 +25,10 @@ func (a *Action) ToString() string {
 	return string(b)
 }
 
-// makeAction creates a new Action with a unique ID derived from the actor ID and action
+// MakeAction creates a new Action with a unique ID derived from the actor ID and action
 // payload, along with random entropy. The ID is hex-encoded from the first 8 bytes of
 // marshaled data. Timestamp is not set until Sign is called.
-func makeAction(actorId int, payload poker.PokerAction) (Action, error) {
+func MakeAction(actorId int, payload poker.PokerAction) (Action, error) {
 	randBytes := make([]byte, 16) // 128 bits entropy
 	_, err := rand.Read(randBytes)
 	if err != nil {

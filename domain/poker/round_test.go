@@ -84,7 +84,7 @@ func TestMakeRoundID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id := makeRoundID(tt.roundName)
+			id := MakeRoundID(tt.roundName)
 
 			// Verify format: "roundname-timestamp"
 			if !strings.HasPrefix(id, tt.roundName+"-") {
@@ -350,7 +350,7 @@ func TestAdvanceRound(t *testing.T) {
 func TestRoundProgression(t *testing.T) {
 	rounds := []string{PreFlop, Flop, Turn, River, Showdown}
 
-	currentRoundID := makeRoundID(PreFlop)
+	currentRoundID := MakeRoundID(PreFlop)
 
 	for i := 0; i < len(rounds)-1; i++ {
 		extracted := extractRoundName(currentRoundID)
@@ -359,7 +359,7 @@ func TestRoundProgression(t *testing.T) {
 		}
 
 		nextRoundName := nextRound(currentRoundID)
-		currentRoundID = makeRoundID(nextRoundName)
+		currentRoundID = MakeRoundID(nextRoundName)
 	}
 
 	// Verify we're at Showdown
@@ -387,7 +387,7 @@ func TestAllPlayersCheckScenario(t *testing.T) {
 		LastToRaise: 1,
 		CurrentTurn: 0,
 		Dealer:      2,
-		RoundID:     makeRoundID(PreFlop),
+		RoundID:     MakeRoundID(PreFlop),
 	}
 
 	// Verify round can finish when all check

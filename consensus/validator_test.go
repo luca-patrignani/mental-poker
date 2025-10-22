@@ -47,7 +47,7 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 		Amount:   100,
 	}
 
-	a, err := makeAction(17, pa)
+	a, err := MakeAction(17, pa)
 	if err != nil {
 		t.Fatalf("Failed to make an action, %v", err)
 	}
@@ -75,7 +75,7 @@ func TestMarshalUnmarshalAction(t *testing.T) {
 		Amount:   150,
 	}
 
-	a, err := makeAction(15, act)
+	a, err := MakeAction(15, act)
 	if err != nil {
 		t.Fatalf("Failed to make an action, %v", err)
 	}
