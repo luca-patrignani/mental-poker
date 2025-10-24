@@ -29,14 +29,14 @@ func TestManager_ValidateWrongRound(t *testing.T) {
 func TestManager_ValidatePlayerNotInSession(t *testing.T) {
 	session := &Session{
 		RoundID:     "round1",
-		Players:     []Player{{Id: 1, Name: "Alice"}},
+		Players:     []Player{{Id: 999, Name: "Alice"}},
 		CurrentTurn: 0,
 	}
 
 	sm := &PokerManager{session,1}
 
 	action := &PokerAction{
-		RoundID:  "round1",
+		RoundID:  "preflop",
 		PlayerID: 999,
 		Type:     ActionCheck,
 		Amount:   0,
