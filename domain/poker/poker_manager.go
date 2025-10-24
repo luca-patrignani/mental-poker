@@ -18,11 +18,16 @@ type PokerManager struct {
 // the round ID, player existence, turn order, and poker rules. Returns an error describing
 // the validation failure, or nil if the action is valid.
 func (psm *PokerManager) Validate(pa PokerAction) error {
+
+	index := psm.FindPlayerIndex(pa.PlayerID)
+	if err := checkPokerLogic(pa.Type, pa.Amount, psm.Session, index); err != nil {
+		return err
+	}
+
 	if pa.RoundID != psm.Session.RoundID {
 		return fmt.Errorf("wrong round: expected %s, got %s", psm.Session.RoundID, pa.RoundID)
 	}
 
-	index := psm.FindPlayerIndex(pa.PlayerID)
 	if index == -1 {
 		return fmt.Errorf("player %d not in session", pa.PlayerID)
 	}
@@ -31,7 +36,7 @@ func (psm *PokerManager) Validate(pa PokerAction) error {
 		return fmt.Errorf("not player's turn: current turn %d, player index %d", psm.Session.CurrentTurn, index)
 	}
 
-	return checkPokerLogic(pa.Type, pa.Amount, psm.Session, index)
+	return nil
 }
 
 // Apply applies a validated poker action to the session state and advances the game accordingly.
@@ -112,7 +117,7 @@ func (psm *PokerManager) ActionCall() PokerAction {
 		RoundID:  psm.Session.RoundID,
 		PlayerID: psm.Player,
 		Type:     ActionCall,
-		Amount:   0,
+		Amount:   psm.Session.HighestBet - psm.Session.Players[psm.FindPlayerIndex(psm.Player)].Bet,
 	}
 }
 func (psm *PokerManager) ActionRaise(amount uint) PokerAction {
@@ -128,7 +133,7 @@ func (psm *PokerManager) ActionAllIn() PokerAction {
 		RoundID:  psm.Session.RoundID,
 		PlayerID: psm.Player,
 		Type:     ActionAllIn,
-		Amount:   0,
+		Amount:   psm.Session.Players[psm.FindPlayerIndex(psm.Player)].Pot,
 	}
 }
 func (psm *PokerManager) ActionShowdown() PokerAction {
