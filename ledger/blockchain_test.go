@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/luca-patrignani/mental-poker/consensus"
-	"github.com/luca-patrignani/mental-poker/domain/deck"
 	"github.com/luca-patrignani/mental-poker/domain/poker"
 	"github.com/luca-patrignani/mental-poker/network"
 )
@@ -100,17 +99,10 @@ func createTestSession(n int) (poker.Session, []*network.P2P, error) {
 		eligiblePlayers[i] = i
 	}
 
-	// Create uninitialized deck (caller will initialize if needed)
-	d := deck.Deck{
-		DeckSize: 52,
-		Peer:     p2ps[0],
-	}
-
 	// Create the session
 	session := poker.Session{
 		Board:       board,
 		Players:     players,
-		Deck:        d,
 		Pots:        []poker.Pot{{Amount: 0, Eligible: eligiblePlayers}},
 		HighestBet:  0,
 		Dealer:      0,

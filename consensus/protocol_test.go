@@ -122,7 +122,6 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 			{Name: "Alice", Id: 0, Hand: [2]poker.Card{}, HasFolded: false, Pot: 100, Bet: 0},
 			{Name: "Bob", Id: 1, Hand: [2]poker.Card{}, HasFolded: false, Pot: 100, Bet: 0},
 		},
-		Deck:        deck.Deck{},
 		Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0, 1}}},
 		HighestBet:  0,
 		Dealer:      0,
@@ -227,7 +226,6 @@ func TestProposeReceive(t *testing.T) {
 			s := poker.Session{
 				Board:       [5]poker.Card{},
 				Players:     players,
-				Deck:        d,
 				Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0, 1, 2}}},
 				HighestBet:  0,
 				Dealer:      0,
@@ -421,7 +419,6 @@ func TestProposeReceiveBan(t *testing.T) {
 			s := poker.Session{
 				Board:       [5]poker.Card{},
 				Players:     players,
-				Deck:        d,
 				Pots:        []poker.Pot{{Amount: 50, Eligible: []int{0, 1, 2}}},
 				HighestBet:  50,
 				Dealer:      2,

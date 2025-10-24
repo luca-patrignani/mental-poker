@@ -13,7 +13,6 @@ import (
 	"github.com/pterm/pterm/putils"
 
 	"github.com/luca-patrignani/mental-poker/consensus"
-	"github.com/luca-patrignani/mental-poker/domain/deck"
 	"github.com/luca-patrignani/mental-poker/domain/poker"
 	"github.com/luca-patrignani/mental-poker/ledger"
 	"github.com/luca-patrignani/mental-poker/network"
@@ -112,16 +111,14 @@ func main() {
 			Pot: 1000,
 		}
 	}
-	deck := deck.Deck{
-		DeckSize: 52,
-		Peer:     p2p,
-	}
+	deck := poker.NewPokerDeck(p2p)
+	deck.Shuffle()
 	session := poker.Session{
 		Board: [5]poker.Card{},
 		Players: players,
-		Deck: deck,
 		RoundID: poker.MakeRoundID(poker.PreFlop),
 	}
+
 	blockchain, err := ledger.NewBlockchain(session)
 	if err != nil {
 		panic(err)
