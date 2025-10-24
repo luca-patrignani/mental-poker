@@ -155,9 +155,7 @@ func main() {
 
 		selectedAction, _ = pterm.DefaultInteractiveSelect.WithDefaultText("Select your next action").WithOptions(actions).Show()
 		if selectedAction == "Raise" {
-
-			defVal := strconv.Itoa(int(pokerManager.Session.HighestBet))
-			raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").WithDefaultValue(defVal).Show()
+			raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").Show()
 		}
 		switch selectedAction {
 		case "Fold":

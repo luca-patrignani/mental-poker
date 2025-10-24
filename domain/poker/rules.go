@@ -14,11 +14,11 @@ func checkPokerLogic(a ActionType, amount uint, session *Session, idx int) error
 			return fmt.Errorf("insufficient funds")
 		}
 	case ActionRaise:
-		if session.Players[idx].Bet <= session.HighestBet {
+		if amount <= session.HighestBet {
 			return fmt.Errorf("raise must be higher than current highest bet")
 		}
 		if session.Players[idx].Pot < amount {
-			return fmt.Errorf("insufficient funds to raise")
+			return fmt.Errorf("insufficient funds to raise %d", amount)
 		}
 	case ActionCall:
 		diff := session.HighestBet - session.Players[idx].Bet
