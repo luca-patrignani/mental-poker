@@ -149,6 +149,7 @@ func main() {
 
 	raiseAmount := "0"
 	selectedAction := ""
+	var action consensus.Action
 	area, _ := pterm.DefaultArea.Start()
 	for {
 
@@ -158,6 +159,27 @@ func main() {
 			defVal := strconv.Itoa(int(pokerManager.Session.HighestBet))
 			raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").WithDefaultValue(defVal).Show()
 		}
+		switch selectedAction {
+		case "Fold":
+			action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
+		case "Check":
+			action, err = consensus.MakeAction(myRank, pokerManager.ActionCheck())
+		case "Call":
+			action, err = consensus.MakeAction(myRank, pokerManager.ActionCall())
+		case "Raise":
+			raiseInt, _ := strconv.Atoi(raiseAmount)
+			action, err = consensus.MakeAction(myRank, pokerManager.ActionRaise(uint(raiseInt)))
+		case "AllIn":
+			action, err = consensus.MakeAction(myRank, pokerManager.ActionAllIn())
+		default:
+			panic("unknown action")
+		}
+		if err :=  pokerManager.Validate(action.Payload); err != nil {
+			area.Update()
+			pterm.Error.Printfln("Invalid action: %s", err.Error())
+			continue
+		}
+
 
 		if confirm, _ := pterm.DefaultInteractiveConfirm.WithDefaultText(fmt.Sprintf("Confirm to %s?", selectedAction)).WithDefaultValue(true).Show(); confirm {
 			break
@@ -167,22 +189,7 @@ func main() {
 	}
 	area.Stop()
 
-	var action consensus.Action
-	switch selectedAction {
-	case "Fold":
-		action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
-	case "Check":
-		action, err = consensus.MakeAction(myRank, pokerManager.ActionCheck())
-	case "Call":
-		action, err = consensus.MakeAction(myRank, pokerManager.ActionCall())
-	case "Raise":
-		raiseInt, _ := strconv.Atoi(raiseAmount)
-		action, err = consensus.MakeAction(myRank, pokerManager.ActionRaise(uint(raiseInt)))
-	case "AllIn":
-		action, err = consensus.MakeAction(myRank, pokerManager.ActionAllIn())
-	default:
-		panic("unknown action")
-	}
+	
 
 	if err != nil {
 		panic(err)
