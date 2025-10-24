@@ -5,22 +5,35 @@ import (
 	"testing"
 )
 
-func TestConvertCard(t *testing.T) {
+func TestIntToCard(t *testing.T) {
 	expectedCard := Card{suit: Heart, rank: 2}
-	testCard, err := ConvertCard(28)
+	testCard, err := IntToCard(28)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if testCard != expectedCard {
 		t.Fatalf("expected %v, get %v", expectedCard, testCard)
 	}
-
 }
-func TestAllCardConvert(t *testing.T) {
+
+func TestAllIntToCard(t *testing.T) {
 	for i := 1; i < 53; i++ {
-		_, err := ConvertCard(i)
+		_, err := IntToCard(i)
 		if err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+func TestCardToInt(t *testing.T) {
+	for i := 1; i < 53; i++ {
+		card, err := IntToCard(i)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rawCard := CardToInt(card)
+		if rawCard != i {
+			t.Fatalf("expected %d, got %d", i, rawCard)
 		}
 	}
 }
@@ -70,7 +83,7 @@ func TestNewCard_InvalidRank_TooHigh(t *testing.T) {
 
 func TestConvertCard_BoundaryValues(t *testing.T) {
 	// Test card 1 (Ace of Clubs)
-	card, err := ConvertCard(1)
+	card, err := IntToCard(1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -79,7 +92,7 @@ func TestConvertCard_BoundaryValues(t *testing.T) {
 	}
 
 	// Test card 52 (King of Spades)
-	card, err = ConvertCard(52)
+	card, err = IntToCard(52)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,7 +105,7 @@ func TestConvertCard_InvalidValues(t *testing.T) {
 	tests := []int{0, 53, -1, 100}
 
 	for _, val := range tests {
-		_, err := ConvertCard(val)
+		_, err := IntToCard(val)
 		if err == nil {
 			t.Fatalf("expected error for card value %d", val)
 		}

@@ -1,7 +1,6 @@
 package poker
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -35,23 +34,6 @@ func NewCard(suit uint8, rank uint8) (Card, error) {
 		suit: suit,
 		rank: rank,
 	}, nil
-}
-
-// ConvertCard converts a raw card number (1-52) to a Card. Card numbers map to suits in order
-// (clubs, diamonds, hearts, spades) with ranks 1-13 within each suit. Returns an error
-// if the card number is outside the valid range.
-func ConvertCard(rawCard int) (Card, error) {
-	if rawCard > 52 || rawCard < 1 {
-		return Card{}, errors.New("the card to convert have an invalid value")
-	}
-
-	suit := uint8(((rawCard - 1) / 13))
-	rank := uint8(((rawCard - 1) % 13) + 1)
-	card, err := NewCard(suit, rank)
-	if err != nil {
-		return Card{}, err
-	}
-	return card, nil
 }
 
 // Suit returns the suit value of the Card (0-3: clubs, diamonds, hearts, spades).

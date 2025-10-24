@@ -2,8 +2,6 @@ package poker
 
 import (
 	"fmt"
-
-	"github.com/luca-patrignani/mental-poker/domain/deck"
 )
 
 type Player struct {
@@ -41,7 +39,6 @@ const (
 type Session struct {
 	Board       [5]Card
 	Players     []Player
-	Deck        deck.Deck
 	Pots        []Pot
 	HighestBet  uint
 	LastToRaise uint   // index of the Player who last raised
