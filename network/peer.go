@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/pterm/pterm"
 )
 
 // Peer is an helper struct for communication between nodes.
@@ -162,12 +164,13 @@ func (p *Peer) AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte
 		}
 
 		if responses == nil {
-			fmt.Printf("Error in broadcasting: responses of length %d instead of %d\n", len(responses), expected)
+			msg := fmt.Sprintf("Error in broadcasting: responses of length %d instead of %d", len(responses), expected)
+			pterm.Warning.Println(msg)
 		}
 		if len(responses) >= expected {
 			return responses, nil
 		}
-		fmt.Print("Retry in 5 seconds. . .\n")
+		pterm.Info.Println("Retry in 5 seconds. . .")
 		time.Sleep(5000 * time.Millisecond)
 	}
 
