@@ -61,19 +61,11 @@ func main() {
 	pterm.Print("\n")
 
 	addresses := []string{l.Addr().String()}
-	names := []string{name}
 	for {
-		playerName, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter a player's name").WithDefaultValue(" ").Show()
-		
-		// Print a blank line for better readability
-		pterm.Println()
-
-		if playerName == "done" {
+		addr, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter his address and port in ipaddr:port format. If done, type done").WithDefaultValue("").Show()
+		if addr == "done" {
 			break
 		}
-		names = append(names, playerName)
-		addr, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter his address and port in ipaddr:port format").WithDefaultValue(" ").Show()
-		
 		// Print a blank line for better readability
 		pterm.Println()
 		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
@@ -84,21 +76,9 @@ func main() {
 		}
 		addresses = append(addresses, tcpAddr.String())
 	}
-	sort.Slice(names, func(i, j int) bool {
-		return addresses[i] < addresses[j]
-	})
 	sort.Slice(addresses, func(i, j int) bool {
 		return addresses[i] < addresses[j]
 	})
-	players := make([]poker.Player, len(names))
-	for i := range names {
-		players[i] = poker.Player{
-			Name: names[i],
-			Id:   i,
-			Hand: [2]poker.Card{},
-			Pot: 1000,
-		}
-	}
 	var myRank int
 	mapAddresses := make(map[int]string)
 	for i, addr := range addresses {
@@ -115,13 +95,22 @@ func main() {
 		30*time.Second,
 	)
 	p2p := network.NewP2P(&peer)
-	messages, err := p2p.AllToAllwithTimeout([]byte("Hello from "+name), 60*time.Second)
+	names, err := p2p.AllToAllwithTimeout([]byte(name), 60*time.Second)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("Received messages:")
-	for i, msg := range messages {
-		fmt.Printf("From %s: %s\n", mapAddresses[i], string(msg))
+	for i, name := range names {
+		fmt.Printf("From %s: %s\n", mapAddresses[i], string(name))
+	}
+	players := make([]poker.Player, len(names))
+	for i := range names {
+		players[i] = poker.Player{
+			Name: string(names[i]),
+			Id:   i,
+			Hand: [2]poker.Card{},
+			Pot: 1000,
+		}
 	}
 	deck := deck.Deck{
 		DeckSize: 52,
