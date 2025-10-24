@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/pterm/pterm"
@@ -29,39 +30,39 @@ func main() {
 
 	// Create a new slog logger with the handler
 	logger := slog.New(handler)
-	
+
 	pterm.DefaultBigText.WithLetters(
 		putils.LettersFromStringWithStyle("M", pterm.FgRed.ToStyle()),
 		putils.LettersFromStringWithStyle("ental ", pterm.FgDarkGray.ToStyle()),
 		putils.LettersFromStringWithStyle("P", pterm.FgRed.ToStyle()),
 		putils.LettersFromStringWithStyle("oker", pterm.FgDarkGray.ToStyle()),
-		).Render()
-		
+	).Render()
+
 	// Create an interactive text input with single line input mode and show it
 	name, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter your username").WithDefaultValue(" ").Show()
-	
+
 	// Print a blank line for better readability
 	pterm.Println()
-	
+
 	// Print the user's answer with an info prefix
-	pterm.DefaultHeader.WithFullWidth().Printfln("Your username: %s", name)
-	
+	pterm.Info.Printfln("Your username: %s", name)
+
 	ip := os.Args[1]
 	l, err := net.Listen("tcp", ip+":0")
 	if err != nil {
-		logger.Error("failed to listen on address", "address:"+ ip, err.Error())
+		logger.Error("failed to listen on address", "address:"+ip, err.Error())
 		panic(err)
 	}
-	info := "Listening on "+ l.Addr().String()
-	
-	pterm.DefaultHeader.WithFullWidth().Println(info)
+	info := "Listening on " + l.Addr().String()
+
+	pterm.Info.Println(info)
 
 	// Print two new lines as spacer.
 	pterm.Print("\n")
 
 	addresses := []string{l.Addr().String()}
 	for {
-		addr, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter his address and port in ipaddr:port format. If done, type done").WithDefaultValue("").Show()
+		addr, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter his address and port in ipaddr:port format. When done, type done").WithDefaultValue("").Show()
 		if addr == "done" {
 			break
 		}
@@ -83,7 +84,7 @@ func main() {
 	for i, addr := range addresses {
 		mapAddresses[i] = addr
 		if mapAddresses[i] == l.Addr().String() {
-			fmt.Printf("Your rank is %d\n", i)
+			pterm.Info.Printfln("Your rank is %d\n", i)
 			myRank = i
 		}
 	}
@@ -93,14 +94,20 @@ func main() {
 		l,
 		30*time.Second,
 	)
+
+	spinner, _ := pterm.DefaultSpinner.Start("Trying to establish a connnections with the other players...")
+
 	p2p := network.NewP2P(&peer)
 	names, err := p2p.AllToAllwithTimeout([]byte(name), 60*time.Second)
 	if err != nil {
+		spinner.Fail()
 		panic(err)
 	}
-	fmt.Println("Received messages:")
+	spinner.Success()
+	pterm.Success.Printfln("Succesfully connected with %d players", len(names)-1)
 	for i, name := range names {
-		fmt.Printf("From %s: %s\n", mapAddresses[i], string(name))
+		msg := fmt.Sprintf(" %s: %s", mapAddresses[i], string(name))
+		logger.Info(msg)
 	}
 	players := make([]poker.Player, len(names))
 	for i := range names {
@@ -108,13 +115,13 @@ func main() {
 			Name: string(names[i]),
 			Id:   i,
 			Hand: [2]poker.Card{},
-			Pot: 1000,
+			Pot:  1000,
 		}
 	}
 	deck := poker.NewPokerDeck(p2p)
 	deck.Shuffle()
 	session := poker.Session{
-		Board: [5]poker.Card{},
+		Board:   [5]poker.Card{},
 		Players: players,
 		RoundID: poker.MakeRoundID(poker.PreFlop),
 	}
@@ -129,7 +136,7 @@ func main() {
 	}
 	pokerManager := poker.PokerManager{
 		Session: &session,
-		Player: myRank,
+		Player:  myRank,
 	}
 	consensusNode := consensus.NewConsensusNode(
 		pub, priv,
@@ -138,10 +145,49 @@ func main() {
 		blockchain,
 		p2p,
 	)
-	action, err := consensus.MakeAction(myRank, pokerManager.ActionAllIn())
+	actions := []string{"Fold", "Check", "Call", "Raise", "AllIn"}
+
+	raiseAmount := "0"
+	selectedAction := ""
+	area, _ := pterm.DefaultArea.Start()
+	for {
+
+		selectedAction, _ = pterm.DefaultInteractiveSelect.WithDefaultText("Select your next action").WithOptions(actions).Show()
+		if selectedAction == "Raise" {
+
+			defVal := strconv.Itoa(int(pokerManager.Session.HighestBet))
+			raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").WithDefaultValue(defVal).Show()
+		}
+
+		if confirm, _ := pterm.DefaultInteractiveConfirm.WithDefaultText(fmt.Sprintf("Confirm to %s?", selectedAction)).WithDefaultValue(true).Show(); confirm {
+			break
+		}
+		area.Update()
+		pterm.Info.Println("Action cancelled.")
+	}
+	area.Stop()
+
+	var action consensus.Action
+	switch selectedAction {
+	case "Fold":
+		action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
+	case "Check":
+		action, err = consensus.MakeAction(myRank, pokerManager.ActionCheck())
+	case "Call":
+		action, err = consensus.MakeAction(myRank, pokerManager.ActionCall())
+	case "Raise":
+		raiseInt, _ := strconv.Atoi(raiseAmount)
+		action, err = consensus.MakeAction(myRank, pokerManager.ActionRaise(uint(raiseInt)))
+	case "AllIn":
+		action, err = consensus.MakeAction(myRank, pokerManager.ActionAllIn())
+	default:
+		panic("unknown action")
+	}
+
 	if err != nil {
 		panic(err)
 	}
+
 	if err := consensusNode.ProposeAction(&action); err != nil {
 		panic(err)
 	}
