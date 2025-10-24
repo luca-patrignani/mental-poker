@@ -3,10 +3,14 @@ package main
 import (
 	"crypto/ed25519"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"sort"
 	"time"
+
+	"github.com/pterm/pterm"
+	"github.com/pterm/pterm/putils"
 
 	"github.com/luca-patrignani/mental-poker/consensus"
 	"github.com/luca-patrignani/mental-poker/domain/deck"
@@ -20,33 +24,62 @@ func main() {
 		fmt.Fprintf(os.Stderr, "usage: %s <ip>\n", os.Args[0])
 		os.Exit(1)
 	}
+
+	// Create a new slog handler with the default PTerm logger
+	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
+
+	// Create a new slog logger with the handler
+	logger := slog.New(handler)
+	
+	pterm.DefaultBigText.WithLetters(
+		putils.LettersFromStringWithStyle("M", pterm.FgRed.ToStyle()),
+		putils.LettersFromStringWithStyle("ental ", pterm.FgDarkGray.ToStyle()),
+		putils.LettersFromStringWithStyle("P", pterm.FgRed.ToStyle()),
+		putils.LettersFromStringWithStyle("oker", pterm.FgDarkGray.ToStyle()),
+		).Render()
+		
+	// Create an interactive text input with single line input mode and show it
+	name, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter your username").WithDefaultValue(" ").Show()
+	
+	// Print a blank line for better readability
+	pterm.Println()
+	
+	// Print the user's answer with an info prefix
+	pterm.DefaultHeader.WithFullWidth().Printfln("Your username: %s", name)
+	
 	ip := os.Args[1]
 	l, err := net.Listen("tcp", ip+":0")
 	if err != nil {
+		logger.Error("failed to listen on address", "address:"+ ip, err.Error())
 		panic(err)
 	}
-	if _, err := fmt.Printf("Listening on %s\n", l.Addr().String()); err != nil {
-		panic(err)
-	}
-	fmt.Println("Name:")
-	var name string
-	fmt.Scanln(&name)
+	info := "Listening on "+ l.Addr().String()
+	
+	pterm.DefaultHeader.WithFullWidth().Println(info)
+
+	// Print two new lines as spacer.
+	pterm.Print("\n")
+
 	addresses := []string{l.Addr().String()}
 	names := []string{name}
 	for {
-		fmt.Println("Give me a player's name. If done, type 'done'")
-		var playerName string
-		fmt.Scanln(&playerName)
+		playerName, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter a player's name").WithDefaultValue(" ").Show()
+		
+		// Print a blank line for better readability
+		pterm.Println()
+
 		if playerName == "done" {
 			break
 		}
 		names = append(names, playerName)
-		fmt.Println("Give me its address and port in ipaddr:port format")
-		var addr string
-		fmt.Scanln(&addr)
+		addr, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter his address and port in ipaddr:port format").WithDefaultValue(" ").Show()
+		
+		// Print a blank line for better readability
+		pterm.Println()
 		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "invalid address %q: %v\n", addr, err)
+			errMsg := "invalid address:" + addr + "\n error: " + err.Error()
+			logger.Error(errMsg)
 			continue
 		}
 		addresses = append(addresses, tcpAddr.String())
