@@ -1,0 +1,7 @@
+version: "2"
+
+linters:
+  rules:
+    - path: cmd/
+      linters:
+        - errcheck
