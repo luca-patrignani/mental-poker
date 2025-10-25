@@ -76,29 +76,11 @@ func main() {
 		}
 		addresses = append(addresses, tcpAddr.String())
 	}
-	sort.Slice(addresses, func(i, j int) bool {
-		return addresses[i] < addresses[j]
-	})
-	var myRank int
-	mapAddresses := make(map[int]string)
-	for i, addr := range addresses {
-		mapAddresses[i] = addr
-		if mapAddresses[i] == l.Addr().String() {
-			pterm.Info.Printfln("Your rank is %d\n", i)
-			myRank = i
-		}
-	}
-	peer := network.NewPeer(
-		myRank,
-		mapAddresses,
-		l,
-		30*time.Second,
-	)
+	p2p, myRank := createP2P(addresses, l)
+	pterm.Info.Printfln("Your rank is %d\n", myRank)
+	spinner, _ := pterm.DefaultSpinner.Start("Trying to establish the connections with the other players...")
 
-	spinner, _ := pterm.DefaultSpinner.Start("Trying to establish a connnections with the other players...")
-
-	p2p := network.NewP2P(&peer)
-	names, err := p2p.AllToAllwithTimeout([]byte(name), 60*time.Second)
+	names, err := testConnections(p2p, name)
 	if err != nil {
 		spinner.Fail()
 		panic(err)
@@ -106,7 +88,7 @@ func main() {
 	spinner.Success()
 	pterm.Success.Printfln("Succesfully connected with %d players", len(names)-1)
 	for i, name := range names {
-		msg := fmt.Sprintf(" %s: %s", mapAddresses[i], string(name))
+		msg := fmt.Sprintf(" %s: %s", p2p.GetAddresses()[i], string(name))
 		logger.Info(msg)
 	}
 	players := make([]poker.Player, len(names))
@@ -197,4 +179,36 @@ func main() {
 		panic(err)
 	}
 	consensusNode.WaitForProposal()
+}
+
+func testConnections(p2p *network.P2P, name string) ([]string, error) {
+	byteNames, err := p2p.AllToAllwithTimeout([]byte(name), 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	names := []string{}
+	for _, name := range byteNames {
+		names = append(names, string(name))
+	}
+	return names, nil
+}
+
+func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int) {
+	sort.Slice(addresses, func(i, j int) bool {
+		return addresses[i] < addresses[j]
+	})
+	mapAddresses := make(map[int]string)
+	for i, addr := range addresses {
+		mapAddresses[i] = addr
+		if mapAddresses[i] == l.Addr().String() {
+			myRank = i
+		}
+	}
+	peer := network.NewPeer(
+		myRank,
+		mapAddresses,
+		l,
+		30*time.Second,
+	)
+	return network.NewP2P(&peer), myRank
 }
