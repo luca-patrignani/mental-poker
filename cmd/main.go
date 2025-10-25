@@ -154,12 +154,11 @@ func main() {
 		default:
 			panic("unknown action")
 		}
-		if err :=  pokerManager.Validate(action.Payload); err != nil {
+		if err := pokerManager.Validate(action.Payload); err != nil {
 			area.Update()
 			pterm.Error.Printfln("Invalid action: %s", err.Error())
 			continue
 		}
-
 
 		if confirm, _ := pterm.DefaultInteractiveConfirm.WithDefaultText(fmt.Sprintf("Confirm to %s?", selectedAction)).WithDefaultValue(true).Show(); confirm {
 			break
@@ -168,8 +167,6 @@ func main() {
 		pterm.Info.Println("Action cancelled.")
 	}
 	area.Stop()
-
-	
 
 	if err != nil {
 		panic(err)

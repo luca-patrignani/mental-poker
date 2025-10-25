@@ -30,28 +30,28 @@ func TestTestConnections(t *testing.T) {
 	for i := range n {
 		go func() {
 			p2p, myRank := createP2P(addresses, mapListeners[i])
-			names, err := testConnections(p2p, "name" + fmt.Sprint(myRank))
+			names, err := testConnections(p2p, "name"+fmt.Sprint(myRank))
 			if err != nil {
-				errChan<-err
+				errChan <- err
 				return
 			}
 			if len(names) != n {
-				errChan<-fmt.Errorf("expected %d names, got %d", n, len(names))
+				errChan <- fmt.Errorf("expected %d names, got %d", n, len(names))
 				return
 			}
 			slices.Sort(names)
 			for j := range n {
 				expectedName := "name" + fmt.Sprint(j)
 				if names[j] != expectedName {
-					errChan<-fmt.Errorf("expected name %s, got %s", expectedName, names[j])
+					errChan <- fmt.Errorf("expected name %s, got %s", expectedName, names[j])
 					return
 				}
 			}
-			errChan<-nil
+			errChan <- nil
 		}()
 	}
 	for range n {
-		err := <- errChan
+		err := <-errChan
 		if err != nil {
 			t.Fatal(err)
 		}

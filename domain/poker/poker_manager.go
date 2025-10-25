@@ -7,12 +7,11 @@ import (
 // PokerManager is an adapter of Peer to the interface NetworkLayer
 type PokerManager struct {
 	Session *Session
-	Player int
+	Player  int
 }
 
 // NewPokerManager creates a new PokerManager wrapping the provided poker session and
 // implementing the consensus.StateMachine interface.
-
 
 // Validate checks whether a poker action is valid in the current session state by verifying
 // the round ID, player existence, turn order, and poker rules. Returns an error describing

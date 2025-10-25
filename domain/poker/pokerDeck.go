@@ -57,7 +57,7 @@ func (d PokerDeck) DrawCard(drawer int) (*Card, error) {
 
 func (d PokerDeck) OpenCard(player int, card *Card) (Card, error) {
 	rawCard := 0
-	if (card != nil) {
+	if card != nil {
 		rawCard = CardToInt(*card)
 	}
 	rawCard, err := d.Deck.OpenCard(player, rawCard)

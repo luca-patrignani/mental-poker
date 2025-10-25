@@ -128,16 +128,17 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 		CurrentTurn: 0,
 		RoundID:     "round1",
 	}
-	psm := &poker.PokerManager{Session: &s,Player: 1}
+	psm := &poker.PokerManager{Session: &s, Player: 1}
 	ldg := NewBlockchain()
 
 	node0 := NewConsensusNode(pub0, priv0, playersPK, psm, ldg, p0)
 	node1 := NewConsensusNode(pub1, priv1, playersPK, psm, ldg, p1)
-	errChan := make(chan error, 2)
+	errChan := make(chan error)
 
 	go func() {
 		if err := node1.WaitForProposal(); err != nil {
 			errChan <- err
+			return
 		}
 		errChan <- nil
 	}()
@@ -148,6 +149,7 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 		a, err := node0.network.Broadcast(invalid, 0)
 		if err != nil || a == nil {
 			errChan <- err
+			return
 		}
 		errChan <- nil
 	}()
@@ -233,7 +235,7 @@ func TestProposeReceive(t *testing.T) {
 				RoundID:     "preflop-1",
 			}
 
-			psm = poker.PokerManager{Session: &s,Player: 1}
+			psm = poker.PokerManager{Session: &s, Player: 1}
 			node.pokerSM = &psm
 
 			nodes_chan <- node
@@ -426,7 +428,7 @@ func TestProposeReceiveBan(t *testing.T) {
 				RoundID:     "preflop-1",
 			}
 
-			psm = poker.PokerManager{Session: &s,Player: 1}
+			psm = poker.PokerManager{Session: &s, Player: 1}
 			node.pokerSM = &psm
 
 			nodes_chan <- node
