@@ -101,6 +101,7 @@ func main() {
 		}
 	}
 	deck := poker.NewPokerDeck(p2p)
+	deck.PrepareDeck()
 	deck.Shuffle()
 	session := poker.Session{
 		Board:   [5]poker.Card{},
@@ -127,55 +128,56 @@ func main() {
 		blockchain,
 		p2p,
 	)
+	if err := consensusNode.UpdatePeers(); err != nil {
+		panic(err)
+	}
 	actions := []string{"Fold", "Check", "Call", "Raise", "AllIn"}
 
 	raiseAmount := "0"
 	selectedAction := ""
 	var action consensus.Action
 	area, _ := pterm.DefaultArea.Start()
-	for {
+	if session.CurrentTurn == uint(myRank) {
+		for {
 
-		selectedAction, _ = pterm.DefaultInteractiveSelect.WithDefaultText("Select your next action").WithOptions(actions).Show()
-		if selectedAction == "Raise" {
-			raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").Show()
-		}
-		switch selectedAction {
-		case "Fold":
-			action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
-		case "Check":
-			action, err = consensus.MakeAction(myRank, pokerManager.ActionCheck())
-		case "Call":
-			action, err = consensus.MakeAction(myRank, pokerManager.ActionCall())
-		case "Raise":
-			raiseInt, _ := strconv.Atoi(raiseAmount)
-			action, err = consensus.MakeAction(myRank, pokerManager.ActionRaise(uint(raiseInt)))
-		case "AllIn":
-			action, err = consensus.MakeAction(myRank, pokerManager.ActionAllIn())
-		default:
-			panic("unknown action")
-		}
-		if err := pokerManager.Validate(action.Payload); err != nil {
+			selectedAction, _ = pterm.DefaultInteractiveSelect.WithDefaultText("Select your next action").WithOptions(actions).Show()
+			if selectedAction == "Raise" {
+				raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").Show()
+			}
+			switch selectedAction {
+			case "Fold":
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
+			case "Check":
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionCheck())
+			case "Call":
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionCall())
+			case "Raise":
+				raiseInt, _ := strconv.Atoi(raiseAmount)
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionRaise(uint(raiseInt)))
+			case "AllIn":
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionAllIn())
+			default:
+				panic("unknown action")
+			}
+			if err := pokerManager.Validate(action.Payload); err != nil {
+				area.Update()
+				pterm.Error.Printfln("Invalid action: %s", err.Error())
+				continue
+			}
+
+			if confirm, _ := pterm.DefaultInteractiveConfirm.WithDefaultText(fmt.Sprintf("Confirm to %s?", selectedAction)).WithDefaultValue(true).Show(); confirm {
+				break
+			}
 			area.Update()
-			pterm.Error.Printfln("Invalid action: %s", err.Error())
-			continue
+			pterm.Info.Println("Action cancelled.")
 		}
-
-		if confirm, _ := pterm.DefaultInteractiveConfirm.WithDefaultText(fmt.Sprintf("Confirm to %s?", selectedAction)).WithDefaultValue(true).Show(); confirm {
-			break
+		area.Stop()
+		if err := consensusNode.ProposeAction(&action); err != nil {
+			panic(err)
 		}
-		area.Update()
-		pterm.Info.Println("Action cancelled.")
+	} else {
+		consensusNode.WaitForProposal()
 	}
-	area.Stop()
-
-	if err != nil {
-		panic(err)
-	}
-
-	if err := consensusNode.ProposeAction(&action); err != nil {
-		panic(err)
-	}
-	consensusNode.WaitForProposal()
 }
 
 func testConnections(p2p *network.P2P, name string) ([]string, error) {
