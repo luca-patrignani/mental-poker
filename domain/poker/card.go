@@ -2,6 +2,8 @@ package poker
 
 import (
 	"fmt"
+
+	"github.com/pterm/pterm"
 )
 
 const (
@@ -16,6 +18,10 @@ const (
 	Queen = 12
 	King  = 13
 	Ace   = 1
+)
+
+const (
+	FaceDown = "▓"
 )
 
 type Card struct {
@@ -54,9 +60,9 @@ func (c Card) String() string {
 	case 0:
 		suit = "♣"
 	case 1:
-		suit = "♦"
+		suit = pterm.LightRed("♦")
 	case 2:
-		suit = "♥"
+		suit = pterm.LightRed("♥")
 	case 3:
 		suit = "♠"
 	default:
@@ -75,6 +81,9 @@ func (c Card) String() string {
 		rankStr = "K"
 	default:
 		rankStr = fmt.Sprintf("%d", c.rank)
+	}
+	if c.rank == 0 {
+		return FaceDown
 	}
 	return rankStr + suit
 }

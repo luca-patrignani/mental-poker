@@ -91,12 +91,13 @@ func main() {
 		msg := fmt.Sprintf(" %s: %s", p2p.GetAddresses()[i], string(name))
 		logger.Info(msg)
 	}
+	card,err := poker.NewCard(0,0)
 	players := make([]poker.Player, len(names))
 	for i := range names {
 		players[i] = poker.Player{
 			Name: string(names[i]),
 			Id:   i,
-			Hand: [2]poker.Card{},
+			Hand: [2]poker.Card{card,card},
 			Pot:  1000,
 		}
 	}
@@ -107,6 +108,9 @@ func main() {
 		Board:   [5]poker.Card{},
 		Players: players,
 		RoundID: poker.MakeRoundID(poker.PreFlop),
+		HighestBet: 0,
+		Dealer: 0,
+		CurrentTurn: 1,
 	}
 
 	blockchain, err := ledger.NewBlockchain(session)
@@ -132,18 +136,51 @@ func main() {
 		panic(err)
 	}
 
-
+	//area, _ := pterm.DefaultArea.Start()
 	for {
-		if err := postBlinds(&pokerManager, node, 5); err != nil {
+		if err := distributeHands(&pokerManager,&deck); err != nil {
 			panic(err)
 		}
-		printState(pokerManager)
+		
+		/*if err := postBlinds(&pokerManager, node, 5); err != nil {
+			panic(err)
+		}
+		printState(pokerManager)*/
 		for {
-			if poker.ExtractRoundName(pokerManager.Session.RoundID) == poker.Showdown {
+			//area.Update()
+			round := poker.ExtractRoundName(pokerManager.Session.RoundID)
+			if round == poker.Showdown {
 				if err := applyShowdown(pokerManager,*node,myRank); err != nil {
 					panic(err)
 				} else {
 					break
+				}
+			}
+			
+			if round == poker.Flop && pokerManager.Session.Board[0].Rank() == 0 {
+				err := cardOnBoard(&pokerManager,&deck,0)
+				if err != nil {
+					panic(err)
+				}
+				err = cardOnBoard(&pokerManager,&deck,1)
+				if err != nil {
+					panic(err)
+				}
+				err = cardOnBoard(&pokerManager,&deck,2)
+				if err != nil {
+					panic(err)
+				}	
+			}
+			if round == poker.River && pokerManager.Session.Board[3].Rank() == 0 {
+				err := cardOnBoard(&pokerManager,&deck,3)
+				if err != nil {
+					panic(err)
+				}
+			}
+			if round == poker.Turn && pokerManager.Session.Board[4].Rank() == 0 {
+				err := cardOnBoard(&pokerManager,&deck,4)
+				if err != nil {
+					panic(err)
 				}
 			}
 			if err := inputAction(pokerManager, *node,myRank); err != nil {
@@ -152,6 +189,7 @@ func main() {
 			printState(pokerManager)
 		}
 	}
+	//area.Stop()
 
 }
 
@@ -187,6 +225,34 @@ func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int
 	return network.NewP2P(&peer), myRank
 }
 
+func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
+	for i := range psm.Session.Players{
+		card1, err := deck.DrawCard(i)
+		if err != nil {
+			return err
+		}
+		psm.Session.Players[i].Hand[0] = *card1
+		card2, err := deck.DrawCard(i)
+		if err != nil {
+			return err
+		}
+		psm.Session.Players[i].Hand[1] = *card2
+	}
+	return  nil
+}
+
+func cardOnBoard(psm *poker.PokerManager, deck *poker.PokerDeck, idx int) error {
+	card, err := deck.DrawCard(0)
+	if err != nil {
+		return err
+	}
+	openCard, err := deck.OpenCard(0,card)
+	if err != nil {
+		return err
+	}
+	psm.Session.Board[idx] = openCard
+	return nil
+}
 // helper function to post small and big blinds
 func postBlinds(psm *poker.PokerManager, node *consensus.ConsensusNode, smallBlind uint) error {
 	if len(psm.Session.Players) < 2 {
@@ -315,7 +381,7 @@ func printState(psm poker.PokerManager) {
 			mainPlayer = pterm.Panel{Data: printMainInfo(p)}
 		}
 	}
-	board := pterm.Panel{Data:printBoardInfo(s.Board[:], poker.ExtractRoundName(psm.Session.RoundID))}
+	board := pterm.Panel{Data:printBoardInfo(s.Board[:], poker.ExtractRoundName(psm.Session.RoundID), s.Pots)}
 	
 	pterm.DefaultPanel.WithPanels([][]pterm.Panel{
 		panels,
@@ -325,18 +391,7 @@ func printState(psm poker.PokerManager) {
 }
 
 func printPlayerInfo(p poker.Player) string {
-	pbox := pterm.DefaultBox.WithLeftPadding(4).WithRightPadding(4).WithTopPadding(1).WithBottomPadding(1)
-	var active string
-	if p.HasFolded {
-		active = pterm.LightRed("Folded")
-	} else {
-		active = pterm.LightGreen("Active")
-	}
-	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("Current Bet: %d\nBankroll: %d\n%s",p.Bet,p.Pot,active)
-}
-
-func printMainInfo(p poker.Player) string {
-	pbox := pterm.DefaultBox.WithLeftPadding(4).WithRightPadding(4).WithTopPadding(1).WithBottomPadding(1)
+	pbox := pterm.DefaultBox.WithHorizontalPadding(4).WithTopPadding(1).WithBottomPadding(1)
 	var active string
 	if p.HasFolded {
 		active = pterm.LightRed("Folded")
@@ -346,10 +401,24 @@ func printMainInfo(p poker.Player) string {
 	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("Current Bet: %d\nBankroll: %d\n%s - %s\n%s",p.Bet,p.Pot,p.Hand[0].String(),p.Hand[1].String(),active)
 }
 
-func printBoardInfo(b []poker.Card, round string) string {
+func printMainInfo(p poker.Player) string {
+	pbox := pterm.DefaultBox.WithHorizontalPadding(10).WithTopPadding(1).WithBottomPadding(1)
+	var active string
+	if p.HasFolded {
+		active = pterm.LightRed("Folded")
+	} else {
+		active = pterm.LightGreen("Active")
+	}
+	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("Current Bet: %d\nBankroll: %d\n%s - %s\n%s",p.Bet,p.Pot,p.Hand[0].String(),p.Hand[1].String(),active)
+}
+
+func printBoardInfo(b []poker.Card, round string, pots []poker.Pot) string {
 	board := ""
 	for _,c := range b {
 		board += c.String() + " - "
+	}
+	for i,p := range pots {
+		board += " Pot"+strconv.Itoa(i)+": "+strconv.Itoa(int(p.Amount))+" | "
 	}
 
 	return  board + round

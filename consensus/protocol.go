@@ -321,8 +321,8 @@ func (node *ConsensusNode) checkAndCommit() error {
 		node.quorum = computeQuorum(node.network.GetPeerCount())
 		return nil
 	}
-
-	return fmt.Errorf("Not enough elegible votes to reach quorum yet, state not changed. (%d accepts, %d rejects, need %d)", accepts, rejects, node.quorum)
+	
+	return fmt.Errorf("Not enough elegible votes to reach quorum yet, state not changed. (%d accepts, %d rejects (%s), need %d)", accepts, rejects, reason, node.quorum)
 }
 
 // collectVotes filters votes from the vote map by value. If filter is "both", returns all votes;
