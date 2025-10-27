@@ -37,7 +37,7 @@ func MakeAction(actorId int, payload poker.PokerAction) (Action, error) {
 	raw := fmt.Sprintf("%d%x%x", actorId, payload, randBytes)
 	b, _ := json.Marshal(raw)
 	id := hex.EncodeToString(b[:8])
-
+	
 	return Action{
 		Id:       id,
 		PlayerID: actorId,
@@ -122,6 +122,11 @@ func (node *ConsensusNode) onReceiveProposal(p *Action) error {
 	//fmt.Printf("Node %s received proposal from player %s\n", node.ID, p.Action.PlayerID)
 
 	pub, find := node.playersPK[p.PlayerID]
+	for key, value := range node.playersPK {
+		if pub.Equal(value)  {
+			fmt.Printf("Key: %d, Value: %s\n", key, value)
+		}
+	}
 	if !find {
 		err := node.broadcastVoteForProposal(p, VoteReject, "unknown-player")
 		if err != nil {
@@ -129,7 +134,10 @@ func (node *ConsensusNode) onReceiveProposal(p *Action) error {
 		}
 		return nil
 	}
-	verified, _ := p.VerifySignature(pub)
+	verified, err := p.VerifySignature(pub)
+	if err != nil {
+		return err
+	}
 	if !verified {
 		err := node.broadcastVoteForProposal(p, VoteReject, "bad-signature")
 		if err != nil {
@@ -147,7 +155,7 @@ func (node *ConsensusNode) onReceiveProposal(p *Action) error {
 		return nil
 	}
 
-	err := node.broadcastVoteForProposal(p, VoteAccept, "valid")
+	err = node.broadcastVoteForProposal(p, VoteAccept, "valid")
 	if err != nil {
 		return err
 	}

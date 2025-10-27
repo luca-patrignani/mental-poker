@@ -121,63 +121,38 @@ func main() {
 		Session: &session,
 		Player:  myRank,
 	}
-	consensusNode := consensus.NewConsensusNode(
+	node := consensus.NewConsensusNode(
 		pub, priv,
 		map[int]ed25519.PublicKey{myRank: pub},
 		&pokerManager,
 		blockchain,
 		p2p,
 	)
-	if err := consensusNode.UpdatePeers(); err != nil {
+	if err := node.UpdatePeers(); err != nil {
 		panic(err)
 	}
-	actions := []string{"Fold", "Check", "Call", "Raise", "AllIn"}
 
-	raiseAmount := "0"
-	selectedAction := ""
-	var action consensus.Action
-	area, _ := pterm.DefaultArea.Start()
-	if session.CurrentTurn == uint(myRank) {
-		for {
 
-			selectedAction, _ = pterm.DefaultInteractiveSelect.WithDefaultText("Select your next action").WithOptions(actions).Show()
-			if selectedAction == "Raise" {
-				raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").Show()
-			}
-			switch selectedAction {
-			case "Fold":
-				action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
-			case "Check":
-				action, err = consensus.MakeAction(myRank, pokerManager.ActionCheck())
-			case "Call":
-				action, err = consensus.MakeAction(myRank, pokerManager.ActionCall())
-			case "Raise":
-				raiseInt, _ := strconv.Atoi(raiseAmount)
-				action, err = consensus.MakeAction(myRank, pokerManager.ActionRaise(uint(raiseInt)))
-			case "AllIn":
-				action, err = consensus.MakeAction(myRank, pokerManager.ActionAllIn())
-			default:
-				panic("unknown action")
-			}
-			if err := pokerManager.Validate(action.Payload); err != nil {
-				area.Update()
-				pterm.Error.Printfln("Invalid action: %s", err.Error())
-				continue
-			}
-
-			if confirm, _ := pterm.DefaultInteractiveConfirm.WithDefaultText(fmt.Sprintf("Confirm to %s?", selectedAction)).WithDefaultValue(true).Show(); confirm {
-				break
-			}
-			area.Update()
-			pterm.Info.Println("Action cancelled.")
-		}
-		area.Stop()
-		if err := consensusNode.ProposeAction(&action); err != nil {
+	for {
+		if err := postBlinds(&pokerManager, node, 5); err != nil {
 			panic(err)
 		}
-	} else {
-		consensusNode.WaitForProposal()
+		printState(pokerManager)
+		for {
+			if poker.ExtractRoundName(pokerManager.Session.RoundID) == poker.Showdown {
+				if err := applyShowdown(pokerManager,*node,myRank); err != nil {
+					panic(err)
+				} else {
+					break
+				}
+			}
+			if err := inputAction(pokerManager, *node,myRank); err != nil {
+				panic(err)
+			}
+			printState(pokerManager)
+		}
 	}
+
 }
 
 func testConnections(p2p *network.P2P, name string) ([]string, error) {
@@ -210,4 +185,172 @@ func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int
 		30*time.Second,
 	)
 	return network.NewP2P(&peer), myRank
+}
+
+// helper function to post small and big blinds
+func postBlinds(psm *poker.PokerManager, node *consensus.ConsensusNode, smallBlind uint) error {
+	if len(psm.Session.Players) < 2 {
+		return fmt.Errorf("not enough players to post blinds, at least 2 players are required, got %d", len(psm.Session.Players))
+	}
+	err := addBlind(psm, node, smallBlind)
+	if err != nil {
+		return err
+	}
+	err = addBlind(psm, node, smallBlind*2)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uint) error {
+	idx := psm.FindPlayerIndex(psm.Player)
+	if idx == psm.GetCurrentPlayer() {
+		var action consensus.Action
+		var err error
+		if psm.Session.Players[idx].Pot < amount {
+			action, err = consensus.MakeAction(psm.Player, psm.ActionFold())
+		} else {
+			action, err = consensus.MakeAction(psm.Player, psm.ActionBet(amount))
+		}
+		if err != nil {
+			return err
+		}
+		err = action.Sign(node.GetPriv())
+		if err != nil {
+			return err
+		}
+		if err := node.ProposeAction(&action); err != nil {
+			return err
+		}
+	} else {
+		err := node.WaitForProposal()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func inputAction(pokerManager poker.PokerManager, consensusNode consensus.ConsensusNode, myRank int) error {
+	actions := []string{"Fold", "Check", "Call", "Raise", "AllIn"}
+	raiseAmount := "0"
+	selectedAction := ""
+	var action consensus.Action
+	area, _ := pterm.DefaultArea.Start()
+	if pokerManager.Session.CurrentTurn == uint(pokerManager.FindPlayerIndex(myRank)) {
+		for {
+			var err error
+			selectedAction, _ = pterm.DefaultInteractiveSelect.WithDefaultText("Select your next action").WithOptions(actions).Show()
+			if selectedAction == "Raise" {
+				raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").Show()
+			}
+			switch selectedAction {
+			case "Fold":
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
+			case "Check":
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionCheck())
+			case "Call":
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionCall())
+			case "Raise":
+				raiseInt, _ := strconv.Atoi(raiseAmount)
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionRaise(uint(raiseInt)))
+			case "AllIn":
+				action, err = consensus.MakeAction(myRank, pokerManager.ActionAllIn())
+			default:
+				panic("unknown action")
+			}
+			if val := pokerManager.Validate(action.Payload); val != nil || err != nil {
+				area.Update()
+				pterm.Error.Printfln("Invalid action: %s", err.Error())
+				continue
+			}
+
+			if confirm, _ := pterm.DefaultInteractiveConfirm.WithDefaultText(fmt.Sprintf("Confirm to %s?", selectedAction)).WithDefaultValue(true).Show(); confirm {
+				break
+			}
+			area.Update()
+			pterm.Info.Println("Action cancelled.")
+		}
+		area.Stop()
+		err := action.Sign(consensusNode.GetPriv())
+		if err != nil {
+			return err
+		}
+		return consensusNode.ProposeAction(&action)
+	} else {
+		return consensusNode.WaitForProposal()
+	}
+}
+
+func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank int) error {
+	if psm.Session.CurrentTurn == uint(psm.FindPlayerIndex(myRank)) {
+		action, err := consensus.MakeAction(psm.Player, psm.ActionShowdown())
+		if err != nil {
+			return err
+		}
+		if err := node.ProposeAction(&action); err != nil {
+			return err
+		}
+	} else {
+		err := node.WaitForProposal()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printState(psm poker.PokerManager) {
+	s := psm.GetSession()
+	var panels []pterm.Panel
+	var mainPlayer pterm.Panel
+	for _,p := range s.Players {
+		if p.Id != psm.Player {
+			pInfo := printPlayerInfo(p)
+			panel := pterm.Panel{Data: pInfo}
+			panels = append(panels,panel)
+		} else {
+
+			mainPlayer = pterm.Panel{Data: printMainInfo(p)}
+		}
+	}
+	board := pterm.Panel{Data:printBoardInfo(s.Board[:], poker.ExtractRoundName(psm.Session.RoundID))}
+	
+	pterm.DefaultPanel.WithPanels([][]pterm.Panel{
+		panels,
+		{board},
+		{mainPlayer,},
+	}).Render()
+}
+
+func printPlayerInfo(p poker.Player) string {
+	pbox := pterm.DefaultBox.WithLeftPadding(4).WithRightPadding(4).WithTopPadding(1).WithBottomPadding(1)
+	var active string
+	if p.HasFolded {
+		active = pterm.LightRed("Folded")
+	} else {
+		active = pterm.LightGreen("Active")
+	}
+	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("Current Bet: %d\nBankroll: %d\n%s",p.Bet,p.Pot,active)
+}
+
+func printMainInfo(p poker.Player) string {
+	pbox := pterm.DefaultBox.WithLeftPadding(4).WithRightPadding(4).WithTopPadding(1).WithBottomPadding(1)
+	var active string
+	if p.HasFolded {
+		active = pterm.LightRed("Folded")
+	} else {
+		active = pterm.LightGreen("Active")
+	}
+	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("Current Bet: %d\nBankroll: %d\n%s - %s\n%s",p.Bet,p.Pot,p.Hand[0].String(),p.Hand[1].String(),active)
+}
+
+func printBoardInfo(b []poker.Card, round string) string {
+	board := ""
+	for _,c := range b {
+		board += c.String() + " - "
+	}
+
+	return  board + round
 }

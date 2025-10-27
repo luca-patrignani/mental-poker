@@ -48,7 +48,7 @@ func (session *Session) advanceRound() {
 	session.CurrentTurn = uint(idx)
 	session.LastToRaise = uint(idx)
 	session.RoundID = MakeRoundID(nextRound(session.RoundID))
-	if extractRoundName(session.RoundID) == PreFlop {
+	if ExtractRoundName(session.RoundID) == PreFlop {
 		session.Dealer = uint(session.Dealer + 1%uint(len(session.Players)))
 		session.CurrentTurn = uint(session.Dealer + 1%uint(len(session.Players)))
 		session.LastToRaise = session.CurrentTurn
@@ -62,7 +62,7 @@ func (session *Session) advanceRound() {
 
 // Returns the next round name. If at last round, stays at last.
 func nextRound(current string) string {
-	c := extractRoundName(current)
+	c := ExtractRoundName(current)
 	rounds := []string{PreFlop, Flop, Turn, River, Showdown}
 
 	for i, r := range rounds {
@@ -83,7 +83,7 @@ func MakeRoundID(round string) string {
 }
 
 // Extract round name from combined ID
-func extractRoundName(roundID string) string {
+func ExtractRoundName(roundID string) string {
 	parts := strings.SplitN(roundID, "-", 2)
 	return parts[0]
 }

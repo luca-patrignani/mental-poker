@@ -92,7 +92,7 @@ func TestMakeRoundID(t *testing.T) {
 			}
 
 			// Verify we can extract the round name
-			extracted := extractRoundName(id)
+			extracted := ExtractRoundName(id)
 			if extracted != tt.roundName {
 				t.Errorf("extractRoundName(%q) = %q, want %q", id, extracted, tt.roundName)
 			}
@@ -136,7 +136,7 @@ func TestExtractRoundName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractRoundName(tt.roundID)
+			result := ExtractRoundName(tt.roundID)
 			if result != tt.expected {
 				t.Errorf("extractRoundName(%q) = %q, want %q", tt.roundID, result, tt.expected)
 			}
@@ -338,7 +338,7 @@ func TestAdvanceRound(t *testing.T) {
 			}
 
 			// Verify round name part (ignore timestamp)
-			actualRound := extractRoundName(tt.session.RoundID)
+			actualRound := ExtractRoundName(tt.session.RoundID)
 			if actualRound != tt.expectedRound {
 				t.Errorf("%s: Round = %s, want %s", tt.description, actualRound, tt.expectedRound)
 			}
@@ -353,7 +353,7 @@ func TestRoundProgression(t *testing.T) {
 	currentRoundID := MakeRoundID(PreFlop)
 
 	for i := 0; i < len(rounds)-1; i++ {
-		extracted := extractRoundName(currentRoundID)
+		extracted := ExtractRoundName(currentRoundID)
 		if extracted != rounds[i] {
 			t.Errorf("Step %d: expected round %s, got %s", i, rounds[i], extracted)
 		}
@@ -363,7 +363,7 @@ func TestRoundProgression(t *testing.T) {
 	}
 
 	// Verify we're at Showdown
-	finalRound := extractRoundName(currentRoundID)
+	finalRound := ExtractRoundName(currentRoundID)
 	if finalRound != Showdown {
 		t.Errorf("Final round should be Showdown, got %s", finalRound)
 	}
@@ -396,7 +396,7 @@ func TestAllPlayersCheckScenario(t *testing.T) {
 	}
 
 	// Advance to next round
-	oldRound := extractRoundName(session.RoundID)
+	oldRound := ExtractRoundName(session.RoundID)
 	session.advanceRound()
 
 	// Verify turn advanced
@@ -405,7 +405,7 @@ func TestAllPlayersCheckScenario(t *testing.T) {
 	}
 
 	// Verify round progressed
-	newRound := extractRoundName(session.RoundID)
+	newRound := ExtractRoundName(session.RoundID)
 	expectedNext := nextRound(oldRound)
 	if newRound != expectedNext {
 		t.Errorf("Round should progress from %s to %s, got %s", oldRound, expectedNext, newRound)

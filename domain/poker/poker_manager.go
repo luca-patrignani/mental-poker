@@ -88,7 +88,7 @@ func (psm *PokerManager) GetSession() *Session {
 }
 
 func (psm *PokerManager) GetWinners() (map[int]uint, error) {
-	if extractRoundName(psm.Session.RoundID) != Showdown {
+	if ExtractRoundName(psm.Session.RoundID) != Showdown {
 		return nil, fmt.Errorf("cannot get winners before showdown")
 	}
 	return psm.Session.winnerEval()
