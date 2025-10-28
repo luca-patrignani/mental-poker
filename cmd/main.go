@@ -148,6 +148,10 @@ func main() {
 		printState(pokerManager)*/
 		for {
 			//area.Update()
+			if err := inputAction(pokerManager, *node,myRank); err != nil {
+				logger.Error(err.Error())
+				panic(err)
+			}
 			round := poker.ExtractRoundName(pokerManager.Session.RoundID)
 			if round == poker.Showdown {
 				if err := applyShowdown(pokerManager,*node,myRank); err != nil {
@@ -156,7 +160,6 @@ func main() {
 					break
 				}
 			}
-			
 			if round == poker.Flop && pokerManager.Session.Board[0].Rank() == 0 {
 				err := cardOnBoard(&pokerManager,&deck,0)
 				if err != nil {
@@ -171,20 +174,17 @@ func main() {
 					panic(err)
 				}	
 			}
-			if round == poker.River && pokerManager.Session.Board[3].Rank() == 0 {
+			if round == poker.Turn && pokerManager.Session.Board[3].Rank() == 0 {
 				err := cardOnBoard(&pokerManager,&deck,3)
 				if err != nil {
 					panic(err)
 				}
 			}
-			if round == poker.Turn && pokerManager.Session.Board[4].Rank() == 0 {
+			if round == poker.River && pokerManager.Session.Board[4].Rank() == 0 {
 				err := cardOnBoard(&pokerManager,&deck,4)
 				if err != nil {
 					panic(err)
 				}
-			}
-			if err := inputAction(pokerManager, *node,myRank); err != nil {
-				panic(err)
 			}
 			printState(pokerManager)
 		}
@@ -326,9 +326,14 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 			default:
 				panic("unknown action")
 			}
-			if val := pokerManager.Validate(action.Payload); val != nil || err != nil {
+			if err != nil {
 				area.Update()
-				pterm.Error.Printfln("Invalid action: %s", err.Error())
+				pterm.Error.Println("Error creating the action")
+				continue
+			}
+			if val := pokerManager.Validate(action.Payload); val != nil {
+				area.Update()
+				pterm.Error.Printfln("Invalid action: %s", val.Error())
 				continue
 			}
 

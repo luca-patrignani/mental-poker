@@ -26,10 +26,8 @@ func checkPokerLogic(a ActionType, amount uint, session *Session, idx int) error
 			return fmt.Errorf("insufficient funds to call")
 		}
 	case ActionAllIn:
-		remaining := session.Players[idx].Pot + session.Players[idx].Bet
-		if remaining != amount {
-			return fmt.Errorf("allin amount must match player's remaining pot")
-		}
+		return nil
+		
 	case ActionCheck:
 		if session.Players[idx].Bet != session.HighestBet {
 			return fmt.Errorf("cannot check, must call, raise or fold")
