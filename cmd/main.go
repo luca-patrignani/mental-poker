@@ -68,13 +68,27 @@ func main() {
 		}
 		// Print a blank line for better readability
 		pterm.Println()
-		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+		ipaddr, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			logger.Error("invalid address format: "+addr+"\n error: "+err.Error())
+			continue
+		}
+		localIp, _, err := net.SplitHostPort(l.Addr().String())
+		if err != nil {
+			panic(err)
+		}
+		guessedAddr, err := guessIpAddress(net.ParseIP(localIp), ipaddr)
+		if err != nil {
+			logger.Error("could not guess address for: " + addr + "\n error: " + err.Error())
+			continue
+		}
+		tcpAddr, err := net.ResolveTCPAddr("tcp", guessedAddr.String()+":"+port)
 		if err != nil {
 			errMsg := "invalid address:" + addr + "\n error: " + err.Error()
 			logger.Error(errMsg)
 			continue
 		}
-		addresses = append(addresses, tcpAddr.String())
+		addresses = append(addresses, guessedAddr.String()+":"+strconv.Itoa(tcpAddr.Port))
 	}
 	p2p, myRank := createP2P(addresses, l)
 	pterm.Info.Printfln("Your rank is %d\n", myRank)
