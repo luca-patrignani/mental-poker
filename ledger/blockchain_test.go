@@ -107,7 +107,7 @@ func createTestSession(n int) (poker.Session, []*network.P2P, error) {
 		HighestBet:  0,
 		Dealer:      0,
 		CurrentTurn: 0,
-		RoundID:     "preflop-1",
+		Round:     "preflop-1",
 	}
 
 	return session, p2ps, nil
@@ -179,8 +179,8 @@ func TestNewBlockchainWithInitialSession(t *testing.T) {
 	}
 
 	// Verify the session is correctly stored in the genesis block
-	if genesis.Session.RoundID != initialSession.RoundID {
-		t.Fatalf("genesis session RoundID should be '%s', got '%s'", initialSession.RoundID, genesis.Session.RoundID)
+	if genesis.Session.Round != initialSession.Round {
+		t.Fatalf("genesis session RoundID should be '%s', got '%s'", initialSession.Round, genesis.Session.Round)
 	}
 
 	if len(genesis.Session.Players) != len(initialSession.Players) {
@@ -220,7 +220,7 @@ func TestNewBlockchainWithDifferentSessions(t *testing.T) {
 			t.Fatalf("failed to cleanup P2P instances: %v", err)
 		}
 	}()
-	session2.RoundID = "different-round"
+	session2.Round = "different-round"
 
 	bc1, err := NewBlockchain(session1)
 	if err != nil {
@@ -256,7 +256,7 @@ func TestAppendValidBlock(t *testing.T) {
 	session := initialSession
 	session.CurrentTurn = 1
 	action := poker.PokerAction{
-		RoundID:  "round1",
+		Round:  "round1",
 		PlayerID: 1,
 		Type:     poker.ActionBet,
 		Amount:   50,
@@ -315,7 +315,7 @@ func TestAppendBlockInsufficientVotes(t *testing.T) {
 	session := initialSession
 	session.CurrentTurn = 1
 	action := poker.PokerAction{
-		RoundID:  "round1",
+		Round:  "round1",
 		PlayerID: 1,
 		Type:     poker.ActionBet,
 		Amount:   50,
@@ -357,7 +357,7 @@ func TestAppendWithExtraMetadata(t *testing.T) {
 	session := initialSession
 	session.CurrentTurn = 1
 	action := poker.PokerAction{
-		RoundID:  "round1",
+		Round:  "round1",
 		PlayerID: 1,
 		Type:     poker.ActionBet,
 		Amount:   50,
@@ -406,7 +406,7 @@ func TestGetLatestBlock(t *testing.T) {
 	}
 	session := initialSession
 	session.CurrentTurn = 1
-	action := poker.PokerAction{RoundID: "r1", Type: poker.ActionBet, Amount: 50}
+	action := poker.PokerAction{Round: "r1", Type: poker.ActionBet, Amount: 50}
 	votes := []consensus.Vote{
 		{ActionId: "a1", VoterID: 0, Value: consensus.VoteAccept},
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
@@ -464,7 +464,7 @@ func TestGetByIndexValid(t *testing.T) {
 	}
 	session := initialSession
 	session.CurrentTurn = 1
-	action := poker.PokerAction{RoundID: "r1", Type: poker.ActionBet, Amount: 50}
+	action := poker.PokerAction{Round: "r1", Type: poker.ActionBet, Amount: 50}
 	votes := []consensus.Vote{
 		{ActionId: "a1", VoterID: 0, Value: consensus.VoteAccept},
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
@@ -494,7 +494,7 @@ func TestGetByIndexValid(t *testing.T) {
 		t.Fatal("genesis block should have type 'genesis'")
 	}
 
-	if genesisBlock.Session.RoundID != initialSession.RoundID {
+	if genesisBlock.Session.Round != initialSession.Round {
 		t.Fatalf("genesis block should preserve initial session RoundID")
 	}
 }
@@ -553,7 +553,7 @@ func TestVerifyValidChain(t *testing.T) {
 	// Add multiple blocks
 	for i := 0; i < 3; i++ {
 		action := poker.PokerAction{
-			RoundID:  "round1",
+			Round:  "round1",
 			PlayerID: i,
 			Type:     poker.ActionBet,
 			Amount:   uint(50 + i*10),
@@ -631,7 +631,7 @@ func TestVerifyTamperedBlockHash(t *testing.T) {
 	}
 	session := initialSession
 	session.CurrentTurn = 1
-	action := poker.PokerAction{RoundID: "r1", Type: poker.ActionBet, Amount: 50}
+	action := poker.PokerAction{Round: "r1", Type: poker.ActionBet, Amount: 50}
 	votes := []consensus.Vote{
 		{ActionId: "a1", VoterID: 0, Value: consensus.VoteAccept},
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
@@ -671,7 +671,7 @@ func TestVerifyBrokenChainLink(t *testing.T) {
 	}
 	session := initialSession
 	session.CurrentTurn = 1
-	action := poker.PokerAction{RoundID: "r1", Type: poker.ActionBet, Amount: 50}
+	action := poker.PokerAction{Round: "r1", Type: poker.ActionBet, Amount: 50}
 	votes := []consensus.Vote{
 		{ActionId: "a1", VoterID: 0, Value: consensus.VoteAccept},
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
@@ -716,7 +716,7 @@ func TestVerifyIndexDiscontinuity(t *testing.T) {
 	}
 	session := initialSession
 	session.CurrentTurn = 1
-	action := poker.PokerAction{RoundID: "r1", Type: poker.ActionBet, Amount: 50}
+	action := poker.PokerAction{Round: "r1", Type: poker.ActionBet, Amount: 50}
 	votes := []consensus.Vote{
 		{ActionId: "a1", VoterID: 0, Value: consensus.VoteAccept},
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
@@ -759,7 +759,7 @@ func TestAppendMultipleBlocks(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		action := poker.PokerAction{
-			RoundID:  "round1",
+			Round:  "round1",
 			PlayerID: i % 2,
 			Type:     poker.ActionBet,
 			Amount:   uint(50 + i*10),

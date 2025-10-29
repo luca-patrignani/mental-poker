@@ -1,17 +1,13 @@
 package poker
 
-import (
-	"fmt"
-	"strings"
-	"time"
-)
+type Round string
 
 const (
-	PreFlop  string = "preflop"
-	Flop     string = "flop"
-	Turn     string = "Turn"
-	River    string = "River"
-	Showdown string = "Showdown"
+	PreFlop  Round = "preflop"
+	Flop     Round = "flop"
+	Turn     Round = "Turn"
+	River    Round = "River"
+	Showdown Round = "Showdown"
 )
 
 // advanceTurn moves the current turn to the next non-folded player in the session.
@@ -47,8 +43,8 @@ func (session *Session) advanceRound() {
 	idx := session.getNextActivePlayer(session.Dealer)
 	session.CurrentTurn = uint(idx)
 	session.LastToRaise = uint(idx)
-	session.RoundID = MakeRoundID(nextRound(session.RoundID))
-	if ExtractRoundName(session.RoundID) == PreFlop {
+	session.Round = nextRound(session.Round)
+	if session.Round == PreFlop {
 		session.Dealer = uint(session.Dealer + 1%uint(len(session.Players)))
 		session.CurrentTurn = uint(session.Dealer + 1%uint(len(session.Players)))
 		session.LastToRaise = session.CurrentTurn
@@ -61,9 +57,9 @@ func (session *Session) advanceRound() {
 }
 
 // Returns the next round name. If at last round, stays at last.
-func nextRound(current string) string {
-	c := ExtractRoundName(current)
-	rounds := []string{PreFlop, Flop, Turn, River, Showdown}
+func nextRound(current Round) Round {
+	c := current
+	rounds := []Round{PreFlop, Flop, Turn, River, Showdown}
 
 	for i, r := range rounds {
 		if r == c {
@@ -77,16 +73,6 @@ func nextRound(current string) string {
 	return PreFlop
 }
 
-// Combine round name and Unix timestamp
-func MakeRoundID(round string) string {
-	return fmt.Sprintf("%s-%d", round, time.Now().Unix())
-}
-
-// Extract round name from combined ID
-func ExtractRoundName(roundID string) string {
-	parts := strings.SplitN(roundID, "-", 2)
-	return parts[0]
-}
 
 // Helper: gets the next active (non-folded) player index after the given index
 func (session *Session) getNextActivePlayer(currentIdx uint) int {

@@ -107,7 +107,7 @@ func main() {
 	session := poker.Session{
 		Board:   [5]poker.Card{},
 		Players: players,
-		RoundID: poker.MakeRoundID(poker.PreFlop),
+		Round: poker.PreFlop,
 		HighestBet: 0,
 		Dealer: 0,
 		CurrentTurn: 1,
@@ -152,7 +152,7 @@ func main() {
 				logger.Error(err.Error())
 				panic(err)
 			}
-			round := poker.ExtractRoundName(pokerManager.Session.RoundID)
+			round := pokerManager.Session.Round
 			if round == poker.Showdown {
 				if err := applyShowdown(pokerManager,*node,myRank); err != nil {
 					panic(err)
@@ -357,6 +357,7 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank int) error {
 	if psm.Session.CurrentTurn == uint(psm.FindPlayerIndex(myRank)) {
 		action, err := consensus.MakeAction(psm.Player, psm.ActionShowdown())
+		action.Sign(node.GetPriv())
 		if err != nil {
 			return err
 		}
@@ -386,7 +387,7 @@ func printState(psm poker.PokerManager) {
 			mainPlayer = pterm.Panel{Data: printMainInfo(p)}
 		}
 	}
-	board := pterm.Panel{Data:printBoardInfo(s.Board[:], poker.ExtractRoundName(psm.Session.RoundID), s.Pots)}
+	board := pterm.Panel{Data:printBoardInfo(s.Board[:], psm.Session.Round, s.Pots)}
 	
 	pterm.DefaultPanel.WithPanels([][]pterm.Panel{
 		panels,
@@ -417,7 +418,7 @@ func printMainInfo(p poker.Player) string {
 	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("Current Bet: %d\nBankroll: %d\n%s - %s\n%s",p.Bet,p.Pot,p.Hand[0].String(),p.Hand[1].String(),active)
 }
 
-func printBoardInfo(b []poker.Card, round string, pots []poker.Pot) string {
+func printBoardInfo(b []poker.Card, round poker.Round, pots []poker.Pot) string {
 	board := ""
 	for _,c := range b {
 		board += c.String() + " - "
@@ -426,5 +427,5 @@ func printBoardInfo(b []poker.Card, round string, pots []poker.Pot) string {
 		board += " Pot"+strconv.Itoa(i)+": "+strconv.Itoa(int(p.Amount))+" | "
 	}
 
-	return  board + round
+	return  board + string(round)
 }

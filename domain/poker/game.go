@@ -15,7 +15,7 @@ type Player struct {
 
 // PokerAction è l'azione specifica del dominio poker
 type PokerAction struct {
-	RoundID  string     `json:"round_id"`
+	Round  Round     `json:"round_id"`
 	PlayerID int        `json:"player_id"`
 	Type     ActionType `json:"type"`
 	Amount   uint       `json:"amount"`
@@ -35,6 +35,8 @@ const (
 	ActionShowdown ActionType = "showdown"
 )
 
+
+
 // Deck is the rappresentation of a game session.
 type Session struct {
 	Board       [5]Card
@@ -44,7 +46,7 @@ type Session struct {
 	LastToRaise uint   // index of the Player who last raised
 	Dealer      uint   // index of the Player that is the dealer
 	CurrentTurn uint   // index of the Player who must act
-	RoundID     string // identifier for the current betting round/hand
+	Round     Round // identifier for the current betting round/hand
 }
 
 type Pot struct {

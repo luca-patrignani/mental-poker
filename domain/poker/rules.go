@@ -33,7 +33,7 @@ func checkPokerLogic(a ActionType, amount uint, session *Session, idx int) error
 			return fmt.Errorf("cannot check, must call, raise or fold")
 		}
 	case ActionShowdown:
-		if ExtractRoundName(session.RoundID) != Showdown {
+		if session.Round != Showdown {
 			return fmt.Errorf("cannot showdown before river")
 		}
 	default:

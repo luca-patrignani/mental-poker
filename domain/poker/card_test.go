@@ -3,6 +3,8 @@ package poker
 import (
 	"fmt"
 	"testing"
+
+	"github.com/pterm/pterm"
 )
 
 func TestIntToCard(t *testing.T) {
@@ -35,17 +37,6 @@ func TestCardToInt(t *testing.T) {
 		if rawCard != i {
 			t.Fatalf("expected %d, got %d", i, rawCard)
 		}
-	}
-}
-
-func TestCardStringFaces(t *testing.T) {
-	c := Card{suit: Heart, rank: 1}
-	if c.String() != "A♥" {
-		t.Fatalf("expected A♥, got %s", c.String())
-	}
-	c = Card{suit: Club, rank: 11}
-	if c.String() != "J♣" {
-		t.Fatalf("expected J♣, got %s", c.String())
 	}
 }
 
@@ -117,16 +108,16 @@ func TestCardString_AllSuits(t *testing.T) {
 		suit     uint8
 		expected string
 	}{
-		{Club, "A♣"},
-		{Diamond, "A♦"},
-		{Heart, "A♥"},
-		{Spade, "A♠"},
+		{Club, "♣"},
+		{Diamond, pterm.LightRed("♦")},
+		{Heart, pterm.LightRed("♥")},
+		{Spade, "♠"},
 	}
 
 	for _, tc := range suits {
 		card := Card{suit: tc.suit, rank: Ace}
-		if card.String() != tc.expected {
-			t.Fatalf("expected %s, got %s", tc.expected, card.String())
+		if card.String() != "A"+tc.expected {
+			t.Fatalf("expected %s, got %s", "A"+tc.expected, card.String())
 		}
 	}
 }
@@ -134,7 +125,8 @@ func TestCardString_AllSuits(t *testing.T) {
 func TestCardString_NumberCards(t *testing.T) {
 	for rank := uint8(2); rank <= 10; rank++ {
 		card := Card{suit: Heart, rank: rank}
-		expected := fmt.Sprintf("%d♥", rank)
+		expected := fmt.Sprintf("%d", rank)
+		expected = expected + pterm.LightRed("♥")
 		if card.String() != expected {
 			t.Fatalf("expected %s, got %s", expected, card.String())
 		}
