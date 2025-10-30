@@ -73,7 +73,7 @@ func (s Session) DescribeHand(player int) (string,error) {
 	if err != nil {
 		return "",err
 	}
-	return poker.DescribeShort(c[:])
+	return poker.Describe(c[:])
 }
 
 func (s Session) makeFinalHand(playeridx int) ([7]poker.Card,error) {

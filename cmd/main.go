@@ -116,8 +116,10 @@ func main() {
 		}
 	}
 	deck := poker.NewPokerDeck(p2p)
-	deck.PrepareDeck()
-	deck.Shuffle()
+	err = deck.PrepareDeck()
+	if err != nil {
+		panic(err)
+	}
 	session := poker.Session{
 		Board:   [5]poker.Card{},
 		Players: players,
@@ -149,31 +151,51 @@ func main() {
 	if err := node.UpdatePeers(); err != nil {
 		panic(err)
 	}
-
 	//area, _ := pterm.DefaultArea.Start()
 	for {
-		if err := distributeHands(&pokerManager,&deck); err != nil {
+		spinner, _ := pterm.DefaultSpinner.Start("Shuffling the cards ...")
+
+		if err := deck.Shuffle(); err != nil {
+			spinner.Fail()
 			panic(err)
 		}
-		
+		spinner.Success()
+
+		spinner, _ = pterm.DefaultSpinner.Start("Distribute hand cards ...")
+
+		if err := distributeHands(&pokerManager,&deck); err != nil {
+			spinner.Fail()
+			panic(err)
+		}
+		spinner.Success()
 		/*if err := postBlinds(&pokerManager, node, 5); err != nil {
 			panic(err)
 		}
 		printState(pokerManager)*/
 		for {
 			//area.Update()
+			var panel pterm.Panel
 			if err := inputAction(pokerManager, *node,myRank); err != nil {
 				logger.Error(err.Error())
 				panic(err)
 			}
 			round := pokerManager.Session.Round
 			if round == poker.Showdown {
+				err := showCards(&pokerManager,&deck)
+				if err != nil {
+					logger.Error(err.Error())
+				}
+				panel,err = getWinnerPanel(pokerManager)
+				if err != nil {
+					logger.Error(err.Error())
+				}
+				printState(pokerManager,panel)
 				if err := applyShowdown(pokerManager,*node,myRank); err != nil {
 					panic(err)
-				} else {
-					break
 				}
+				break
 			}
+			
 			if round == poker.Flop && pokerManager.Session.Board[0].Rank() == 0 {
 				err := cardOnBoard(&pokerManager,&deck,0)
 				if err != nil {
@@ -202,6 +224,7 @@ func main() {
 			}
 			printState(pokerManager)
 		}
+		logger.Info("Starting a new match")
 	}
 	//area.Stop()
 
@@ -251,6 +274,26 @@ func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 			return err
 		}
 		psm.Session.Players[i].Hand[1] = *card2
+	}
+	return  nil
+}
+
+func showCards(psm *poker.PokerManager, deck *poker.PokerDeck) error {
+	for i := range psm.Session.Players{
+		card1 := psm.Session.Players[i].Hand[0]
+		card1, err := deck.OpenCard(i,&card1)
+		if err != nil {
+			return err
+		}
+		psm.Session.Players[i].Hand[0] = card1
+
+		card2 := psm.Session.Players[i].Hand[1]
+		card2, err = deck.OpenCard(i,&card2)
+		if err != nil {
+			return err
+		}
+		psm.Session.Players[i].Hand[1] = card2
+
 	}
 	return  nil
 }
@@ -387,7 +430,50 @@ func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank 
 	return nil
 }
 
-func printState(psm poker.PokerManager) {
+func getWinnerPanel(psm poker.PokerManager) (pterm.Panel,error) {
+	winners,err := psm.GetWinners()
+	if err != nil {
+		return pterm.Panel{}, err
+	}
+	pbox := pterm.DefaultBox.WithHorizontalPadding(4).WithTopPadding(1).WithBottomPadding(1)
+	infoString := ""
+	if len(winners) == 1 {
+		var id int
+		finalAmount := 0
+		for winner,amount := range winners {
+			id = winner
+			finalAmount += int(amount)
+		}
+		info, err := printSingleWinnerInfo(psm,id,finalAmount)
+		if err != nil {
+			return pterm.Panel{},err
+		}
+		infoString += info
+	} else {
+		for winner,amount := range winners {
+			info, err := printSingleWinnerInfo(psm,winner,int(amount))
+			if err != nil {
+				return pterm.Panel{},err
+			}
+			infoString += info
+		}
+	}
+	return pterm.Panel{Data: pbox.WithTitle(pterm.LightGreen("|SHOWDOWN|")).WithTitleTopCenter().Sprintf(infoString)}, nil
+}
+
+func printSingleWinnerInfo(psm poker.PokerManager, id int, amount int) (string,error) {
+	s := psm.GetSession()
+	idx := psm.FindPlayerIndex(id)
+		p := s.Players[idx]
+		hand,err := s.DescribeHand(idx)
+		if err != nil {
+			return "",err
+		}
+		playerString := pterm.Sprintfln("%s won %d with %s",pterm.LightCyan(p.Name),amount,hand)
+		return playerString, nil
+}
+
+func printState(psm poker.PokerManager, additionalPanel ...pterm.Panel) {
 	s := psm.GetSession()
 	var panels []pterm.Panel
 	var mainPlayer pterm.Panel
@@ -402,11 +488,13 @@ func printState(psm poker.PokerManager) {
 		}
 	}
 	board := pterm.Panel{Data:printBoardInfo(s.Board[:], psm.Session.Round, s.Pots)}
-	
+	dashboard := []pterm.Panel{mainPlayer}
+	dashboard = append(dashboard, additionalPanel...)
+
 	pterm.DefaultPanel.WithPanels([][]pterm.Panel{
 		panels,
 		{board},
-		{mainPlayer,},
+		dashboard,
 	}).Render()
 }
 
