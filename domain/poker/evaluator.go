@@ -31,26 +31,10 @@ func (s *Session) winnerEval() (map[int]uint, error) {
 				continue
 			}
 
-			var finalHand [7]poker.Card
-			for i := 0; i < 5; i++ {
-				c := s.Board[i]
-				card, err := poker.MakeCard(poker.Suit(c.suit), poker.Rank(c.rank))
-				if err != nil {
-					return nil, fmt.Errorf("invalid board card at idx %d: %w", i, err)
-				}
-				finalHand[i] = card
-			}
-
-			c0, err := poker.MakeCard(poker.Suit(player.Hand[0].suit), poker.Rank(player.Hand[0].rank))
+			finalHand,err := s.makeFinalHand(idx)
 			if err != nil {
-				return nil, fmt.Errorf("invalid player card: %w", err)
+				return nil,err
 			}
-			c1, err := poker.MakeCard(poker.Suit(player.Hand[1].suit), poker.Rank(player.Hand[1].rank))
-			if err != nil {
-				return nil, fmt.Errorf("invalid player card: %w", err)
-			}
-			finalHand[5] = c0
-			finalHand[6] = c1
 
 			score := poker.Eval7(&finalHand)
 			scoredPlayers = append(scoredPlayers, scored{idx: idx, score: score})
@@ -82,4 +66,37 @@ func (s *Session) winnerEval() (map[int]uint, error) {
 	}
 
 	return results, nil
+}
+
+func (s Session) DescribeHand(player int) (string,error) {
+	c, err := s.makeFinalHand(player)
+	if err != nil {
+		return "",err
+	}
+	return poker.DescribeShort(c[:])
+}
+
+func (s Session) makeFinalHand(playeridx int) ([7]poker.Card,error) {
+	player := s.Players[playeridx]
+	var finalHand [7]poker.Card
+	for i := 0; i < 5; i++ {
+		c := s.Board[i]
+		card, err := poker.MakeCard(poker.Suit(c.suit), poker.Rank(c.rank))
+		if err != nil {
+			return [7]poker.Card{}, fmt.Errorf("invalid board card at idx %d: %w", i, err)
+		}
+		finalHand[i] = card
+	}
+
+	c0, err := poker.MakeCard(poker.Suit(player.Hand[0].suit), poker.Rank(player.Hand[0].rank))
+	if err != nil {
+		return [7]poker.Card{}, fmt.Errorf("invalid player card: %w", err)
+	}
+	c1, err := poker.MakeCard(poker.Suit(player.Hand[1].suit), poker.Rank(player.Hand[1].rank))
+	if err != nil {
+		return [7]poker.Card{}, fmt.Errorf("invalid player card: %w", err)
+	}
+	finalHand[5] = c0
+	finalHand[6] = c1
+	return finalHand,nil
 }
