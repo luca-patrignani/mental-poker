@@ -37,7 +37,7 @@ func MakeAction(actorId int, payload poker.PokerAction) (Action, error) {
 	raw := fmt.Sprintf("%d%x%x", actorId, payload, randBytes)
 	b, _ := json.Marshal(raw)
 	id := hex.EncodeToString(b[:8])
-	
+
 	return Action{
 		Id:       id,
 		PlayerID: actorId,
@@ -316,7 +316,7 @@ func (node *ConsensusNode) checkAndCommit() error {
 		node.quorum = computeQuorum(node.network.GetPeerCount())
 		return nil
 	}
-	
+
 	return fmt.Errorf("Not enough elegible votes to reach quorum yet, state not changed. (%d accepts, %d rejects (%s), need %d)", accepts, rejects, reason, node.quorum)
 }
 

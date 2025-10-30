@@ -182,7 +182,7 @@ func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {
 		},
 		CurrentTurn: 0,
 		HighestBet:  0,
-		Round:     "preflop",
+		Round:       "preflop",
 	}
 
 	err := applyAction(ActionBet, 50, session, 0)
@@ -211,7 +211,7 @@ func TestApplyAction_Raise_UpdatesHighestBet(t *testing.T) {
 		},
 		CurrentTurn: 0,
 		HighestBet:  50,
-		Round:     PreFlop,
+		Round:       PreFlop,
 	}
 
 	err := applyAction(ActionRaise, 50, session, 0)
@@ -236,7 +236,7 @@ func TestApplyAction_Call_MatchesHighestBet(t *testing.T) {
 		},
 		CurrentTurn: 0,
 		HighestBet:  100,
-		Round:     PreFlop,
+		Round:       PreFlop,
 	}
 
 	err := applyAction(ActionCall, 0, session, 0)
@@ -261,7 +261,7 @@ func TestApplyAction_AllIn_EmptiesPot(t *testing.T) {
 		},
 		CurrentTurn: 0,
 		HighestBet:  100,
-		Round:     PreFlop,
+		Round:       PreFlop,
 	}
 
 	err := applyAction(ActionAllIn, 0, session, 0)

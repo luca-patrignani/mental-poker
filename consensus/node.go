@@ -85,10 +85,10 @@ func NewConsensusNode(
 	}
 }
 
-
 func (node ConsensusNode) GetPriv() ed25519.PrivateKey {
 	return node.priv
 }
+
 // UpdatePeers exchanges public keys with all peers in an AllToAll operation and updates
 // the node's peer mapping and quorum threshold accordingly.
 func (node *ConsensusNode) UpdatePeers() error {

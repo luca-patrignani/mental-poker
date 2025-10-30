@@ -43,8 +43,8 @@ func CardToInt(card Card) int {
 func (d PokerDeck) DrawCard(drawer int) (*Card, error) {
 	c, err := d.Deck.DrawCard(drawer)
 	if c == 0 {
-		card,_ := NewCard(0,0)
-		return &card,nil
+		card, _ := NewCard(0, 0)
+		return &card, nil
 	}
 	if err != nil {
 		return nil, err

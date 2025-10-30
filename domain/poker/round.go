@@ -73,7 +73,6 @@ func nextRound(current Round) Round {
 	return PreFlop
 }
 
-
 // Helper: gets the next active (non-folded) player index after the given index
 func (session *Session) getNextActivePlayer(currentIdx uint) int {
 	n := len(session.Players)

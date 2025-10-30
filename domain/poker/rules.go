@@ -27,7 +27,7 @@ func checkPokerLogic(a ActionType, amount uint, session *Session, idx int) error
 		}
 	case ActionAllIn:
 		return nil
-		
+
 	case ActionCheck:
 		if session.Players[idx].Bet != session.HighestBet {
 			return fmt.Errorf("cannot check, must call, raise or fold")

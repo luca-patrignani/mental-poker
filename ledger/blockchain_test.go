@@ -107,7 +107,7 @@ func createTestSession(n int) (poker.Session, []*network.P2P, error) {
 		HighestBet:  0,
 		Dealer:      0,
 		CurrentTurn: 0,
-		Round:     "preflop-1",
+		Round:       "preflop-1",
 	}
 
 	return session, p2ps, nil
@@ -256,7 +256,7 @@ func TestAppendValidBlock(t *testing.T) {
 	session := initialSession
 	session.CurrentTurn = 1
 	action := poker.PokerAction{
-		Round:  "round1",
+		Round:    "round1",
 		PlayerID: 1,
 		Type:     poker.ActionBet,
 		Amount:   50,
@@ -315,7 +315,7 @@ func TestAppendBlockInsufficientVotes(t *testing.T) {
 	session := initialSession
 	session.CurrentTurn = 1
 	action := poker.PokerAction{
-		Round:  "round1",
+		Round:    "round1",
 		PlayerID: 1,
 		Type:     poker.ActionBet,
 		Amount:   50,
@@ -357,7 +357,7 @@ func TestAppendWithExtraMetadata(t *testing.T) {
 	session := initialSession
 	session.CurrentTurn = 1
 	action := poker.PokerAction{
-		Round:  "round1",
+		Round:    "round1",
 		PlayerID: 1,
 		Type:     poker.ActionBet,
 		Amount:   50,
@@ -553,7 +553,7 @@ func TestVerifyValidChain(t *testing.T) {
 	// Add multiple blocks
 	for i := 0; i < 3; i++ {
 		action := poker.PokerAction{
-			Round:  "round1",
+			Round:    "round1",
 			PlayerID: i,
 			Type:     poker.ActionBet,
 			Amount:   uint(50 + i*10),
@@ -759,7 +759,7 @@ func TestAppendMultipleBlocks(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		action := poker.PokerAction{
-			Round:  "round1",
+			Round:    "round1",
 			PlayerID: i % 2,
 			Type:     poker.ActionBet,
 			Amount:   uint(50 + i*10),

@@ -197,7 +197,7 @@ func TestAdvanceRound(t *testing.T) {
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
-				Round:     PreFlop,
+				Round:       PreFlop,
 			},
 			expectedTurn:  1,
 			expectedRound: Flop, // Round doesn't change in advanceRound, just turn
@@ -213,7 +213,7 @@ func TestAdvanceRound(t *testing.T) {
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
-				Round:     Flop,
+				Round:       Flop,
 			},
 			expectedTurn:  2,
 			expectedRound: Turn,
@@ -229,7 +229,7 @@ func TestAdvanceRound(t *testing.T) {
 				},
 				Dealer:      2,
 				CurrentTurn: 2,
-				Round:     Turn,
+				Round:       Turn,
 			},
 			expectedTurn:  0,
 			expectedRound: River,
@@ -245,7 +245,7 @@ func TestAdvanceRound(t *testing.T) {
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
-				Round:     River,
+				Round:       River,
 			},
 			expectedTurn:  1,
 			expectedRound: Showdown,
@@ -311,7 +311,7 @@ func TestAllPlayersCheckScenario(t *testing.T) {
 		LastToRaise: 1,
 		CurrentTurn: 0,
 		Dealer:      2,
-		Round:     PreFlop,
+		Round:       PreFlop,
 	}
 
 	// Verify round can finish when all check

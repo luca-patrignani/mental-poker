@@ -4,7 +4,7 @@ import "testing"
 
 func TestManager_ValidateWrongRound(t *testing.T) {
 	session := &Session{
-		Round:     "round1",
+		Round:       "round1",
 		Players:     []Player{{Id: 1, Name: "Alice"}},
 		CurrentTurn: 0,
 	}
@@ -12,7 +12,7 @@ func TestManager_ValidateWrongRound(t *testing.T) {
 	sm := &PokerManager{session, 1}
 
 	action := &PokerAction{
-		Round:  "round2",
+		Round:    "round2",
 		PlayerID: 1,
 		Type:     ActionCheck,
 		Amount:   0,
@@ -28,7 +28,7 @@ func TestManager_ValidateWrongRound(t *testing.T) {
 
 func TestManager_ValidatePlayerNotInSession(t *testing.T) {
 	session := &Session{
-		Round:     "round1",
+		Round:       "round1",
 		Players:     []Player{{Id: 999, Name: "Alice"}},
 		CurrentTurn: 0,
 	}
@@ -36,7 +36,7 @@ func TestManager_ValidatePlayerNotInSession(t *testing.T) {
 	sm := &PokerManager{session, 1}
 
 	action := &PokerAction{
-		Round:  "preflop",
+		Round:    "preflop",
 		PlayerID: 999,
 		Type:     ActionCheck,
 		Amount:   0,
@@ -63,7 +63,7 @@ func TestManager_ValidateWrongTurn(t *testing.T) {
 	sm := &PokerManager{session, 1}
 
 	action := &PokerAction{
-		Round:  "round1",
+		Round:    "round1",
 		PlayerID: 2, // Bob trying to act when it's Alice's turn
 		Type:     ActionCheck,
 		Amount:   0,
@@ -91,7 +91,7 @@ func TestManager_ApplyValidAction(t *testing.T) {
 	sm := &PokerManager{session, 1}
 
 	action := &PokerAction{
-		Round:  "preflop1",
+		Round:    "preflop1",
 		PlayerID: 1,
 		Type:     ActionBet,
 		Amount:   50,
@@ -150,7 +150,7 @@ func TestManager_FindPlayerIndex(t *testing.T) {
 
 func TestManager_NotifyBan(t *testing.T) {
 	session := &Session{
-		Round: "round1",
+		Round:   "round1",
 		Players: []Player{{Id: 123, Name: "Alice", Pot: 100}},
 	}
 

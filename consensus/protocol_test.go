@@ -126,7 +126,7 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 		HighestBet:  0,
 		Dealer:      0,
 		CurrentTurn: 0,
-		Round:     "round1",
+		Round:       "round1",
 	}
 	psm := &poker.PokerManager{Session: &s, Player: 1}
 	ldg := NewBlockchain()
@@ -232,7 +232,7 @@ func TestProposeReceive(t *testing.T) {
 				HighestBet:  0,
 				Dealer:      0,
 				CurrentTurn: 0,
-				Round:     "preflop-1",
+				Round:       "preflop-1",
 			}
 
 			psm = poker.PokerManager{Session: &s, Player: 1}
@@ -299,7 +299,7 @@ func TestProposeReceive(t *testing.T) {
 		if idx == 0 {
 			// proposer builds action and proposes
 			pa := poker.PokerAction{
-				Round:  "preflop-1",
+				Round:    "preflop-1",
 				PlayerID: nodes[i].network.GetRank(),
 				Type:     poker.ActionRaise,
 				Amount:   30,
@@ -425,7 +425,7 @@ func TestProposeReceiveBan(t *testing.T) {
 				HighestBet:  50,
 				Dealer:      2,
 				CurrentTurn: 0,
-				Round:     "preflop-1",
+				Round:       "preflop-1",
 			}
 
 			psm = poker.PokerManager{Session: &s, Player: 1}
@@ -493,7 +493,7 @@ func TestProposeReceiveBan(t *testing.T) {
 			bannedNodeId = nodes[i].network.GetRank()
 			// proposer builds action and proposes
 			pa := poker.PokerAction{
-				Round:  "preflop-1",
+				Round:    "preflop-1",
 				PlayerID: nodes[i].network.GetRank(),
 				Type:     poker.ActionRaise,
 				Amount:   30,

@@ -3,7 +3,6 @@ package main
 import (
 	"net"
 	"testing"
-
 )
 
 func TestGuessIpAddress24(t *testing.T) {
@@ -52,7 +51,6 @@ func TestGuessIpAddress32(t *testing.T) {
 		t.Fatalf("expected %v, actual %v", addr, actual)
 	}
 }
-
 
 func TestSubnetOfListener(t *testing.T) {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{

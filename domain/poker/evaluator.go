@@ -31,9 +31,9 @@ func (s *Session) winnerEval() (map[int]uint, error) {
 				continue
 			}
 
-			finalHand,err := s.makeFinalHand(idx)
+			finalHand, err := s.makeFinalHand(idx)
 			if err != nil {
-				return nil,err
+				return nil, err
 			}
 
 			score := poker.Eval7(&finalHand)
@@ -68,15 +68,15 @@ func (s *Session) winnerEval() (map[int]uint, error) {
 	return results, nil
 }
 
-func (s Session) DescribeHand(player int) (string,error) {
+func (s Session) DescribeHand(player int) (string, error) {
 	c, err := s.makeFinalHand(player)
 	if err != nil {
-		return "",err
+		return "", err
 	}
 	return poker.Describe(c[:])
 }
 
-func (s Session) makeFinalHand(playeridx int) ([7]poker.Card,error) {
+func (s Session) makeFinalHand(playeridx int) ([7]poker.Card, error) {
 	player := s.Players[playeridx]
 	var finalHand [7]poker.Card
 	for i := 0; i < 5; i++ {
@@ -98,5 +98,5 @@ func (s Session) makeFinalHand(playeridx int) ([7]poker.Card,error) {
 	}
 	finalHand[5] = c0
 	finalHand[6] = c1
-	return finalHand,nil
+	return finalHand, nil
 }
