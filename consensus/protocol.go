@@ -122,11 +122,6 @@ func (node *ConsensusNode) onReceiveProposal(p *Action) error {
 	//fmt.Printf("Node %s received proposal from player %s\n", node.ID, p.Action.PlayerID)
 
 	pub, find := node.playersPK[p.PlayerID]
-	for key, value := range node.playersPK {
-		if pub.Equal(value)  {
-			fmt.Printf("Key: %d, Value: %s\n", key, value)
-		}
-	}
 	if !find {
 		err := node.broadcastVoteForProposal(p, VoteReject, "unknown-player")
 		if err != nil {

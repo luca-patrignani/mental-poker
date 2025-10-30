@@ -87,6 +87,7 @@ func (psm *PokerManager) GetSession() *Session {
 	return psm.Session
 }
 
+//return a map of winning player and their corresponding amount
 func (psm *PokerManager) GetWinners() (map[int]uint, error) {
 	if psm.Session.Round != Showdown {
 		return nil, fmt.Errorf("cannot get winners before showdown")
