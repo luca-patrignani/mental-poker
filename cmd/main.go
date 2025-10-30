@@ -408,7 +408,16 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 		}
 		return consensusNode.ProposeAction(&action)
 	} else {
-		return consensusNode.WaitForProposal()
+		currentName := pterm.LightCyan(pokerManager.GetSession().Players[pokerManager.GetCurrentPlayer()].Name)
+		text := pterm.Sprintf("Waiting for %s to make an action ...", currentName)
+		spinner, _ := pterm.DefaultSpinner.Start(text)
+		err := consensusNode.WaitForProposal()
+		if err != nil {
+			spinner.Fail()
+		}else {
+			spinner.Success()
+		}
+		return err
 	}
 }
 
