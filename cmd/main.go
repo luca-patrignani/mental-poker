@@ -171,7 +171,7 @@ func main() {
 		if err := postBlinds(&pokerManager, node, 5); err != nil {
 			panic(err)
 		}
-		
+
 		printState(pokerManager)
 		for {
 			var panel pterm.Panel
@@ -322,15 +322,16 @@ func postBlinds(psm *poker.PokerManager, node *consensus.ConsensusNode, smallBli
 	if err != nil {
 		return err
 	}
-	/*err = addBlind(psm, node, smallBlind*2)
+	err = addBlind(psm, node, smallBlind*2)
 	if err != nil {
 		return err
-	}*/
+	}
 	return nil
 }
 
 func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uint) error {
 	idx := psm.FindPlayerIndex(psm.Player)
+
 	if idx == psm.GetCurrentPlayer() {
 		var action consensus.Action
 		var err error
@@ -349,15 +350,13 @@ func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uin
 		if err := node.ProposeAction(&action); err != nil {
 			return err
 		}
-		fmt.Printf("%s post blind with %d\n",psm.Session.Players[idx].Name,amount)
 	} else {
 		err := node.WaitForProposal()
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Not %s post blind with %d\n",psm.Session.Players[idx].Name,amount)
-
 	}
+
 	return nil
 }
 
