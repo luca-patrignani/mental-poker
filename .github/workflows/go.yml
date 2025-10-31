@@ -45,10 +45,11 @@ jobs:
 
     - name: format
       run: gofmt -e . > /dev/null
-
+    
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6.1.1
-
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: v2.1
   coverage:
     runs-on: ubuntu-latest
     steps:
