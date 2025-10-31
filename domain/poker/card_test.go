@@ -3,36 +3,40 @@ package poker
 import (
 	"fmt"
 	"testing"
+
+	"github.com/pterm/pterm"
 )
 
-func TestConvertCard(t *testing.T) {
+func TestIntToCard(t *testing.T) {
 	expectedCard := Card{suit: Heart, rank: 2}
-	testCard, err := ConvertCard(28)
+	testCard, err := IntToCard(28)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if testCard != expectedCard {
 		t.Fatalf("expected %v, get %v", expectedCard, testCard)
 	}
-
 }
-func TestAllCardConvert(t *testing.T) {
+
+func TestAllIntToCard(t *testing.T) {
 	for i := 1; i < 53; i++ {
-		_, err := ConvertCard(i)
+		_, err := IntToCard(i)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 }
 
-func TestCardStringFaces(t *testing.T) {
-	c := Card{suit: Heart, rank: 1}
-	if c.String() != "A♥" {
-		t.Fatalf("expected A♥, got %s", c.String())
-	}
-	c = Card{suit: Club, rank: 11}
-	if c.String() != "J♣" {
-		t.Fatalf("expected J♣, got %s", c.String())
+func TestCardToInt(t *testing.T) {
+	for i := 1; i < 53; i++ {
+		card, err := IntToCard(i)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rawCard := CardToInt(card)
+		if rawCard != i {
+			t.Fatalf("expected %d, got %d", i, rawCard)
+		}
 	}
 }
 
@@ -70,7 +74,7 @@ func TestNewCard_InvalidRank_TooHigh(t *testing.T) {
 
 func TestConvertCard_BoundaryValues(t *testing.T) {
 	// Test card 1 (Ace of Clubs)
-	card, err := ConvertCard(1)
+	card, err := IntToCard(1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -79,7 +83,7 @@ func TestConvertCard_BoundaryValues(t *testing.T) {
 	}
 
 	// Test card 52 (King of Spades)
-	card, err = ConvertCard(52)
+	card, err = IntToCard(52)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,7 +96,7 @@ func TestConvertCard_InvalidValues(t *testing.T) {
 	tests := []int{0, 53, -1, 100}
 
 	for _, val := range tests {
-		_, err := ConvertCard(val)
+		_, err := IntToCard(val)
 		if err == nil {
 			t.Fatalf("expected error for card value %d", val)
 		}
@@ -104,16 +108,16 @@ func TestCardString_AllSuits(t *testing.T) {
 		suit     uint8
 		expected string
 	}{
-		{Club, "A♣"},
-		{Diamond, "A♦"},
-		{Heart, "A♥"},
-		{Spade, "A♠"},
+		{Club, "♣"},
+		{Diamond, pterm.LightRed("♦")},
+		{Heart, pterm.LightRed("♥")},
+		{Spade, "♠"},
 	}
 
 	for _, tc := range suits {
 		card := Card{suit: tc.suit, rank: Ace}
-		if card.String() != tc.expected {
-			t.Fatalf("expected %s, got %s", tc.expected, card.String())
+		if card.String() != "A"+tc.expected {
+			t.Fatalf("expected %s, got %s", "A"+tc.expected, card.String())
 		}
 	}
 }
@@ -121,7 +125,8 @@ func TestCardString_AllSuits(t *testing.T) {
 func TestCardString_NumberCards(t *testing.T) {
 	for rank := uint8(2); rank <= 10; rank++ {
 		card := Card{suit: Heart, rank: rank}
-		expected := fmt.Sprintf("%d♥", rank)
+		expected := fmt.Sprintf("%d", rank)
+		expected = expected + pterm.LightRed("♥")
 		if card.String() != expected {
 			t.Fatalf("expected %s, got %s", expected, card.String())
 		}

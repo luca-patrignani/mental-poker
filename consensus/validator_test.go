@@ -11,7 +11,7 @@ import (
 func TestNewEd25519KeypairAndSignVerify(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(nil)
 	pa := poker.PokerAction{
-		RoundID:  "preflop",
+		Round:    "preflop",
 		PlayerID: 1,
 		Type:     poker.ActionBet,
 		Amount:   10,
@@ -41,13 +41,13 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(nil)
 
 	pa := poker.PokerAction{
-		RoundID:  "river",
+		Round:    "river",
 		PlayerID: 17,
 		Type:     poker.ActionAllIn,
 		Amount:   100,
 	}
 
-	a, err := makeAction(17, pa)
+	a, err := MakeAction(17, pa)
 	if err != nil {
 		t.Fatalf("Failed to make an action, %v", err)
 	}
@@ -69,13 +69,13 @@ func TestVerifyFailsIfTampered(t *testing.T) {
 func TestMarshalUnmarshalAction(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(nil)
 	act := poker.PokerAction{
-		RoundID:  "preflop",
+		Round:    "preflop",
 		PlayerID: 15,
 		Type:     poker.ActionBet,
 		Amount:   150,
 	}
 
-	a, err := makeAction(15, act)
+	a, err := MakeAction(15, act)
 	if err != nil {
 		t.Fatalf("Failed to make an action, %v", err)
 	}

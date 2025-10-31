@@ -7,22 +7,26 @@ import (
 // PokerManager is an adapter of Peer to the interface NetworkLayer
 type PokerManager struct {
 	Session *Session
-	Player int
+	Player  int
 }
 
 // NewPokerManager creates a new PokerManager wrapping the provided poker session and
 // implementing the consensus.StateMachine interface.
 
-
 // Validate checks whether a poker action is valid in the current session state by verifying
 // the round ID, player existence, turn order, and poker rules. Returns an error describing
 // the validation failure, or nil if the action is valid.
 func (psm *PokerManager) Validate(pa PokerAction) error {
-	if pa.RoundID != psm.Session.RoundID {
-		return fmt.Errorf("wrong round: expected %s, got %s", psm.Session.RoundID, pa.RoundID)
-	}
 
 	index := psm.FindPlayerIndex(pa.PlayerID)
+	if err := checkPokerLogic(pa.Type, pa.Amount, psm.Session, index); err != nil {
+		return err
+	}
+
+	if pa.Round != psm.Session.Round {
+		return fmt.Errorf("wrong round: expected %s, got %s", psm.Session.Round, pa.Round)
+	}
+
 	if index == -1 {
 		return fmt.Errorf("player %d not in session", pa.PlayerID)
 	}
@@ -31,7 +35,7 @@ func (psm *PokerManager) Validate(pa PokerAction) error {
 		return fmt.Errorf("not player's turn: current turn %d, player index %d", psm.Session.CurrentTurn, index)
 	}
 
-	return checkPokerLogic(pa.Type, pa.Amount, psm.Session, index)
+	return nil
 }
 
 // Apply applies a validated poker action to the session state and advances the game accordingly.
@@ -64,7 +68,7 @@ func (psm *PokerManager) NotifyBan(id int) (PokerAction, error) {
 		return PokerAction{}, fmt.Errorf("player not found")
 	}
 	pa := PokerAction{
-		RoundID:  psm.Session.RoundID,
+		Round:    psm.Session.Round,
 		PlayerID: id,
 		Type:     ActionBan,
 		Amount:   0,
@@ -83,16 +87,32 @@ func (psm *PokerManager) GetSession() *Session {
 	return psm.Session
 }
 
+// return a map of winning player and their corresponding amount
 func (psm *PokerManager) GetWinners() (map[int]uint, error) {
-	if extractRoundName(psm.Session.RoundID) != Showdown {
+	if psm.Session.Round != Showdown {
 		return nil, fmt.Errorf("cannot get winners before showdown")
 	}
 	return psm.Session.winnerEval()
 }
 
+func (psm *PokerManager) PrepareNextMatch() {
+	c, _ := NewCard(0, 0)
+	for i := range psm.Session.Players {
+		psm.Session.Players[i].Hand[0] = c
+		psm.Session.Players[i].Hand[1] = c
+	}
+	for i := range psm.Session.Board {
+		psm.Session.Board[i] = c
+	}
+	psm.Session.setNextMatchDealer()
+	psm.Session.LastToRaise = psm.Session.Dealer
+	psm.Session.HighestBet = 0
+	psm.Session.Pots = []Pot{{Amount: 0}}
+}
+
 func (psm *PokerManager) ActionFold() PokerAction {
 	return PokerAction{
-		RoundID:  psm.Session.RoundID,
+		Round:    psm.Session.Round,
 		PlayerID: psm.Player,
 		Type:     ActionFold,
 		Amount:   0,
@@ -101,7 +121,7 @@ func (psm *PokerManager) ActionFold() PokerAction {
 
 func (psm *PokerManager) ActionCheck() PokerAction {
 	return PokerAction{
-		RoundID:  psm.Session.RoundID,
+		Round:    psm.Session.Round,
 		PlayerID: psm.Player,
 		Type:     ActionCheck,
 		Amount:   0,
@@ -109,15 +129,15 @@ func (psm *PokerManager) ActionCheck() PokerAction {
 }
 func (psm *PokerManager) ActionCall() PokerAction {
 	return PokerAction{
-		RoundID:  psm.Session.RoundID,
+		Round:    psm.Session.Round,
 		PlayerID: psm.Player,
 		Type:     ActionCall,
-		Amount:   0,
+		Amount:   psm.Session.HighestBet - psm.Session.Players[psm.FindPlayerIndex(psm.Player)].Bet,
 	}
 }
 func (psm *PokerManager) ActionRaise(amount uint) PokerAction {
 	return PokerAction{
-		RoundID:  psm.Session.RoundID,
+		Round:    psm.Session.Round,
 		PlayerID: psm.Player,
 		Type:     ActionRaise,
 		Amount:   amount,
@@ -125,15 +145,15 @@ func (psm *PokerManager) ActionRaise(amount uint) PokerAction {
 }
 func (psm *PokerManager) ActionAllIn() PokerAction {
 	return PokerAction{
-		RoundID:  psm.Session.RoundID,
+		Round:    psm.Session.Round,
 		PlayerID: psm.Player,
 		Type:     ActionAllIn,
-		Amount:   0,
+		Amount:   psm.Session.Players[psm.FindPlayerIndex(psm.Player)].Pot,
 	}
 }
 func (psm *PokerManager) ActionShowdown() PokerAction {
 	return PokerAction{
-		RoundID:  psm.Session.RoundID,
+		Round:    psm.Session.Round,
 		PlayerID: psm.Player,
 		Type:     ActionShowdown,
 		Amount:   0,
@@ -141,7 +161,7 @@ func (psm *PokerManager) ActionShowdown() PokerAction {
 }
 func (psm *PokerManager) ActionBet(amount uint) PokerAction {
 	return PokerAction{
-		RoundID:  psm.Session.RoundID,
+		Round:    psm.Session.Round,
 		PlayerID: psm.Player,
 		Type:     ActionBet,
 		Amount:   amount,

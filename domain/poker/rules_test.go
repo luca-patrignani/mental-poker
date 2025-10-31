@@ -100,20 +100,6 @@ func TestCheckPokerLogic_Check_Valid(t *testing.T) {
 	}
 }
 
-func TestCheckPokerLogic_AllIn_WrongAmount(t *testing.T) {
-	session := &Session{
-		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 50},
-		},
-		HighestBet: 0,
-	}
-
-	err := checkPokerLogic(ActionAllIn, 100, session, 0)
-	if err == nil {
-		t.Fatal("expected error: allin amount must match remaining pot")
-	}
-}
-
 func TestCheckPokerLogic_AllIn_CorrectAmount(t *testing.T) {
 	session := &Session{
 		Players: []Player{

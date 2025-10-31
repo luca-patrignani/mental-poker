@@ -25,10 +25,10 @@ func (a *Action) ToString() string {
 	return string(b)
 }
 
-// makeAction creates a new Action with a unique ID derived from the actor ID and action
+// MakeAction creates a new Action with a unique ID derived from the actor ID and action
 // payload, along with random entropy. The ID is hex-encoded from the first 8 bytes of
 // marshaled data. Timestamp is not set until Sign is called.
-func makeAction(actorId int, payload poker.PokerAction) (Action, error) {
+func MakeAction(actorId int, payload poker.PokerAction) (Action, error) {
 	randBytes := make([]byte, 16) // 128 bits entropy
 	_, err := rand.Read(randBytes)
 	if err != nil {
@@ -109,7 +109,7 @@ func (node *ConsensusNode) WaitForProposal() error {
 	}
 	var p Action
 	if err := json.Unmarshal(data, &p); err != nil {
-		return fmt.Errorf("failed to unmarshal action proposal: %v\n", err)
+		return fmt.Errorf("failed to unmarshal action proposal: %v", err)
 	}
 
 	return node.onReceiveProposal(&p)
@@ -119,8 +119,9 @@ func (node *ConsensusNode) WaitForProposal() error {
 // verifying player existence, and validating poker rules. It then broadcasts a vote
 // (ACCEPT or REJECT) based on the validation result. Caches the proposal if missing.
 func (node *ConsensusNode) onReceiveProposal(p *Action) error {
-	//fmt.Printf("Node %s received proposal from player %s\n", node.ID, p.Action.PlayerID)
-
+	//fmt.Printf("Node %d received proposal from player %d\nAction: %s", node.network.GetRank(), p.PlayerID,p.ToString())
+	node.proposal = nil
+	node.votes = map[int]Vote{}
 	pub, find := node.playersPK[p.PlayerID]
 	if !find {
 		err := node.broadcastVoteForProposal(p, VoteReject, "unknown-player")
@@ -129,7 +130,10 @@ func (node *ConsensusNode) onReceiveProposal(p *Action) error {
 		}
 		return nil
 	}
-	verified, _ := p.VerifySignature(pub)
+	verified, err := p.VerifySignature(pub)
+	if err != nil {
+		return err
+	}
 	if !verified {
 		err := node.broadcastVoteForProposal(p, VoteReject, "bad-signature")
 		if err != nil {
@@ -147,7 +151,7 @@ func (node *ConsensusNode) onReceiveProposal(p *Action) error {
 		return nil
 	}
 
-	err := node.broadcastVoteForProposal(p, VoteAccept, "valid")
+	err = node.broadcastVoteForProposal(p, VoteAccept, "valid")
 	if err != nil {
 		return err
 	}
@@ -178,7 +182,10 @@ func (node *ConsensusNode) broadcastVoteForProposal(p *Action, v VoteValue, reas
 	node.votes[node.network.GetRank()] = vote
 
 	//fmt.Printf("Node %s broadcasting vote %s for proposal %s\n", node.ID, v, pid)
-	b, _ := json.Marshal(vote)
+	b, err := json.Marshal(vote)
+	if err != nil {
+		return err
+	}
 	votesBytes, err := node.network.AllToAllwithTimeout(b, 30*time.Second)
 	if err != nil {
 		return err
@@ -205,13 +212,13 @@ func (node *ConsensusNode) broadcastVoteForProposal(p *Action, v VoteValue, reas
 // Returns an error if the votes array is empty or if votes contain differing action IDs.
 func ensureSameProposal(votes []Vote) error {
 	if len(votes) == 0 {
-		return fmt.Errorf("Votes array is empty")
+		return fmt.Errorf("votes array is empty")
 	}
 
 	firstProposal := votes[0].ActionId
 	for _, v := range votes[1:] {
 		if v.ActionId != firstProposal {
-			return fmt.Errorf("Votes don't refer to the same proposal")
+			return fmt.Errorf("votes don't refer to the same proposal")
 		}
 	}
 	return nil
@@ -269,7 +276,7 @@ func (node *ConsensusNode) onReceiveVotes(votes []Vote) error {
 func (node *ConsensusNode) checkAndCommit() error {
 
 	if node.proposal == nil {
-		return fmt.Errorf("missing proposal to commit\n")
+		return fmt.Errorf("missing proposal to commit")
 	}
 
 	accepts := len(collectVotes(node.votes, VoteAccept))
@@ -314,7 +321,7 @@ func (node *ConsensusNode) checkAndCommit() error {
 		return nil
 	}
 
-	return fmt.Errorf("Not enough elegible votes to reach quorum yet, state not changed. (%d accepts, %d rejects, need %d)", accepts, rejects, node.quorum)
+	return fmt.Errorf("not enough elegible votes to reach quorum yet, state not changed. (%d accepts, %d rejects (%s), need %d)", accepts, rejects, reason, node.quorum)
 }
 
 // collectVotes filters votes from the vote map by value. If filter is "both", returns all votes;
@@ -345,7 +352,7 @@ func getBanReason(rejectVotes []Vote) string {
 // appending to the ledger, and removing the banned proposer from the peer map (if applicable).
 // The optional ban parameter is used when the proposal represents a player banning.
 func (node *ConsensusNode) applyCommit(cert Certificate, ban ...*Action) error {
-	//fmt.Printf("Node %s applying commit certificate for proposal %s\n", node.ID, cert.Proposal.Action.Type)
+	//fmt.Printf("Node %d applying commit certificate for proposal \n%s\n", node.network.GetRank(), cert.Proposal.ToString())
 	if cert.Proposal == nil {
 		return errors.New("bad certificate format")
 	}

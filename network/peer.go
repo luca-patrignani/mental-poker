@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/pterm/pterm"
 )
 
 // Peer is an helper struct for communication between nodes.
@@ -113,7 +115,7 @@ func (p *Peer) BroadcastwithTimeout(data []byte, rank int, timeout time.Duration
 
 	for {
 		if time.Since(start) > timeout {
-			return response, fmt.Errorf("timeout: no message received\n")
+			return response, fmt.Errorf("timeout: no message received")
 		}
 
 		response, err := p.Broadcast(data, rank)
@@ -162,12 +164,13 @@ func (p *Peer) AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte
 		}
 
 		if responses == nil {
-			fmt.Printf("Error in broadcasting: responses of length %d instead of %d\n", len(responses), expected)
+			msg := fmt.Sprintf("Error in broadcasting: responses of length %d instead of %d", len(responses), expected)
+			pterm.Warning.Println(msg)
 		}
 		if len(responses) >= expected {
 			return responses, nil
 		}
-		fmt.Print("Retry in 5 seconds. . .\n")
+		pterm.Info.Println("Retry in 5 seconds. . .")
 		time.Sleep(5000 * time.Millisecond)
 	}
 
@@ -193,7 +196,9 @@ func CreateAddresses(n int) map[int]string {
 			panic(err)
 		}
 		addresses[i] = l.Addr().String()
-		l.Close()
+		if err := l.Close(); err != nil {
+			panic(err)
+		}
 	}
 	return addresses
 }
@@ -238,7 +243,9 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 						return nil, fmt.Errorf("connection attempts timed out with status code %d", resp.StatusCode)
 					}
 				}
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+					return nil, err
+				}
 			}
 		}
 		return bufferSend, nil

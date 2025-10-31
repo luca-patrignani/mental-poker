@@ -1,7 +1,6 @@
 package poker
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -9,8 +8,8 @@ import (
 func TestNextRound(t *testing.T) {
 	tests := []struct {
 		name     string
-		current  string
-		expected string
+		current  Round
+		expected Round
 	}{
 		{
 			name:     "PreFlop to Flop",
@@ -48,13 +47,13 @@ func TestNextRound(t *testing.T) {
 			expected: PreFlop,
 		},
 		{
-			name:     "Round with timestamp suffix (PreFlop)",
-			current:  "preflop-1740025505",
+			name:     "Round (PreFlop)",
+			current:  PreFlop,
 			expected: Flop,
 		},
 		{
-			name:     "Round with timestamp suffix (Turn)",
-			current:  "Turn-1740025505",
+			name:     "Round (Turn)",
+			current:  Turn,
 			expected: River,
 		},
 	}
@@ -64,81 +63,6 @@ func TestNextRound(t *testing.T) {
 			result := nextRound(tt.current)
 			if result != tt.expected {
 				t.Errorf("nextRound(%q) = %q, want %q", tt.current, result, tt.expected)
-			}
-		})
-	}
-}
-
-// TestMakeRoundID verifies round ID generation
-func TestMakeRoundID(t *testing.T) {
-	tests := []struct {
-		name      string
-		roundName string
-	}{
-		{"PreFlop ID", PreFlop},
-		{"Flop ID", Flop},
-		{"Turn ID", Turn},
-		{"River ID", River},
-		{"Showdown ID", Showdown},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			id := makeRoundID(tt.roundName)
-
-			// Verify format: "roundname-timestamp"
-			if !strings.HasPrefix(id, tt.roundName+"-") {
-				t.Errorf("makeRoundID(%q) = %q, should start with %q-", tt.roundName, id, tt.roundName)
-			}
-
-			// Verify we can extract the round name
-			extracted := extractRoundName(id)
-			if extracted != tt.roundName {
-				t.Errorf("extractRoundName(%q) = %q, want %q", id, extracted, tt.roundName)
-			}
-		})
-	}
-}
-
-// TestExtractRoundName verifies round name extraction
-func TestExtractRoundName(t *testing.T) {
-	tests := []struct {
-		name     string
-		roundID  string
-		expected string
-	}{
-		{
-			name:     "Valid PreFlop ID",
-			roundID:  "preflop-1740025505",
-			expected: PreFlop,
-		},
-		{
-			name:     "Valid Flop ID",
-			roundID:  "flop-1740025505",
-			expected: Flop,
-		},
-		{
-			name:     "ID without timestamp",
-			roundID:  "Turn",
-			expected: Turn,
-		},
-		{
-			name:     "Multiple dashes (edge case)",
-			roundID:  "River-123-456",
-			expected: River,
-		},
-		{
-			name:     "Empty string",
-			roundID:  "",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractRoundName(tt.roundID)
-			if result != tt.expected {
-				t.Errorf("extractRoundName(%q) = %q, want %q", tt.roundID, result, tt.expected)
 			}
 		})
 	}
@@ -260,7 +184,7 @@ func TestAdvanceRound(t *testing.T) {
 		name          string
 		session       Session
 		expectedTurn  uint
-		expectedRound string
+		expectedRound Round
 		description   string
 	}{
 		{
@@ -273,7 +197,7 @@ func TestAdvanceRound(t *testing.T) {
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
-				RoundID:     PreFlop,
+				Round:       PreFlop,
 			},
 			expectedTurn:  1,
 			expectedRound: Flop, // Round doesn't change in advanceRound, just turn
@@ -289,7 +213,7 @@ func TestAdvanceRound(t *testing.T) {
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
-				RoundID:     Flop,
+				Round:       Flop,
 			},
 			expectedTurn:  2,
 			expectedRound: Turn,
@@ -305,7 +229,7 @@ func TestAdvanceRound(t *testing.T) {
 				},
 				Dealer:      2,
 				CurrentTurn: 2,
-				RoundID:     Turn,
+				Round:       Turn,
 			},
 			expectedTurn:  0,
 			expectedRound: River,
@@ -321,7 +245,7 @@ func TestAdvanceRound(t *testing.T) {
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
-				RoundID:     River,
+				Round:       River,
 			},
 			expectedTurn:  1,
 			expectedRound: Showdown,
@@ -338,7 +262,7 @@ func TestAdvanceRound(t *testing.T) {
 			}
 
 			// Verify round name part (ignore timestamp)
-			actualRound := extractRoundName(tt.session.RoundID)
+			actualRound := tt.session.Round
 			if actualRound != tt.expectedRound {
 				t.Errorf("%s: Round = %s, want %s", tt.description, actualRound, tt.expectedRound)
 			}
@@ -348,22 +272,22 @@ func TestAdvanceRound(t *testing.T) {
 
 // TestRoundProgression verifies full round cycle
 func TestRoundProgression(t *testing.T) {
-	rounds := []string{PreFlop, Flop, Turn, River, Showdown}
+	rounds := []Round{PreFlop, Flop, Turn, River, Showdown}
 
-	currentRoundID := makeRoundID(PreFlop)
+	currentRoundID := PreFlop
 
 	for i := 0; i < len(rounds)-1; i++ {
-		extracted := extractRoundName(currentRoundID)
+		extracted := currentRoundID
 		if extracted != rounds[i] {
 			t.Errorf("Step %d: expected round %s, got %s", i, rounds[i], extracted)
 		}
 
 		nextRoundName := nextRound(currentRoundID)
-		currentRoundID = makeRoundID(nextRoundName)
+		currentRoundID = nextRoundName
 	}
 
 	// Verify we're at Showdown
-	finalRound := extractRoundName(currentRoundID)
+	finalRound := currentRoundID
 	if finalRound != Showdown {
 		t.Errorf("Final round should be Showdown, got %s", finalRound)
 	}
@@ -387,7 +311,7 @@ func TestAllPlayersCheckScenario(t *testing.T) {
 		LastToRaise: 1,
 		CurrentTurn: 0,
 		Dealer:      2,
-		RoundID:     makeRoundID(PreFlop),
+		Round:       PreFlop,
 	}
 
 	// Verify round can finish when all check
@@ -396,7 +320,7 @@ func TestAllPlayersCheckScenario(t *testing.T) {
 	}
 
 	// Advance to next round
-	oldRound := extractRoundName(session.RoundID)
+	oldRound := session.Round
 	session.advanceRound()
 
 	// Verify turn advanced
@@ -405,7 +329,7 @@ func TestAllPlayersCheckScenario(t *testing.T) {
 	}
 
 	// Verify round progressed
-	newRound := extractRoundName(session.RoundID)
+	newRound := session.Round
 	expectedNext := nextRound(oldRound)
 	if newRound != expectedNext {
 		t.Errorf("Round should progress from %s to %s, got %s", oldRound, expectedNext, newRound)

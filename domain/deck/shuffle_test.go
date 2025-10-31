@@ -20,7 +20,11 @@ func TestShuffle(t *testing.T) {
 				DeckSize: 52,
 				Peer:     network.NewP2P(&p),
 			}
-			defer deck.Peer.Close()
+			defer func() { 
+				if err := deck.Peer.Close(); err != nil {
+					errChan <- err
+				}
+			}()
 			err := deck.PrepareDeck()
 			if err != nil {
 				errChan <- err
@@ -31,7 +35,7 @@ func TestShuffle(t *testing.T) {
 				errChan <- err
 				return
 			}
-			decks <- deck.EncryptedDeck
+			decks <- deck.encryptedDeck
 			errChan <- nil
 		}()
 	}

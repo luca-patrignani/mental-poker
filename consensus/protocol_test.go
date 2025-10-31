@@ -95,11 +95,6 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 
 	// create two listeners and addresses
 	listeners, addresses := network.CreateListeners(2)
-	defer func() {
-		for _, l := range listeners {
-			_ = l.Close()
-		}
-	}()
 
 	// create peers (use short timeout)
 	timeout := 30 * time.Second
@@ -107,8 +102,6 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	peer1 := network.NewPeer(1, addresses, listeners[1], timeout)
 	p0 := network.NewP2P(&peer0)
 	p1 := network.NewP2P(&peer1)
-	defer p0.Close()
-	defer p1.Close()
 
 	// create simple keypairs and playersPK (both nodes know both pubkeys)
 	pub0, priv0, _ := ed25519.GenerateKey(nil)
@@ -122,23 +115,23 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 			{Name: "Alice", Id: 0, Hand: [2]poker.Card{}, HasFolded: false, Pot: 100, Bet: 0},
 			{Name: "Bob", Id: 1, Hand: [2]poker.Card{}, HasFolded: false, Pot: 100, Bet: 0},
 		},
-		Deck:        deck.Deck{},
 		Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0, 1}}},
 		HighestBet:  0,
 		Dealer:      0,
 		CurrentTurn: 0,
-		RoundID:     "round1",
+		Round:       "round1",
 	}
-	psm := &poker.PokerManager{Session: &s,Player: 1}
+	psm := &poker.PokerManager{Session: &s, Player: 1}
 	ldg := NewBlockchain()
 
 	node0 := NewConsensusNode(pub0, priv0, playersPK, psm, ldg, p0)
 	node1 := NewConsensusNode(pub1, priv1, playersPK, psm, ldg, p1)
-	errChan := make(chan error, 2)
+	errChan := make(chan error)
 
 	go func() {
 		if err := node1.WaitForProposal(); err != nil {
 			errChan <- err
+			return
 		}
 		errChan <- nil
 	}()
@@ -149,6 +142,7 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 		a, err := node0.network.Broadcast(invalid, 0)
 		if err != nil || a == nil {
 			errChan <- err
+			return
 		}
 		errChan <- nil
 	}()
@@ -158,6 +152,12 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	close(errChan)
 	if err0 == nil && err1 == nil {
 		t.Fatalf("expected error from WaitForProposalAndProcess for Invalid JSON")
+	}
+	if err := p0.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p1.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -227,15 +227,14 @@ func TestProposeReceive(t *testing.T) {
 			s := poker.Session{
 				Board:       [5]poker.Card{},
 				Players:     players,
-				Deck:        d,
 				Pots:        []poker.Pot{{Amount: 0, Eligible: []int{0, 1, 2}}},
 				HighestBet:  0,
 				Dealer:      0,
 				CurrentTurn: 0,
-				RoundID:     "preflop-1",
+				Round:       "preflop-1",
 			}
 
-			psm = poker.PokerManager{Session: &s,Player: 1}
+			psm = poker.PokerManager{Session: &s, Player: 1}
 			node.pokerSM = &psm
 
 			nodes_chan <- node
@@ -299,13 +298,13 @@ func TestProposeReceive(t *testing.T) {
 		if idx == 0 {
 			// proposer builds action and proposes
 			pa := poker.PokerAction{
-				RoundID:  "preflop-1",
+				Round:    "preflop-1",
 				PlayerID: nodes[i].network.GetRank(),
 				Type:     poker.ActionRaise,
 				Amount:   30,
 			}
 
-			a, err := makeAction(nodes[i].network.GetRank(), pa)
+			a, err := MakeAction(nodes[i].network.GetRank(), pa)
 			if err != nil {
 				t.Fatalf("%s", err.Error())
 			}
@@ -421,15 +420,14 @@ func TestProposeReceiveBan(t *testing.T) {
 			s := poker.Session{
 				Board:       [5]poker.Card{},
 				Players:     players,
-				Deck:        d,
 				Pots:        []poker.Pot{{Amount: 50, Eligible: []int{0, 1, 2}}},
 				HighestBet:  50,
 				Dealer:      2,
 				CurrentTurn: 0,
-				RoundID:     "preflop-1",
+				Round:       "preflop-1",
 			}
 
-			psm = poker.PokerManager{Session: &s,Player: 1}
+			psm = poker.PokerManager{Session: &s, Player: 1}
 			node.pokerSM = &psm
 
 			nodes_chan <- node
@@ -494,13 +492,13 @@ func TestProposeReceiveBan(t *testing.T) {
 			bannedNodeId = nodes[i].network.GetRank()
 			// proposer builds action and proposes
 			pa := poker.PokerAction{
-				RoundID:  "preflop-1",
+				Round:    "preflop-1",
 				PlayerID: nodes[i].network.GetRank(),
 				Type:     poker.ActionRaise,
 				Amount:   30,
 			}
 
-			a, err := makeAction(nodes[i].network.GetRank(), pa)
+			a, err := MakeAction(nodes[i].network.GetRank(), pa)
 			if err != nil {
 				t.Fatalf("%s", err.Error())
 			}
