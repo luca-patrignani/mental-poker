@@ -1,7 +1,7 @@
 version: "2"
 
-linters:
-  rules:
+issues:
+  exclude-rules:
     - path: cmd/
       linters:
         - errcheck
