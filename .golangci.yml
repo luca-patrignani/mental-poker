@@ -1,7 +1,12 @@
+# This file contains all available configuration options
 version: "2"
 
-issues:
-  exclude-rules:
-    - path: cmd/
-      linters:
-        - errcheck
+linters:
+  exclusions:
+
+    # Excluding configuration per-path, per-linter, per-text and per-source.
+    rules:
+      # Exclude some linters from running on tests files.
+      - path: cmd/
+        linters:
+          - errcheck
