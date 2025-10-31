@@ -104,7 +104,7 @@ func (node *ConsensusNode) UpdatePeers() error {
 	for i, pki := range pkBytes {
 		var p ed25519.PublicKey
 		if err := json.Unmarshal(pki, &p); err != nil {
-			return fmt.Errorf("failed to unmarshal public key: %v\n", err)
+			return fmt.Errorf("failed to unmarshal public key: %v", err)
 		}
 		pk[i] = p
 	}

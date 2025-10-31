@@ -109,7 +109,7 @@ func (node *ConsensusNode) WaitForProposal() error {
 	}
 	var p Action
 	if err := json.Unmarshal(data, &p); err != nil {
-		return fmt.Errorf("failed to unmarshal action proposal: %v\n", err)
+		return fmt.Errorf("failed to unmarshal action proposal: %v", err)
 	}
 
 	return node.onReceiveProposal(&p)
@@ -181,7 +181,10 @@ func (node *ConsensusNode) broadcastVoteForProposal(p *Action, v VoteValue, reas
 	node.votes[node.network.GetRank()] = vote
 
 	//fmt.Printf("Node %s broadcasting vote %s for proposal %s\n", node.ID, v, pid)
-	b, _ := json.Marshal(vote)
+	b, err := json.Marshal(vote)
+	if err != nil {
+		return err
+	}
 	votesBytes, err := node.network.AllToAllwithTimeout(b, 30*time.Second)
 	if err != nil {
 		return err
@@ -208,13 +211,13 @@ func (node *ConsensusNode) broadcastVoteForProposal(p *Action, v VoteValue, reas
 // Returns an error if the votes array is empty or if votes contain differing action IDs.
 func ensureSameProposal(votes []Vote) error {
 	if len(votes) == 0 {
-		return fmt.Errorf("Votes array is empty")
+		return fmt.Errorf("votes array is empty")
 	}
 
 	firstProposal := votes[0].ActionId
 	for _, v := range votes[1:] {
 		if v.ActionId != firstProposal {
-			return fmt.Errorf("Votes don't refer to the same proposal")
+			return fmt.Errorf("votes don't refer to the same proposal")
 		}
 	}
 	return nil
@@ -272,7 +275,7 @@ func (node *ConsensusNode) onReceiveVotes(votes []Vote) error {
 func (node *ConsensusNode) checkAndCommit() error {
 
 	if node.proposal == nil {
-		return fmt.Errorf("missing proposal to commit\n")
+		return fmt.Errorf("missing proposal to commit")
 	}
 
 	accepts := len(collectVotes(node.votes, VoteAccept))
@@ -317,7 +320,7 @@ func (node *ConsensusNode) checkAndCommit() error {
 		return nil
 	}
 
-	return fmt.Errorf("Not enough elegible votes to reach quorum yet, state not changed. (%d accepts, %d rejects (%s), need %d)", accepts, rejects, reason, node.quorum)
+	return fmt.Errorf("not enough elegible votes to reach quorum yet, state not changed. (%d accepts, %d rejects (%s), need %d)", accepts, rejects, reason, node.quorum)
 }
 
 // collectVotes filters votes from the vote map by value. If filter is "both", returns all votes;

@@ -53,7 +53,6 @@ func (psm *PokerManager) Apply(pa PokerAction) error {
 // GetCurrentPlayer returns the player index in the session of the player whose turn it is to act.
 // Returns -1 if the current turn index is out of bounds.
 func (psm *PokerManager) GetCurrentPlayer() int {
-	print(psm.Session.CurrentTurn)
 	if psm.Session.CurrentTurn >= uint(len(psm.Session.Players)) {
 		return -1
 	}

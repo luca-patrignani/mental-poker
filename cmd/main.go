@@ -105,7 +105,7 @@ func main() {
 		msg := fmt.Sprintf(" %s: %s", p2p.GetAddresses()[i], string(name))
 		logger.Info(msg)
 	}
-	card, err := poker.NewCard(0, 0)
+	card, _ := poker.NewCard(0, 0)
 	players := make([]poker.Player, len(names))
 	for i := range names {
 		players[i] = poker.Player{
@@ -168,9 +168,10 @@ func main() {
 			panic(err)
 		}
 		spinner.Success()
-		/*if err := postBlinds(&pokerManager, node, 5); err != nil {
+		if err := postBlinds(&pokerManager, node, 5); err != nil {
 			panic(err)
-		}*/
+		}
+		
 		printState(pokerManager)
 		for {
 			var panel pterm.Panel
@@ -321,10 +322,10 @@ func postBlinds(psm *poker.PokerManager, node *consensus.ConsensusNode, smallBli
 	if err != nil {
 		return err
 	}
-	err = addBlind(psm, node, smallBlind*2)
+	/*err = addBlind(psm, node, smallBlind*2)
 	if err != nil {
 		return err
-	}
+	}*/
 	return nil
 }
 
@@ -336,7 +337,7 @@ func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uin
 		if psm.Session.Players[idx].Pot < amount {
 			action, err = consensus.MakeAction(psm.Player, psm.ActionFold())
 		} else {
-			action, err = consensus.MakeAction(psm.Player, psm.ActionBet(amount))
+			action, err = consensus.MakeAction(psm.Player, psm.ActionRaise(amount))
 		}
 		if err != nil {
 			return err
@@ -348,11 +349,14 @@ func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uin
 		if err := node.ProposeAction(&action); err != nil {
 			return err
 		}
+		fmt.Printf("%s post blind with %d\n",psm.Session.Players[idx].Name,amount)
 	} else {
 		err := node.WaitForProposal()
 		if err != nil {
 			return err
 		}
+		fmt.Printf("Not %s post blind with %d\n",psm.Session.Players[idx].Name,amount)
+
 	}
 	return nil
 }

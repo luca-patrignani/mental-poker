@@ -115,7 +115,7 @@ func (p *Peer) BroadcastwithTimeout(data []byte, rank int, timeout time.Duration
 
 	for {
 		if time.Since(start) > timeout {
-			return response, fmt.Errorf("timeout: no message received\n")
+			return response, fmt.Errorf("timeout: no message received")
 		}
 
 		response, err := p.Broadcast(data, rank)
