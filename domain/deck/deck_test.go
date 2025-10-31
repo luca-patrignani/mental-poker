@@ -24,7 +24,11 @@ func TestAllToAllSingle(t *testing.T) {
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
-			defer d.Peer.Close()
+			defer func() { 
+				if err := d.Peer.Close(); err != nil {
+					errChan <- err
+				}
+			}()
 			_, err := d.allToAllSingle(points[i])
 			if err != nil {
 				errChan <- errors.Join(fmt.Errorf("error from %d", i), err)
@@ -80,7 +84,11 @@ func TestBroadcastMultiple(t *testing.T) {
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
-			defer d.Peer.Close()
+			defer func() { 
+				if err := d.Peer.Close(); err != nil {
+					errChan <- err
+				}
+			}()
 			var recvs []kyber.Point
 			var err error
 			if d.Peer.GetRank() == root {
@@ -121,7 +129,11 @@ func TestBroadcastSingle(t *testing.T) {
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
-			defer d.Peer.Close()
+			defer func() { 
+				if err := d.Peer.Close(); err != nil {
+					errChan <- err
+				}
+			}()
 			var recv kyber.Point
 			var err error
 			if i == root {
@@ -159,7 +171,11 @@ func TestGenerateRandomElement(t *testing.T) {
 				DeckSize: 52,
 				Peer:     network.NewP2P(&peer),
 			}
-			defer deck.Peer.Close()
+			defer func() { 
+				if err := deck.Peer.Close(); err != nil {
+					errChan <- err
+				}
+			}()
 			_, err := deck.generateRandomElement()
 			if err != nil {
 				errChan <- err
@@ -211,7 +227,11 @@ func TestDrawCardOpenCard(t *testing.T) {
 				DeckSize: 52,
 				Peer:     network.NewP2P(&p),
 			}
-			defer deck.Peer.Close()
+			defer func() { 
+				if err := deck.Peer.Close(); err != nil {
+					errChan <- err
+				}
+			}()
 			err := deck.PrepareDeck()
 			if err != nil {
 				errChan <- err

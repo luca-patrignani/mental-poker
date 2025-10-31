@@ -16,7 +16,9 @@ func TestAllToAll(t *testing.T) {
 		go func() {
 			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			p := NewP2P(&peer)
-			defer p.Close()
+			defer func() {
+				fatal <- p.Close()
+			}()
 			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
 			if err != nil {
 				fatal <- err
@@ -32,7 +34,6 @@ func TestAllToAll(t *testing.T) {
 					return
 				}
 			}
-			fatal <- nil
 		}()
 	}
 	for i := 0; i < n; i++ {
@@ -52,7 +53,9 @@ func TestBroadcast(t *testing.T) {
 		go func(i int) {
 			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			p := NewP2P(&peer)
-			defer p.Close()
+			defer func() {
+				fatal <- p.Close()
+			}()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.GetRank()))
 			recv, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.GetRank()))
@@ -67,7 +70,6 @@ func TestBroadcast(t *testing.T) {
 				fatal <- fmt.Errorf("expected %d, actual %d", recv[1], root*10)
 				return
 			}
-			fatal <- nil
 		}(i)
 	}
 	for i := 0; i < n; i++ {
@@ -87,13 +89,12 @@ func TestBroadcastTimeout(t *testing.T) {
 		go func() {
 			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			p := NewP2P(&peer)
-			defer p.Close()
 			_, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
 			if err != nil {
 				fatal <- fmt.Errorf("from player %d: %w", i, err)
 				return
 			}
-			fatal <- nil
+			fatal <- p.Close()
 		}()
 	}
 	for i := 0; i < n-1; i++ {
@@ -112,7 +113,9 @@ func TestBroadcastTwoPeers(t *testing.T) {
 		go func() {
 			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			p := NewP2P(&peer)
-			defer p.Close()
+			defer func() {
+				fatal <- p.Close()
+			}()
 			time.Sleep(time.Second * time.Duration(i+1))
 			recv, err := p.Broadcast([]byte{'0'}, 0)
 			if err != nil {
@@ -133,7 +136,6 @@ func TestBroadcastTwoPeers(t *testing.T) {
 				fatal <- fmt.Errorf("from peer %d: expected %s, actual %s", i, "1", recv)
 				return
 			}
-			fatal <- nil
 		}()
 	}
 	for i := 0; i < 2; i++ {
@@ -153,7 +155,9 @@ func TestBroadcastBarrier(t *testing.T) {
 		go func(i int) {
 			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			p := NewP2P(&peer)
-			defer p.Close()
+			defer func() {
+				fatal <- p.Close()
+			}()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.GetRank()))
 			clocks <- 0
 			_, err := p.Broadcast(nil, 0)
@@ -163,7 +167,6 @@ func TestBroadcastBarrier(t *testing.T) {
 				fatal <- err
 				return
 			}
-			fatal <- nil
 		}(i)
 	}
 	for i := 0; i < n; i++ {
@@ -195,12 +198,15 @@ func TestAllToAllBarrier(t *testing.T) {
 			defer wg.Done()
 			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
 			p := NewP2P(&peer)
-			defer p.Close()
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.GetRank()))
 			clocks <- 0
 			_, err := p.AllToAll([]byte{})
 			time.Sleep(time.Millisecond * 100 * time.Duration(p.GetRank()))
 			if err != nil {
+				fatal <- err
+				return
+			}
+			if err := p.Close(); err != nil {
 				fatal <- err
 				return
 			}
