@@ -95,11 +95,6 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 
 	// create two listeners and addresses
 	listeners, addresses := network.CreateListeners(2)
-	defer func() {
-		for _, l := range listeners {
-			_ = l.Close()
-		}
-	}()
 
 	// create peers (use short timeout)
 	timeout := 30 * time.Second
@@ -107,8 +102,6 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	peer1 := network.NewPeer(1, addresses, listeners[1], timeout)
 	p0 := network.NewP2P(&peer0)
 	p1 := network.NewP2P(&peer1)
-	defer p0.Close()
-	defer p1.Close()
 
 	// create simple keypairs and playersPK (both nodes know both pubkeys)
 	pub0, priv0, _ := ed25519.GenerateKey(nil)
@@ -159,6 +152,12 @@ func TestWaitForProposalAndProcess_InvalidJSON(t *testing.T) {
 	close(errChan)
 	if err0 == nil && err1 == nil {
 		t.Fatalf("expected error from WaitForProposalAndProcess for Invalid JSON")
+	}
+	if err := p0.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p1.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
 

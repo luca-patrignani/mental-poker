@@ -196,7 +196,9 @@ func CreateAddresses(n int) map[int]string {
 			panic(err)
 		}
 		addresses[i] = l.Addr().String()
-		l.Close()
+		if err := l.Close(); err != nil {
+			panic(err)
+		}
 	}
 	return addresses
 }
@@ -241,7 +243,9 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 						return nil, fmt.Errorf("connection attempts timed out with status code %d", resp.StatusCode)
 					}
 				}
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+					return nil, err
+				}
 			}
 		}
 		return bufferSend, nil
