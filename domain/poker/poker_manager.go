@@ -53,6 +53,7 @@ func (psm *PokerManager) Apply(pa PokerAction) error {
 // GetCurrentPlayer returns the player index in the session of the player whose turn it is to act.
 // Returns -1 if the current turn index is out of bounds.
 func (psm *PokerManager) GetCurrentPlayer() int {
+	print(psm.Session.CurrentTurn)
 	if psm.Session.CurrentTurn >= uint(len(psm.Session.Players)) {
 		return -1
 	}
@@ -93,6 +94,21 @@ func (psm *PokerManager) GetWinners() (map[int]uint, error) {
 		return nil, fmt.Errorf("cannot get winners before showdown")
 	}
 	return psm.Session.winnerEval()
+}
+
+func (psm *PokerManager) PrepareNextMatch() {
+	c, _ := NewCard(0, 0)
+	for i := range psm.Session.Players {
+		psm.Session.Players[i].Hand[0] = c
+		psm.Session.Players[i].Hand[1] = c
+	}
+	for i := range psm.Session.Board {
+		psm.Session.Board[i] = c
+	}
+	psm.Session.setNextMatchDealer()
+	psm.Session.LastToRaise = psm.Session.Dealer
+	psm.Session.HighestBet = 0
+	psm.Session.Pots = []Pot{{Amount: 0}}
 }
 
 func (psm *PokerManager) ActionFold() PokerAction {

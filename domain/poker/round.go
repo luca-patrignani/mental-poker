@@ -87,3 +87,9 @@ func (session *Session) getNextActivePlayer(currentIdx uint) int {
 	// No active players found (shouldn't happen in valid game state)
 	return -1
 }
+
+func (s *Session) setNextMatchDealer() {
+	l := uint(len(s.Players))
+	s.Dealer = (s.Dealer + 1) % l
+	s.CurrentTurn = (s.Dealer + 1) % l
+}

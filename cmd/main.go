@@ -170,10 +170,9 @@ func main() {
 		spinner.Success()
 		/*if err := postBlinds(&pokerManager, node, 5); err != nil {
 			panic(err)
-		}
-		printState(pokerManager)*/
+		}*/
+		printState(pokerManager)
 		for {
-			//area.Update()
 			var panel pterm.Panel
 			if err := inputAction(pokerManager, *node, myRank); err != nil {
 				logger.Error(err.Error())
@@ -222,9 +221,11 @@ func main() {
 					panic(err)
 				}
 			}
+			//area.Update()
 			printState(pokerManager)
 		}
 		logger.Info("Starting a new match")
+		pokerManager.PrepareNextMatch()
 	}
 	//area.Stop()
 
@@ -414,7 +415,7 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 		err := consensusNode.WaitForProposal()
 		if err != nil {
 			spinner.Fail()
-		}else {
+		} else {
 			spinner.Success()
 		}
 		return err
@@ -497,7 +498,7 @@ func printState(psm poker.PokerManager, additionalPanel ...pterm.Panel) {
 			mainPlayer = pterm.Panel{Data: printMainInfo(p)}
 		}
 	}
-	board := pterm.Panel{Data: printBoardInfo(s.Board[:], psm.Session.Round, s.Pots)}
+	board := pterm.Panel{Data: pterm.DefaultHeader.WithBackgroundStyle(pterm.BgGreen.ToStyle()).Sprintf(printBoardInfo(s.Board[:], psm.Session.Round, s.Pots))}
 	dashboard := []pterm.Panel{mainPlayer}
 	dashboard = append(dashboard, additionalPanel...)
 
