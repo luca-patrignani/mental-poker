@@ -19,10 +19,20 @@ import (
 	"github.com/luca-patrignani/mental-poker/network"
 )
 
+var timeout = 30*time.Second
+
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "usage: %s <ip>\n", os.Args[0])
+	if len(os.Args) < 2 {
+		fmt.Fprintf(os.Stderr, "usage: %s <ip> [<timeout>]\n", os.Args[0])
 		os.Exit(1)
+	}
+
+	if len(os.Args) == 3 {
+		timeoutInt, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			panic(err)
+		}
+		timeout = time.Duration(timeoutInt) * time.Second
 	}
 
 	// Create a new slog handler with the default PTerm logger
@@ -233,7 +243,7 @@ func main() {
 }
 
 func testConnections(p2p *network.P2P, name string) ([]string, error) {
-	byteNames, err := p2p.AllToAllwithTimeout([]byte(name), 60*time.Second)
+	byteNames, err := p2p.AllToAllwithTimeout([]byte(name), timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +269,7 @@ func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int
 		myRank,
 		mapAddresses,
 		l,
-		30*time.Second,
+		timeout,
 	)
 	return network.NewP2P(&peer), myRank
 }
