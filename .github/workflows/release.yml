@@ -1,15 +1,23 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
+    branches:
+      - main
+    push:
+      tags:
+        - 'v*'
 
 permissions:
   contents: write
 
 jobs:
   release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
     name: Build and Release
     runs-on: ubuntu-latest
 
