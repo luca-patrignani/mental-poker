@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"time"
+	"flag"
 
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
@@ -22,18 +23,17 @@ import (
 var timeout = 30*time.Second
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "usage: %s <ip> [<timeout>]\n", os.Args[0])
+	timeoutFlag := flag.Uint("timeout", 30, "timeout in seconds")
+	flag.Parse()
+
+	if flag.NArg() != 1 {
+		fmt.Fprintf(os.Stderr, "usage: %s <ip> [OPTIONS] %v\n", os.Args[0], os.Args)
 		os.Exit(1)
 	}
 
-	if len(os.Args) == 3 {
-		timeoutInt, err := strconv.Atoi(os.Args[2])
-		if err != nil {
-			panic(err)
-		}
-		timeout = time.Duration(timeoutInt) * time.Second
-	}
+	timeout = time.Duration(*timeoutFlag) * time.Second
+
+	ip := flag.Arg(0)
 
 	// Create a new slog handler with the default PTerm logger
 	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
@@ -57,7 +57,6 @@ func main() {
 	// Print the user's answer with an info prefix
 	pterm.Info.Printfln("Your username: %s", name)
 
-	ip := os.Args[1]
 	l, err := net.Listen("tcp", ip+":0")
 	if err != nil {
 		logger.Error("failed to listen on address", "address:"+ip, err.Error())
