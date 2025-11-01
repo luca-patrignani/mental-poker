@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ed25519"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net"
@@ -9,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"time"
-	"flag"
 
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
@@ -20,10 +20,13 @@ import (
 	"github.com/luca-patrignani/mental-poker/network"
 )
 
-var timeout = 30*time.Second
+var timeout = 30 * time.Second
+
+const defaultPort = 53550
 
 func main() {
 	timeoutFlag := flag.Uint("timeout", 30, "timeout in seconds")
+	portFlag := flag.Uint("port", defaultPort, "port to listen on")
 	flag.Parse()
 
 	if flag.NArg() != 1 {
@@ -32,6 +35,7 @@ func main() {
 	}
 
 	timeout = time.Duration(*timeoutFlag) * time.Second
+	port := *portFlag
 
 	ip := flag.Arg(0)
 
@@ -57,7 +61,7 @@ func main() {
 	// Print the user's answer with an info prefix
 	pterm.Info.Printfln("Your username: %s", name)
 
-	l, err := net.Listen("tcp", ip+":0")
+	l, err := net.Listen("tcp", ip+":"+strconv.Itoa(int(port)))
 	if err != nil {
 		logger.Error("failed to listen on address", "address:"+ip, err.Error())
 		panic(err)
@@ -77,14 +81,14 @@ func main() {
 		}
 		// Print a blank line for better readability
 		pterm.Println()
-		ipaddr, port, err := net.SplitHostPort(addr)
-		if err != nil {
-			logger.Error("invalid address format: " + addr + "\n error: " + err.Error())
-			continue
-		}
 		localIp, _, err := net.SplitHostPort(l.Addr().String())
 		if err != nil {
 			panic(err)
+		}
+		ipaddr, port, err := splitHostPort(addr, defaultPort)
+		if err != nil {
+			logger.Error("invalid address format: " + addr + "\n error: " + err.Error())
+			continue
 		}
 		guessedAddr, err := guessIpAddress(net.ParseIP(localIp), ipaddr)
 		if err != nil {

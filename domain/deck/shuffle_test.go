@@ -20,7 +20,7 @@ func TestShuffle(t *testing.T) {
 				DeckSize: 52,
 				Peer:     network.NewP2P(&p),
 			}
-			defer func() { 
+			defer func() {
 				if err := deck.Peer.Close(); err != nil {
 					errChan <- err
 				}

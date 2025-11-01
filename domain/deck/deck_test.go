@@ -24,7 +24,7 @@ func TestAllToAllSingle(t *testing.T) {
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
-			defer func() { 
+			defer func() {
 				if err := d.Peer.Close(); err != nil {
 					errChan <- err
 				}
@@ -84,7 +84,7 @@ func TestBroadcastMultiple(t *testing.T) {
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
-			defer func() { 
+			defer func() {
 				if err := d.Peer.Close(); err != nil {
 					errChan <- err
 				}
@@ -129,7 +129,7 @@ func TestBroadcastSingle(t *testing.T) {
 			d := Deck{
 				Peer: network.NewP2P(&p),
 			}
-			defer func() { 
+			defer func() {
 				if err := d.Peer.Close(); err != nil {
 					errChan <- err
 				}
@@ -171,7 +171,7 @@ func TestGenerateRandomElement(t *testing.T) {
 				DeckSize: 52,
 				Peer:     network.NewP2P(&peer),
 			}
-			defer func() { 
+			defer func() {
 				if err := deck.Peer.Close(); err != nil {
 					errChan <- err
 				}
@@ -227,7 +227,7 @@ func TestDrawCardOpenCard(t *testing.T) {
 				DeckSize: 52,
 				Peer:     network.NewP2P(&p),
 			}
-			defer func() { 
+			defer func() {
 				if err := deck.Peer.Close(); err != nil {
 					errChan <- err
 				}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -61,4 +62,16 @@ func subnetOfListener(l *net.TCPListener) (net.IPNet, error) {
 		}
 	}
 	return net.IPNet{}, fmt.Errorf("no interface found for ip %v", ip)
+}
+
+func splitHostPort(addr string, defaultPort int) (string, string, error) {
+	ipaddr, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		addr = addr + ":" + strconv.Itoa(defaultPort)
+		ipaddr, port, err = net.SplitHostPort(addr)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	return ipaddr, port, nil
 }

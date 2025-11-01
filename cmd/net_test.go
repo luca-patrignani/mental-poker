@@ -72,3 +72,30 @@ func TestSubnetOfListener(t *testing.T) {
 		t.Fatalf("expected subnet %s to contain 127.0.0.1", ipnet.String())
 	}
 }
+
+func TestSplitHostPort(t *testing.T) {
+	testCases := []struct {
+		address      string
+		expectedHost string
+		expectedPort string
+	}{
+		{"192.168.0.1:12345", "192.168.0.1", "12345"},
+		{"192.168.0.1", "192.168.0.1", "8080"},
+		{"192.168.0:12345", "192.168.0", "12345"},
+		{"192.168.0", "192.168.0", "8080"},
+		{"", "", "8080"},
+		{":5432", "", "5432"},
+	}
+	for _, tc := range testCases {
+		host, port, err := splitHostPort(tc.address, 8080)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if host != tc.expectedHost {
+			t.Fatalf("expected host %s, actual %s", tc.expectedHost, host)
+		}
+		if port != tc.expectedPort {
+			t.Fatalf("expected port %s, actual %s", tc.expectedPort, port)
+		}
+	}
+}
