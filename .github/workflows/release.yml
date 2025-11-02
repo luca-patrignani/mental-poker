@@ -7,9 +7,9 @@ on:
       - completed
     branches:
       - main
-    push:
-      tags:
-        - 'v*'
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
