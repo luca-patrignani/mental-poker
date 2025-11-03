@@ -44,6 +44,7 @@ func main() {
 
 	// Create a new slog logger with the handler
 	logger := slog.New(handler)
+	pterm.Print("\n")
 
 	pterm.DefaultBigText.WithLetters(
 		putils.LettersFromStringWithStyle("M", pterm.FgRed.ToStyle()),
@@ -60,13 +61,27 @@ func main() {
 
 	// Print the user's answer with an info prefix
 	pterm.Info.Printfln("Your username: %s", name)
-
+	info := "Listening on "
+	localIp := ""
 	l, err := net.Listen("tcp", ip+":"+strconv.Itoa(int(port)))
 	if err != nil {
-		logger.Error("failed to listen on address", "address:"+ip, err.Error())
-		panic(err)
+		logger.Warn(err.Error())
+		var fatalErr error
+		l, fatalErr = net.Listen("tcp", ip+":0")
+		if fatalErr != nil {
+			panic(err)
+		}
+		log := fmt.Sprintf("New port choosen for listening: %s", l.Addr().String())
+		logger.Info(log)
+		localIp = l.Addr().String()
+		info += localIp
+	} else {
+		localIp, _, err = net.SplitHostPort(l.Addr().String())
+		if err != nil {
+			panic(err)
+		}
+		info += localIp
 	}
-	info := "Listening on " + l.Addr().String()
 
 	pterm.Info.Println(info)
 
@@ -75,7 +90,10 @@ func main() {
 
 	addresses := []string{l.Addr().String()}
 	for {
-		addr, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter his address and port in ipaddr:port format. When done, type done").WithDefaultValue("").Show()
+		addr, _ := pterm.DefaultInteractiveTextInput.
+			WithDefaultText("Enter the last number of the addresses of the players separated by Enter. After that, type done").
+			WithDefaultValue("").Show()
+
 		if addr == "done" {
 			break
 		}
@@ -90,6 +108,7 @@ func main() {
 			logger.Error("invalid address format: " + addr + "\n error: " + err.Error())
 			continue
 		}
+
 		guessedAddr, err := guessIpAddress(net.ParseIP(localIp), ipaddr)
 		if err != nil {
 			logger.Error("could not guess address for: " + addr + "\n error: " + err.Error())
