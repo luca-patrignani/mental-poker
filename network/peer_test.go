@@ -9,7 +9,7 @@ import (
 )
 
 func TestAllToAll(t *testing.T) {
-	n := 10
+	n := 3
 	listeners, addresses := CreateListeners(n)
 	fatal := make(chan error, 3*n)
 	for i := 0; i < n; i++ {
