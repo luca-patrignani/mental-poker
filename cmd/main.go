@@ -525,15 +525,15 @@ func printState(psm poker.PokerManager, additionalPanel ...pterm.Panel) {
 	var mainPlayer pterm.Panel
 	for _, p := range s.Players {
 		if p.Id != psm.Player {
-			pInfo := printPlayerInfo(p)
+			pInfo := printPlayerInfo(p,false)
 			panel := pterm.Panel{Data: pInfo}
 			panels = append(panels, panel)
 		} else {
 
-			mainPlayer = pterm.Panel{Data: printMainInfo(p)}
+			mainPlayer = pterm.Panel{Data: printPlayerInfo(p,true)}
 		}
 	}
-	board := pterm.Panel{Data: pterm.DefaultHeader.WithBackgroundStyle(pterm.BgGreen.ToStyle()).Sprintf(printBoardInfo(s.Board[:], psm.Session.Round, s.Pots))}
+	board := pterm.Panel{Data: printBoardInfo(s.Board[:], psm.Session.Round, s.Pots)}
 	dashboard := []pterm.Panel{mainPlayer}
 	dashboard = append(dashboard, additionalPanel...)
 
@@ -544,26 +544,20 @@ func printState(psm poker.PokerManager, additionalPanel ...pterm.Panel) {
 	}).Render()
 }
 
-func printPlayerInfo(p poker.Player) string {
-	pbox := pterm.DefaultBox.WithHorizontalPadding(4).WithTopPadding(1).WithBottomPadding(1)
+func printPlayerInfo(p poker.Player, main bool) string {
+	hpadding := 4
+	if main {
+		hpadding = 10
+	}
+	pbox := pterm.DefaultBox.WithHorizontalPadding(hpadding).WithTopPadding(1).WithBottomPadding(1)
 	var active string
 	if p.HasFolded {
 		active = pterm.LightRed("Folded")
 	} else {
 		active = pterm.LightGreen("Active")
 	}
-	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("Current Bet: %d\nBankroll: %d\n%s - %s\n%s", p.Bet, p.Pot, p.Hand[0].String(), p.Hand[1].String(), active)
-}
-
-func printMainInfo(p poker.Player) string {
-	pbox := pterm.DefaultBox.WithHorizontalPadding(10).WithTopPadding(1).WithBottomPadding(1)
-	var active string
-	if p.HasFolded {
-		active = pterm.LightRed("Folded")
-	} else {
-		active = pterm.LightGreen("Active")
-	}
-	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("Current Bet: %d\nBankroll: %d\n%s - %s\n%s", p.Bet, p.Pot, p.Hand[0].String(), p.Hand[1].String(), active)
+	hand := pterm.BgGreen.Sprintf("%s - %s",p.Hand[0].String(), p.Hand[1].String())
+	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("%s\nCurrent Bet: %d\nBankroll: %d\n%s\n",active, p.Bet, p.Pot, hand)
 }
 
 func printBoardInfo(b []poker.Card, round poker.Round, pots []poker.Pot) string {
@@ -575,5 +569,5 @@ func printBoardInfo(b []poker.Card, round poker.Round, pots []poker.Pot) string 
 		board += " Pot" + strconv.Itoa(i) + ": " + strconv.Itoa(int(p.Amount)) + " | "
 	}
 
-	return board + string(round)
+	return pterm.BgGreen.Sprint("\n"+board + string(round)+"\n")
 }
