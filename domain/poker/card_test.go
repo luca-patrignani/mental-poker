@@ -108,10 +108,10 @@ func TestCardString_AllSuits(t *testing.T) {
 		suit     uint8
 		expected string
 	}{
-		{Club, "♣"},
+		{Club, pterm.Black("♣")},
 		{Diamond, pterm.LightRed("♦")},
 		{Heart, pterm.LightRed("♥")},
-		{Spade, "♠"},
+		{Spade, pterm.Black("♠")},
 	}
 
 	for _, tc := range suits {

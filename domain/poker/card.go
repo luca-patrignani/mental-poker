@@ -58,13 +58,13 @@ func (c Card) String() string {
 	var suit string
 	switch c.suit {
 	case 0:
-		suit = "♣"
+		suit = pterm.Black("♣")
 	case 1:
 		suit = pterm.LightRed("♦")
 	case 2:
 		suit = pterm.LightRed("♥")
 	case 3:
-		suit = "♠"
+		suit = pterm.Black("♠")
 	default:
 		suit = "?"
 	}
