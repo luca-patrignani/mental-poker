@@ -143,6 +143,25 @@ func (d *Deck) OpenCard(player int, card int) (int, error) {
 	return cardRecv, nil
 }
 
+// The player with rank leaver leave the game and remove his secret key from the deck
+func (d *Deck) LeaveGame(leaver int) error {
+	for i, c := range d.encryptedDeck {
+		for j := range d.Peer.GetPeerCount() {
+			if j == leaver {
+				xj_1 := suite.Scalar().Inv(d.secretKey)
+				c.Mul(xj_1, c)
+			}
+			var err error
+			c, err = d.broadcastSingle(c, leaver)
+			if err != nil {
+				return err
+			}
+			d.encryptedDeck[i] = c
+		}
+	}
+	return nil
+}
+
 // Broadcast of a single card from all the source
 func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	dataSend, err := bufferSend.MarshalBinary()

@@ -46,13 +46,16 @@ func main() {
 	logger := slog.New(handler)
 	pterm.Print("\n")
 
-	pterm.DefaultBigText.WithLetters(
+	title, err := pterm.DefaultBigText.WithLetters(
 		putils.LettersFromStringWithStyle("M", pterm.FgRed.ToStyle()),
 		putils.LettersFromStringWithStyle("ental ", pterm.FgDarkGray.ToStyle()),
 		putils.LettersFromStringWithStyle("P", pterm.FgRed.ToStyle()),
 		putils.LettersFromStringWithStyle("oker", pterm.FgDarkGray.ToStyle()),
-	).Render()
-
+	).Srender()
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	pterm.Print(title)
 	// Create an interactive text input with single line input mode and show it
 	name, _ := pterm.DefaultInteractiveTextInput.WithDefaultText("Enter your username").WithDefaultValue(" ").Show()
 
@@ -132,7 +135,7 @@ func main() {
 		panic(err)
 	}
 	spinner.Success()
-	pterm.Success.Printfln("Succesfully connected with %d players", len(names)-1)
+	pterm.Success.Printfln("Succesfully discovered with %d players", len(names)-1)
 	for i, name := range names {
 		msg := fmt.Sprintf(" %s: %s", p2p.GetAddresses()[i], string(name))
 		logger.Info(msg)
@@ -180,10 +183,15 @@ func main() {
 		blockchain,
 		p2p,
 	)
+	spinner, _ = pterm.DefaultSpinner.Start("Exchanging keys with the other players...")
+
 	if err := node.UpdatePeers(); err != nil {
+		spinner.Fail()
 		panic(err)
 	}
-	//area, _ := pterm.DefaultArea.Start()
+	spinner.Success()
+
+	area, _ := pterm.DefaultArea.Start()
 	for {
 		spinner, _ := pterm.DefaultSpinner.Start("Shuffling the cards ...")
 
@@ -200,9 +208,12 @@ func main() {
 			panic(err)
 		}
 		spinner.Success()
+		spinner, _ = pterm.DefaultSpinner.Start("Posting blinds ...")
 		if err := postBlinds(&pokerManager, node, 5); err != nil {
+			spinner.Fail()
 			panic(err)
 		}
+		spinner.Success()
 
 		printState(pokerManager)
 		for {
@@ -221,6 +232,7 @@ func main() {
 				if err != nil {
 					logger.Error(err.Error())
 				}
+				area.Update()
 				printState(pokerManager, panel)
 				if err := applyShowdown(pokerManager, *node, myRank); err != nil {
 					panic(err)
@@ -254,13 +266,31 @@ func main() {
 					panic(err)
 				}
 			}
-			//area.Update()
+			area.Update()
 			printState(pokerManager)
 		}
+		leave, leaveList, err := askForLeavers(pokerManager, *node, deck, *p2p)
+		if err != nil {
+			panic(err)
+		}
+		for _, name := range leaveList {
+			log := fmt.Sprintf("%s left the game", pterm.Cyan(name))
+			logger.Warn(log)
+		}
+		if leave {
+			break
+		}
+		if len(pokerManager.Session.Players) < 2 {
+			time.Sleep(3 * time.Second)
+		}
+
 		logger.Info("Starting a new match")
 		pokerManager.PrepareNextMatch()
 	}
-	//area.Stop()
+
+	area.Stop()
+	pterm.Println("Thank you for playing...")
+	pterm.Print(title)
 
 }
 
@@ -476,98 +506,62 @@ func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank 
 	return nil
 }
 
-func getWinnerPanel(psm poker.PokerManager) (pterm.Panel, error) {
-	winners, err := psm.GetWinners()
-	if err != nil {
-		return pterm.Panel{}, err
-	}
-	pbox := pterm.DefaultBox.WithHorizontalPadding(4).WithTopPadding(1).WithBottomPadding(1)
-	infoString := ""
-	if len(winners) == 1 {
-		var id int
-		finalAmount := 0
-		for winner, amount := range winners {
-			id = winner
-			finalAmount += int(amount)
-		}
-		info, err := printSingleWinnerInfo(psm, id, finalAmount)
-		if err != nil {
-			return pterm.Panel{}, err
-		}
-		infoString += info
-	} else {
-		for winner, amount := range winners {
-			info, err := printSingleWinnerInfo(psm, winner, int(amount))
-			if err != nil {
-				return pterm.Panel{}, err
-			}
-			infoString += info
-		}
-	}
-	return pterm.Panel{Data: pbox.WithTitle(pterm.LightGreen("|SHOWDOWN|")).WithTitleTopCenter().Sprintf(infoString)}, nil
-}
-
-func printSingleWinnerInfo(psm poker.PokerManager, id int, amount int) (string, error) {
-	s := psm.GetSession()
-	idx := psm.FindPlayerIndex(id)
-	p := s.Players[idx]
-	hand, err := s.DescribeHand(idx)
-	if err != nil {
-		return "", err
-	}
-	playerString := pterm.Sprintfln("%s won %d with %s", pterm.LightCyan(p.Name), amount, hand)
-	return playerString, nil
-}
-
-func printState(psm poker.PokerManager, additionalPanel ...pterm.Panel) {
-	s := psm.GetSession()
-	var panels []pterm.Panel
-	var mainPlayer pterm.Panel
-	for _, p := range s.Players {
-		if p.Id != psm.Player {
-			pInfo := printPlayerInfo(p,false)
-			panel := pterm.Panel{Data: pInfo}
-			panels = append(panels, panel)
+func askForLeavers(psm poker.PokerManager, node consensus.ConsensusNode, deck poker.PokerDeck, p2p network.P2P) (bool, []string, error) {
+	area, _ := pterm.DefaultArea.Start()
+	var playersThatLeft []string
+	for {
+		ready, _ := pterm.DefaultInteractiveConfirm.
+			WithDefaultText("Ready for the next Round?").WithDefaultValue(true).Show()
+		action := ""
+		if ready {
+			action = "start a new game?"
 		} else {
-
-			mainPlayer = pterm.Panel{Data: printPlayerInfo(p,true)}
+			action = "leave the game?"
 		}
+		if confirm, _ := pterm.DefaultInteractiveConfirm.
+			WithDefaultText(fmt.Sprintf("Confirm to %s", action)).WithDefaultValue(true).Show(); confirm {
+			spinner, _ := pterm.DefaultSpinner.Start("Waiting for the other player to choose...")
+			var response [][]byte
+			var err error
+			if ready {
+				response, err = p2p.AllToAll([]byte{byte(1)})
+			} else {
+				response, err = p2p.AllToAll([]byte{byte(0)})
+			}
+			if err != nil {
+				spinner.Fail()
+				return true, []string{}, err
+			}
+			for i, r := range response {
+				if r[i] == byte(0) {
+					err = deck.LeaveGame(i)
+					if err != nil {
+						spinner.Fail()
+						return true, []string{}, err
+					}
+					node.RemoveNode(i)
+					p2p.RemovePeer(i)
+					p, err := psm.RemoveByID(i)
+					if err != nil {
+						spinner.Fail()
+						return true, []string{}, err
+					}
+					playersThatLeft = append(playersThatLeft, p.Name)
+					if i == p2p.GetRank() {
+						err := p2p.Close()
+						if err != nil {
+							spinner.Fail()
+							return true, []string{}, err
+						}
+					}
+				}
+			}
+			spinner.Success()
+			break
+		}
+		area.Update()
+		pterm.Info.Println("Action cancelled.")
 	}
-	board := pterm.Panel{Data: printBoardInfo(s.Board[:], psm.Session.Round, s.Pots)}
-	dashboard := []pterm.Panel{mainPlayer}
-	dashboard = append(dashboard, additionalPanel...)
 
-	pterm.DefaultPanel.WithPanels([][]pterm.Panel{
-		panels,
-		{board},
-		dashboard,
-	}).Render()
-}
-
-func printPlayerInfo(p poker.Player, main bool) string {
-	hpadding := 4
-	if main {
-		hpadding = 10
-	}
-	pbox := pterm.DefaultBox.WithHorizontalPadding(hpadding).WithTopPadding(1).WithBottomPadding(1)
-	var active string
-	if p.HasFolded {
-		active = pterm.LightRed("Folded")
-	} else {
-		active = pterm.LightGreen("Active")
-	}
-	hand := pterm.BgGreen.Sprintf("%s - %s",p.Hand[0].String(), p.Hand[1].String())
-	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("%s\nCurrent Bet: %d\nBankroll: %d\n%s\n",active, p.Bet, p.Pot, hand)
-}
-
-func printBoardInfo(b []poker.Card, round poker.Round, pots []poker.Pot) string {
-	board := ""
-	for _, c := range b {
-		board += c.String() + " - "
-	}
-	for i, p := range pots {
-		board += " Pot" + strconv.Itoa(i) + ": " + strconv.Itoa(int(p.Amount)) + " | "
-	}
-
-	return pterm.BgGreen.Sprint("\n"+board + string(round)+"\n")
+	return false, playersThatLeft, nil
 }
