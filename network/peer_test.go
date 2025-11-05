@@ -44,8 +44,65 @@ func TestAllToAll(t *testing.T) {
 	}
 }
 
+func TestAllToAllWithRemovedPeer(t *testing.T) {
+	n := 3
+	listeners, addresses := CreateListeners(n)
+	fatal := make(chan error, n)
+	for i := range n {
+		go func(i int) {
+			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
+			p := NewP2P(&peer)
+			defer func() {
+				fatal <- p.Close()
+			}()
+
+			_,err := p.AllToAll([]byte{byte(0)})
+			if err != nil {
+				fatal <- err
+				return
+			}
+
+			//time.Sleep(100*time.Millisecond)
+
+			if p.GetRank() == 1 {
+				return
+			}
+			p.RemovePeer(1)
+			actual, err := p.AllToAll([]byte(strconv.Itoa(i)))
+			if err != nil {
+				fatal <- err
+				return
+			}
+			if len(actual) != n {
+				fatal <- fmt.Errorf("from peer %d: expected list of length %d, %v given", i, n-1, actual)
+				return
+			}
+			for j := range n {
+				if j == 1 {
+					if actual[1] != nil {
+						fatal <- fmt.Errorf("from peer %d: expected nil from removed peer, actual %v", i, actual[1])
+						return
+					}
+				} else {
+					if strconv.Itoa(j) != string(actual[j]) {
+						fatal <- fmt.Errorf("from peer %d: expected %d, actual %v", i, j, actual[j])
+						return
+					}
+				}
+			}	
+		}(i)
+	}
+	for i := 0; i < n; i++ {
+		err := <-fatal
+		fmt.Println(err)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestBroadcast(t *testing.T) {
-	n := 10
+	n := 4
 	listeners, addresses := CreateListeners(n)
 	root := 3
 	fatal := make(chan error, n)

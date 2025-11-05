@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -136,10 +137,18 @@ func (p *Peer) BroadcastwithTimeout(data []byte, rank int, timeout time.Duration
 func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 	size, b := maxKey(p.Addresses)
 	if !b {
-		return 
+		return nil, fmt.Errorf("no addresses found")
 	}
+
+	var orderedRanks []int
+    for k := range p.Addresses {
+		fmt.Printf("keys in adress: %d\n",k)
+        orderedRanks = append(orderedRanks, k)
+    }
+    sort.Ints(orderedRanks)
+
 	bufferRecv = make([][]byte, size+1)
-	for i := range p.Addresses {
+	for _,i := range orderedRanks {
 		recv, err := p.broadcastNoBarrier(bufferSend, i)
 		if err != nil {
 			return nil, err
@@ -229,7 +238,7 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		client := http.Client{Timeout: p.timeout}
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
-				fmt.Printf("Node %d requesting post to %d\n",p.Rank,i)
+				//fmt.Printf("Node %d requesting post to %d\n",p.Rank,i)
 				req, err := http.NewRequest("POST", "http://"+addr, strings.NewReader(string(bufferSend)))
 				if err != nil {
 					return nil, err
