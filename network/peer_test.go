@@ -56,7 +56,7 @@ func TestAllToAllWithRemovedPeer(t *testing.T) {
 				fatal <- p.Close()
 			}()
 
-			_,err := p.AllToAll([]byte{byte(0)})
+			_, err := p.AllToAll([]byte{byte(0)})
 			if err != nil {
 				fatal <- err
 				return
@@ -89,13 +89,61 @@ func TestAllToAllWithRemovedPeer(t *testing.T) {
 						return
 					}
 				}
-			}	
+			}
 		}(i)
 	}
 	for i := 0; i < n; i++ {
 		err := <-fatal
 		fmt.Println(err)
 		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestBroadcastWithRemovedPeer(t *testing.T) {
+	n := 3
+	listeners, addresses := CreateListeners(n)
+	fatal := make(chan error, n)
+	removed := 1
+	root := 0
+
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
+			p := NewP2P(&peer)
+			defer func() {
+				fatal <- p.Close()
+			}()
+
+			// initial broadcast to synchronize
+			_, err := p.Broadcast([]byte{byte(i)}, root)
+			if err != nil {
+				fatal <- err
+				return
+			}
+
+			// removed peer does not participate in the following broadcast
+			if p.GetRank() == removed {
+				return
+			}
+
+			// other peers remove the peer and then perform a broadcast
+			p.RemovePeer(removed)
+			recv, err := p.Broadcast([]byte(strconv.Itoa(i)), root)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			if strconv.Itoa(root) != string(recv) {
+				fatal <- fmt.Errorf("from peer %d: expected %d, actual %v", i, root, recv)
+				return
+			}
+		}(i)
+	}
+
+	for i := 0; i < n; i++ {
+		if err := <-fatal; err != nil {
 			t.Fatal(err)
 		}
 	}

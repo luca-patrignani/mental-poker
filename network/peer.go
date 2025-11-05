@@ -35,7 +35,7 @@ func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Du
 	}
 	p := Peer{
 		Rank:      rank,
-		Addresses: addresses,
+		Addresses: copyMap(addresses),
 		clock:     0,
 		server:    &http.Server{Addr: addresses[rank], Handler: handler},
 		handler:   handler,
@@ -141,14 +141,14 @@ func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 	}
 
 	var orderedRanks []int
-    for k := range p.Addresses {
-		fmt.Printf("keys in adress: %d\n",k)
-        orderedRanks = append(orderedRanks, k)
-    }
-    sort.Ints(orderedRanks)
+	for k := range p.Addresses {
+		fmt.Printf("keys in adress: %d\n", k)
+		orderedRanks = append(orderedRanks, k)
+	}
+	sort.Ints(orderedRanks)
 
 	bufferRecv = make([][]byte, size+1)
-	for _,i := range orderedRanks {
+	for _, i := range orderedRanks {
 		recv, err := p.broadcastNoBarrier(bufferSend, i)
 		if err != nil {
 			return nil, err
@@ -285,12 +285,20 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 }
 
 func maxKey(m map[int]string) (max int, ok bool) {
-    ok = false
-    for k := range m {
-        if !ok || k > max {
-            max = k
-            ok = true
-        }
-    }
-    return
+	ok = false
+	for k := range m {
+		if !ok || k > max {
+			max = k
+			ok = true
+		}
+	}
+	return
+}
+
+func copyMap(original map[int]string) map[int]string {
+	copied := make(map[int]string)
+	for k, v := range original {
+		copied[k] = v
+	}
+	return copied
 }
