@@ -89,6 +89,11 @@ func (node ConsensusNode) GetPriv() ed25519.PrivateKey {
 	return node.priv
 }
 
+func (node *ConsensusNode) RemoveNode(leaver int) {
+	delete(node.playersPK, leaver)
+	node.quorum = computeQuorum(len(node.playersPK))
+}
+
 // UpdatePeers exchanges public keys with all peers in an AllToAll operation and updates
 // the node's peer mapping and quorum threshold accordingly.
 func (node *ConsensusNode) UpdatePeers() error {

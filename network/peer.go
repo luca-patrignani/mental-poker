@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -34,7 +35,7 @@ func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Du
 	}
 	p := Peer{
 		Rank:      rank,
-		Addresses: addresses,
+		Addresses: copyMap(addresses),
 		clock:     0,
 		server:    &http.Server{Addr: addresses[rank], Handler: handler},
 		handler:   handler,
@@ -134,8 +135,19 @@ func (p *Peer) BroadcastwithTimeout(data []byte, rank int, timeout time.Duration
 // bufferRecv[i] will contain the value sent by the Peer with Rank i.
 // This function will implicitly synchronize the peers.
 func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
-	bufferRecv = make([][]byte, len(p.Addresses))
-	for i := 0; i < len(p.Addresses); i++ {
+	size, b := maxKey(p.Addresses)
+	if !b {
+		return nil, fmt.Errorf("no addresses found")
+	}
+
+	var orderedRanks []int
+	for k := range p.Addresses {
+		orderedRanks = append(orderedRanks, k)
+	}
+	sort.Ints(orderedRanks)
+
+	bufferRecv = make([][]byte, size+1)
+	for _, i := range orderedRanks {
 		recv, err := p.broadcastNoBarrier(bufferSend, i)
 		if err != nil {
 			return nil, err
@@ -225,6 +237,7 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		client := http.Client{Timeout: p.timeout}
 		for i, addr := range p.Addresses {
 			if i != p.Rank {
+				//fmt.Printf("Node %d requesting post to %d\n",p.Rank,i)
 				req, err := http.NewRequest("POST", "http://"+addr, strings.NewReader(string(bufferSend)))
 				if err != nil {
 					return nil, err
@@ -268,4 +281,23 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		return nil, errors.Join(err, fmt.Errorf("the peer waiting for connection timed out"))
 	}
 	return recv, nil
+}
+
+func maxKey(m map[int]string) (max int, ok bool) {
+	ok = false
+	for k := range m {
+		if !ok || k > max {
+			max = k
+			ok = true
+		}
+	}
+	return
+}
+
+func copyMap(original map[int]string) map[int]string {
+	copied := make(map[int]string)
+	for k, v := range original {
+		copied[k] = v
+	}
+	return copied
 }

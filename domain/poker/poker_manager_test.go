@@ -165,3 +165,32 @@ func TestManager_NotifyBan(t *testing.T) {
 		t.Fatal("ban notification has wrong content")
 	}
 }
+
+func TestManager_RemoveById(t *testing.T) {
+	session := &Session{
+		Round: "preflop",
+		Players: []Player{
+			{Id: 123, Name: "Alice", Pot: 100},
+			{Id: 32, Name: "Fabio", Pot: 100},
+			{Id: 54, Name: "Gianni", Pot: 100},
+			{Id: 2, Name: "Luca", Pot: 100}},
+	}
+
+	sm := &PokerManager{session, 54}
+	p, err := sm.RemoveByID(54)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if p.Id != 54 {
+		t.Fatalf("Removed the wrong player: expected 54, instead of %d", p.Id)
+	}
+	if len(sm.Session.Players) != 3 {
+		t.Fatal("Player not removed")
+	}
+	for i, p := range sm.Session.Players {
+		if p.Id == 54 {
+			t.Fatalf("Player 54 was exepected to be removed, instead is present at index %d", i)
+		}
+	}
+}
