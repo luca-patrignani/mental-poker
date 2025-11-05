@@ -142,7 +142,6 @@ func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 
 	var orderedRanks []int
 	for k := range p.Addresses {
-		fmt.Printf("keys in adress: %d\n", k)
 		orderedRanks = append(orderedRanks, k)
 	}
 	sort.Ints(orderedRanks)
