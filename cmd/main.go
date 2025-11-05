@@ -533,25 +533,27 @@ func askForLeavers(psm poker.PokerManager, node consensus.ConsensusNode, deck po
 				return true, []string{}, err
 			}
 			for i, r := range response {
-				if r[i] == byte(0) {
-					err = deck.LeaveGame(i)
-					if err != nil {
-						spinner.Fail()
-						return true, []string{}, err
-					}
-					node.RemoveNode(i)
-					p2p.RemovePeer(i)
-					p, err := psm.RemoveByID(i)
-					if err != nil {
-						spinner.Fail()
-						return true, []string{}, err
-					}
-					playersThatLeft = append(playersThatLeft, p.Name)
-					if i == p2p.GetRank() {
-						err := p2p.Close()
+				if psm.FindPlayerIndex(i) != -1 {
+					if r[0] == byte(0) {
+						err = deck.LeaveGame(i)
 						if err != nil {
 							spinner.Fail()
 							return true, []string{}, err
+						}
+						node.RemoveNode(i)
+						p2p.RemovePeer(i)
+						p, err := psm.RemoveByID(i)
+						if err != nil {
+							spinner.Fail()
+							return true, []string{}, err
+						}
+						playersThatLeft = append(playersThatLeft, p.Name)
+						if i == p2p.GetRank() {
+							err := p2p.Close()
+							if err != nil {
+								spinner.Fail()
+								return true, []string{}, err
+							}
 						}
 					}
 				}
