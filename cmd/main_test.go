@@ -329,18 +329,12 @@ func TestAddBlind(t *testing.T) {
 			pub, priv, _ := ed25519.GenerateKey(nil)
 			playersPK := make(map[int]ed25519.PublicKey)
 			
-			pkBytes, err := p2ps[idx].AllToAll(pub)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			
-			for i, pk := range pkBytes {
-				playersPK[i] = pk
-			}
-			
 			bc, _ := ledger.NewBlockchain(session)
 			node := consensus.NewConsensusNode(pub, priv, playersPK, &psm, bc, p2ps[idx])
+			err := node.UpdatePeers()
+			if err != nil {
+				errChan <- err
+			}
 			
 			err = addBlind(&psm, node, 10)
 			errChan <- err

@@ -195,9 +195,8 @@ func (bc *Blockchain) calculateHash(block Block) (string, error) {
 	}
 
 	// Concatenate all data
-	data := fmt.Sprintf("%d%d%s%s%s%s%d%d",
+	data := fmt.Sprintf("%d%s%s%s%s%d%d",
 		block.Index,
-		block.Timestamp,
 		block.PrevHash,
 		string(actionBytes),
 		string(votesBytes),
