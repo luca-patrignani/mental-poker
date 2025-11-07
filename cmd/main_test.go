@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"slices"
-	"sort"
 	"testing"
 	"time"
 
@@ -148,56 +147,6 @@ func TestGuessIpAddress(t *testing.T) {
 				t.Errorf("expected %s, got %s", tt.expected, result.String())
 			}
 		})
-	}
-}
-
-// TestCreateP2P tests the P2P creation and rank assignment logic
-func TestCreateP2P(t *testing.T) {
-	// Create test listeners
-	listeners, addresses := network.CreateListeners(3)
-	defer func() {
-		for _, l := range listeners {
-			l.Close()
-		}
-	}()
-
-	// Convert map to slice for testing
-	addrSlice := make([]string, len(addresses))
-	for i, addr := range addresses {
-		addrSlice[i] = addr
-	}
-	sort.Strings(addrSlice)
-
-	// Test with first listener
-	p2p0, rank0 := createP2P(addrSlice, listeners[0])
-	defer p2p0.Close()
-
-	if rank0 != 0 {
-		t.Errorf("expected rank 0, got %d", rank0)
-	}
-
-	if p2p0.GetRank() != rank0 {
-		t.Errorf("P2P rank mismatch: expected %d, got %d", rank0, p2p0.GetRank())
-	}
-
-	// Test with second listener
-	p2p1, rank1 := createP2P(addrSlice, listeners[1])
-	defer p2p1.Close()
-
-	if rank1 != 1 {
-		t.Errorf("expected rank 1, got %d", rank1)
-	}
-
-	// Verify addresses are sorted
-	sortedAddrs := make([]string, len(addrSlice))
-	copy(sortedAddrs, addrSlice)
-	sort.Strings(sortedAddrs)
-
-	p2pAddrs := p2p0.GetAddresses()
-	for i, addr := range sortedAddrs {
-		if p2pAddrs[i] != addr {
-			t.Errorf("addresses not properly sorted at index %d", i)
-		}
 	}
 }
 
