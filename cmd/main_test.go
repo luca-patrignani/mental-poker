@@ -166,6 +166,7 @@ func TestCreateP2P(t *testing.T) {
 	for i, addr := range addresses {
 		addrSlice[i] = addr
 	}
+	sort.Strings(addrSlice)
 
 	// Test with first listener
 	p2p0, rank0 := createP2P(addrSlice, listeners[0])
