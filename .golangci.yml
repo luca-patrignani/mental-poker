@@ -2,6 +2,11 @@
 version: "2"
 
 linters:
+  settings:
+    govet:
+      disable:
+        - printf
+
   exclusions:
 
     # Excluding configuration per-path, per-linter, per-text and per-source.
