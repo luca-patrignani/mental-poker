@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/pterm/pterm"
@@ -222,6 +223,12 @@ func main() {
 				logger.Error(err.Error())
 				panic(err)
 			}
+			b, err := blockchain.GetLatest()
+			if err != nil {
+				logger.Error(err.Error())
+			}
+			actionPanel := getActionPanel(b.Action, pokerManager)
+
 			round := pokerManager.Session.Round
 			if round == poker.Showdown {
 				err := showCards(&pokerManager, &deck)
@@ -233,7 +240,7 @@ func main() {
 					logger.Error(err.Error())
 				}
 				area.Update()
-				printState(pokerManager, panel)
+				printState(pokerManager, panel, actionPanel)
 				if err := applyShowdown(pokerManager, *node, myRank); err != nil {
 					panic(err)
 				}
@@ -267,7 +274,7 @@ func main() {
 				}
 			}
 			area.Update()
-			printState(pokerManager)
+			printState(pokerManager, actionPanel)
 		}
 		leave, leaveList, err := askForLeavers(pokerManager, *node, deck, *p2p)
 		if err != nil {
@@ -277,11 +284,16 @@ func main() {
 			log := fmt.Sprintf("%s left the game", pterm.Cyan(name))
 			logger.Warn(log)
 		}
-		if leave {
+		pRemained := len(pokerManager.Session.Players)
+		if pRemained <= 1 {
+			if pRemained == 1 {
+				pterm.Info.Printfln("Last player remained: %s", pokerManager.Session.Players[0].Name)
+			}
+			logger.Info("Not enough players to continue the game. Exiting...")
 			break
 		}
-		if len(pokerManager.Session.Players) < 2 {
-			time.Sleep(3 * time.Second)
+		if leave {
+			break
 		}
 
 		logger.Info("Starting a new match")
@@ -423,16 +435,76 @@ func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uin
 }
 
 func inputAction(pokerManager poker.PokerManager, consensusNode consensus.ConsensusNode, myRank int) error {
+	var timedOut uint32 = 0 // use atomic access to avoid races
+	isPlayerTurn := pokerManager.Session.CurrentTurn == uint(pokerManager.FindPlayerIndex(myRank))
+
+	duration := timeout - 5*time.Second
+	if duration <= 0 {
+		duration = 1 * time.Second
+	}
+	if isPlayerTurn {
+		deadline := time.Now().Add(duration)
+
+		done := make(chan struct{})
+		ticker := time.NewTicker(500 * time.Millisecond)
+
+		// ensure goroutine is cancelled when this function returns
+		defer func() {
+			close(done)
+			ticker.Stop()
+		}()
+
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					if time.Now().After(deadline) {
+						// mark timedOut in a race-free way; main goroutine can read this via
+						// atomic.LoadUint32(&timedOut) == 1
+						atomic.StoreUint32(&timedOut, 1)
+
+						// Fallback automatic fold in case you also want the goroutine to propose:
+						if isPlayerTurn {
+							action, err := consensus.MakeAction(myRank, pokerManager.ActionCheck())
+							if err != nil {
+								panic(err)
+							}
+							if val := pokerManager.Validate(action.Payload); val != nil {
+								action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
+								if err != nil {
+									panic(err)
+								}
+							}
+							if err := action.Sign(consensusNode.GetPriv()); err != nil {
+								panic(err)
+							}
+							err = consensusNode.ProposeAction(&action)
+							if err != nil {
+								panic(err)
+							}
+						}
+						return
+					}
+				case <-done:
+					return
+				}
+			}
+		}()
+	}
 	actions := []string{"Fold", "Check", "Call", "Raise", "AllIn"}
 	raiseAmount := "0"
 	selectedAction := ""
 	var action consensus.Action
-	area, _ := pterm.DefaultArea.Start()
-	if pokerManager.Session.CurrentTurn == uint(pokerManager.FindPlayerIndex(myRank)) {
+	if isPlayerTurn {
+		timeout := fmt.Sprintf("%d", duration/time.Second)
+		text := pterm.Sprintf("Defaulting to Check/Fold in %s seconds ...", pterm.LightCyan(timeout))
+		spinner, _ := pterm.DefaultSpinner.WithRemoveWhenDone(true).Start(text)
+		area, _ := pterm.DefaultArea.Start()
 		for {
 			var err error
 			selectedAction, _ = pterm.DefaultInteractiveSelect.WithDefaultText("Select your next action").WithOptions(actions).Show()
 			if selectedAction == "Raise" {
+				spinner.Stop()
 				raiseAmount, _ = pterm.DefaultInteractiveTextInput.WithDefaultText("Enter the amount to raise").Show()
 			}
 			switch selectedAction {
@@ -455,12 +527,18 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 				pterm.Error.Println("Error creating the action")
 				continue
 			}
+			if timedOut := atomic.LoadUint32(&timedOut); timedOut == 1 {
+				spinner.Stop()
+				area.Update()
+				pterm.Error.Println("Action timed out, defaulting to Check/Fold")
+				return nil
+			}
 			if val := pokerManager.Validate(action.Payload); val != nil {
 				area.Update()
 				pterm.Error.Printfln("Invalid action: %s", val.Error())
 				continue
 			}
-
+			spinner.Stop()
 			if confirm, _ := pterm.DefaultInteractiveConfirm.WithDefaultText(fmt.Sprintf("Confirm to %s?", selectedAction)).WithDefaultValue(true).Show(); confirm {
 				break
 			}
@@ -469,6 +547,7 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 		}
 		area.Stop()
 		err := action.Sign(consensusNode.GetPriv())
+		spinner.Stop()
 		if err != nil {
 			return err
 		}
@@ -533,6 +612,9 @@ func askForLeavers(psm poker.PokerManager, node consensus.ConsensusNode, deck po
 				return true, []string{}, err
 			}
 			for i, r := range response {
+				if len(psm.Session.Players) <= 1 {
+					return true, playersThatLeft, nil
+				}
 				if psm.FindPlayerIndex(i) != -1 {
 					if r[0] == byte(0) {
 						err = deck.LeaveGame(i)

@@ -7,6 +7,19 @@ import (
 	"github.com/pterm/pterm"
 )
 
+func getActionPanel(pa poker.PokerAction, psm poker.PokerManager) pterm.Panel {
+	pbox := pterm.DefaultBox.WithHorizontalPadding(4).WithTopPadding(1).WithBottomPadding(1)
+	actionString := ""
+	p := psm.GetSession().Players
+	switch pa.Type {
+	case "raise":
+		actionString = pterm.Sprintfln("%s raised by %d", p[psm.FindPlayerIndex(pa.PlayerID)].Name, pa.Amount)
+	default:
+		actionString = pterm.Sprintfln("%s performed action: %s", p[psm.FindPlayerIndex(pa.PlayerID)].Name, pa.Type)
+	}
+	return pterm.Panel{Data: pbox.WithTitle(pterm.LightYellow("|LAST ACTION|")).WithTitleTopCenter().Sprintf(actionString)}
+}
+
 func getWinnerPanel(psm poker.PokerManager) (pterm.Panel, error) {
 	winners, err := psm.GetWinners()
 	if err != nil {
