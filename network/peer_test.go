@@ -1,6 +1,7 @@
 package network
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -192,7 +193,7 @@ func TestBroadcastTimeout(t *testing.T) {
 	fatal := make(chan error, n)
 	for i := 0; i < n-1; i++ {
 		go func() {
-			peer := NewPeer(i, addresses, listeners[i], 30*time.Second)
+			peer := NewPeer(i, addresses, listeners[i], 5*time.Second)
 			p := NewP2P(&peer)
 			_, err := p.Broadcast([]byte{0, byte(10 * i)}, root)
 			if err != nil {
@@ -204,6 +205,10 @@ func TestBroadcastTimeout(t *testing.T) {
 	}
 	for i := 0; i < n-1; i++ {
 		err := <-fatal
+		conerr := &ConnectionError{}
+		if !errors.As(err, &conerr) {
+			t.Fatal(fmt.Errorf("Expected a connection error, instead receive a generic error"))
+		}
 		if err == nil {
 			t.Fatal(err)
 		}

@@ -12,8 +12,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/pterm/pterm"
 )
 
 // Peer is an helper struct for communication between nodes.
@@ -28,6 +26,18 @@ type Peer struct {
 	timeout   time.Duration
 }
 
+type ConnectionError struct {
+	FaultAdresses map[int]string
+	Errors map[int]error
+}
+
+func (e *ConnectionError) Error() string {
+	return fmt.Sprintf("connection error with addresses: %v, error: %v", e.FaultAdresses, e.Errors)
+}
+
+// NewPeer creates a new Peer with given rank, addresses and listener.
+// The listener should be already bound to the address corresponding to the rank.
+// The timeout parameter specifies the duration to wait for responses during communication.
 func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Duration) Peer {
 	handler := &broadcastHandler{
 		contentChannel: make(chan []byte),
@@ -107,30 +117,6 @@ func (p *Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 	return bufferRecv, nil
 }
 
-// BroadcastwithTimeout executes a Broadcast communication to a specific peer rank with a
-// specified timeout duration. It retries every 5 seconds until a response is received or
-// the timeout is exceeded.
-func (p *Peer) BroadcastwithTimeout(data []byte, rank int, timeout time.Duration) ([]byte, error) {
-	var response []byte
-	start := time.Now()
-
-	for {
-		if time.Since(start) > timeout {
-			return response, fmt.Errorf("timeout: no message received")
-		}
-
-		response, err := p.Broadcast(data, rank)
-		if err == nil {
-
-			return response, nil
-		}
-		fmt.Printf("Error in broadcasting votes: %s, retry in 5 seconds\n", err)
-		time.Sleep(5000 * time.Millisecond)
-
-	}
-
-}
-
 // Each caller of AllToAll sends the content of bufferSend to every node.
 // bufferRecv[i] will contain the value sent by the Peer with Rank i.
 // This function will implicitly synchronize the peers.
@@ -155,37 +141,6 @@ func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 		bufferRecv[i] = recv
 	}
 	return
-}
-
-// AllToAllwithTimeout executes an AllToAll communication with a specified timeout duration.
-// It retries every 5 seconds until either all expected responses are received or the timeout
-// is exceeded. Returns partial results if timeout occurs.
-func (p *Peer) AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte, error) {
-	expected := len(p.Addresses)
-	var responses [][]byte
-	start := time.Now()
-
-	for {
-		if time.Since(start) > timeout {
-			return responses, fmt.Errorf("timeout: received %d of %d messages", len(responses), expected)
-		}
-
-		responses, err := p.AllToAll(data)
-		if err != nil {
-			fmt.Printf("Error in broadcasting: %v\n", err)
-		}
-
-		if responses == nil {
-			msg := fmt.Sprintf("Error in broadcasting: responses of length %d instead of %d", len(responses), expected)
-			pterm.Warning.Println(msg)
-		}
-		if len(responses) >= expected {
-			return responses, nil
-		}
-		pterm.Info.Println("Retry in 5 seconds. . .")
-		time.Sleep(5000 * time.Millisecond)
-	}
-
 }
 
 // barrier synchronizes the peers.
@@ -233,6 +188,10 @@ func CreateListeners(n int) (map[int]net.Listener, map[int]string) {
 // bufferRecv will contain the value sent by the Peer with Rank root.
 func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	p.clock++
+	connErr := &ConnectionError{
+		FaultAdresses: make(map[int]string),
+		Errors: make(map[int]error),
+	}
 	if root == p.Rank {
 		client := http.Client{Timeout: p.timeout}
 		for i, addr := range p.Addresses {
@@ -240,7 +199,9 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 				//fmt.Printf("Node %d requesting post to %d\n",p.Rank,i)
 				req, err := http.NewRequest("POST", "http://"+addr, strings.NewReader(string(bufferSend)))
 				if err != nil {
-					return nil, err
+					connErr.FaultAdresses[i] += addr
+					connErr.Errors[i] = errors.Join(connErr.Errors[i], err)
+					continue
 				}
 				req.Header["Clock"] = []string{fmt.Sprint(p.clock)}
 				req.Header["SenderRank"] = []string{fmt.Sprint(p.Rank)}
@@ -251,15 +212,27 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 					resp, err = client.Do(req)
 					if p.timeout > 0 && time.Since(start) > p.timeout {
 						if err != nil {
-							return nil, fmt.Errorf("connection attempts timed out with error %w", err)
+							connErr.FaultAdresses[i] += addr
+							connErr.Errors[i] = errors.Join(connErr.Errors[i], fmt.Errorf("connection attempts timed out with error %w", err))
+							break
 						}
-						return nil, fmt.Errorf("connection attempts timed out with status code %d", resp.StatusCode)
+						connErr.FaultAdresses[i] += addr
+						connErr.Errors[i] = errors.Join(connErr.Errors[i], fmt.Errorf("connection attempts timed out with status code %d", resp.StatusCode))
+						break
 					}
 				}
+				if resp == nil {
+					continue
+				}
 				if err := resp.Body.Close(); err != nil {
-					return nil, err
+					connErr.FaultAdresses[i] += addr
+					connErr.Errors[i] = errors.Join(connErr.Errors[i], err)
+					continue
 				}
 			}
+		}
+		if len(connErr.FaultAdresses) > 0 {
+			return nil, connErr
 		}
 		return bufferSend, nil
 	}
@@ -275,10 +248,14 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	case recv = <-p.handler.contentChannel:
 		break
 	case err := <-p.handler.errChannel:
-		return nil, err
+		connErr.FaultAdresses[root] = p.Addresses[root]
+		connErr.Errors[root] = err
+		return nil, connErr
 	case <-timeoutTicker:
 		err := p.Close()
-		return nil, errors.Join(err, fmt.Errorf("the peer waiting for connection timed out"))
+		connErr.FaultAdresses[root] = p.Addresses[root]
+		connErr.Errors[root] = errors.Join(err, fmt.Errorf("the peer waiting for connection timed out"))
+		return nil, connErr
 	}
 	return recv, nil
 }
