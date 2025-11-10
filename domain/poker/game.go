@@ -136,10 +136,15 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 	case ActionFold:
 		session.Players[idx].HasFolded = true
 		session.recalculatePots()
-		if session.isRoundFinished() {
-			session.advanceRound()
-		} else {
+		if onePlayerRemained(session.Pots) {
+			session.Round = Showdown
 			session.advanceTurn()
+		} else {
+			if session.isRoundFinished() {
+				session.advanceRound()
+			} else {
+				session.advanceTurn()
+			}
 		}
 	case ActionBet:
 		session.Players[idx].Bet += amount
