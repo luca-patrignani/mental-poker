@@ -286,15 +286,14 @@ func main() {
 			log := fmt.Sprintf("%s left the game", pterm.Cyan(name))
 			logger.Warn(log)
 		}
+		if leave {
+			break
+		}
 		pRemained := len(pokerManager.Session.Players)
 		if pRemained <= 1 {
 			if pRemained == 1 {
 				pterm.Info.Printfln("Last player remained: %s", pokerManager.Session.Players[0].Name)
 			}
-			logger.Info("Not enough players to continue the game. Exiting...")
-			break
-		}
-		if leave {
 			break
 		}
 
