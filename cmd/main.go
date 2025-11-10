@@ -231,9 +231,11 @@ func main() {
 
 			round := pokerManager.Session.Round
 			if round == poker.Showdown {
-				err := showCards(&pokerManager, &deck)
-				if err != nil {
-					logger.Error(err.Error())
+				if !session.OnePlayerRemained() {
+					err := showCards(&pokerManager, &deck)
+					if err != nil {
+						logger.Error(err.Error())
+					}
 				}
 				panel, err = getWinnerPanel(pokerManager)
 				if err != nil {

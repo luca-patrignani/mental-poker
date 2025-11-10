@@ -128,6 +128,10 @@ func onePlayerRemained(lists []Pot) bool {
 	return true
 }
 
+func (s *Session) OnePlayerRemained() bool {
+	return onePlayerRemained(s.Pots)
+}
+
 // ApplyAction applies a poker action to the session state and advances the turn to the next
 // eligible player. Supports fold, bet, raise, call, all-in, check, and ban actions.
 // Returns an error if the action type is unknown.

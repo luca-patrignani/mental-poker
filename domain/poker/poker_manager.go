@@ -98,6 +98,8 @@ func (psm *PokerManager) GetWinners() (map[int]uint, error) {
 func (psm *PokerManager) PrepareNextMatch() {
 	c, _ := NewCard(0, 0)
 	for i := range psm.Session.Players {
+		psm.Session.Players[i].HasFolded = false
+		psm.Session.Players[i].Bet = 0
 		psm.Session.Players[i].Hand[0] = c
 		psm.Session.Players[i].Hand[1] = c
 	}
