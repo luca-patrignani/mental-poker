@@ -110,6 +110,16 @@ func (psm *PokerManager) PrepareNextMatch() {
 	psm.Session.Pots = []Pot{{Amount: 0}}
 }
 
+func (psm *PokerManager) RemoveByID(id int) (Player, error) {
+	for i, p := range psm.Session.Players {
+		if p.Id == id {
+			psm.Session.Players = append(psm.Session.Players[:i], psm.Session.Players[i+1:]...)
+			return p, nil
+		}
+	}
+	return Player{}, fmt.Errorf("Player %d, not found", id) // nessun elemento rimosso se id non trovato
+}
+
 func (psm *PokerManager) ActionFold() PokerAction {
 	return PokerAction{
 		Round:    psm.Session.Round,

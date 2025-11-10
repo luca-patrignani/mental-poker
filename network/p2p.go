@@ -57,3 +57,7 @@ func (p *P2P) GetAddresses() map[int]string {
 func (p *P2P) Close() error {
 	return p.peer.Close()
 }
+
+func (p *P2P) RemovePeer(leaver int) {
+	delete(p.peer.Addresses, leaver)
+}
