@@ -231,9 +231,11 @@ func main() {
 
 			round := pokerManager.Session.Round
 			if round == poker.Showdown {
-				err := showCards(&pokerManager, &deck)
-				if err != nil {
-					logger.Error(err.Error())
+				if !session.OnePlayerRemained() {
+					err := showCards(&pokerManager, &deck)
+					if err != nil {
+						logger.Error(err.Error())
+					}
 				}
 				panel, err = getWinnerPanel(pokerManager)
 				if err != nil {
@@ -284,15 +286,14 @@ func main() {
 			log := fmt.Sprintf("%s left the game", pterm.Cyan(name))
 			logger.Warn(log)
 		}
+		if leave {
+			break
+		}
 		pRemained := len(pokerManager.Session.Players)
 		if pRemained <= 1 {
 			if pRemained == 1 {
 				pterm.Info.Printfln("Last player remained: %s", pokerManager.Session.Players[0].Name)
 			}
-			logger.Info("Not enough players to continue the game. Exiting...")
-			break
-		}
-		if leave {
 			break
 		}
 

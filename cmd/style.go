@@ -55,11 +55,16 @@ func printSingleWinnerInfo(psm poker.PokerManager, id int, amount int) (string, 
 	s := psm.GetSession()
 	idx := psm.FindPlayerIndex(id)
 	p := s.Players[idx]
-	hand, err := s.DescribeHand(idx)
-	if err != nil {
-		return "", err
+	playerString := ""
+	if p.Hand[0].Rank() == 0 || p.Hand[1].Rank() == 0 {
+		playerString = pterm.Sprintfln("%s won %d Taking down the pot", pterm.LightCyan(p.Name), amount)
+	} else {
+		hand, err := s.DescribeHand(idx)
+		if err != nil {
+			return "", err
+		}
+		playerString = pterm.Sprintfln("%s won %d with %s", pterm.LightCyan(p.Name), amount, hand)
 	}
-	playerString := pterm.Sprintfln("%s won %d with %s", pterm.LightCyan(p.Name), amount, hand)
 	return playerString, nil
 }
 

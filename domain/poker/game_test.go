@@ -156,6 +156,7 @@ func TestApplyAction_Fold(t *testing.T) {
 		Players: []Player{
 			{Name: "Alice", Bet: 50, HasFolded: false},
 			{Name: "Bob", Bet: 50, HasFolded: false},
+			{Name: "John", Bet: 50, HasFolded: false},
 		},
 		CurrentTurn: 0,
 	}
@@ -172,6 +173,35 @@ func TestApplyAction_Fold(t *testing.T) {
 	if session.CurrentTurn != 1 {
 		t.Fatalf("turn should advance to 1, got %d", session.CurrentTurn)
 	}
+}
+
+func TestApplyAction_OnePlayerRemained(t *testing.T) {
+	session := &Session{
+		Players: []Player{
+			{Name: "Alice", Bet: 50, HasFolded: false},
+			{Name: "Bob", Bet: 50, HasFolded: true},
+			{Name: "John", Bet: 50, HasFolded: false},
+		},
+		CurrentTurn: 0,
+	}
+
+	err := applyAction(ActionFold, 0, session, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !session.Players[0].HasFolded {
+		t.Fatal("player should be folded")
+	}
+
+	if session.CurrentTurn != 2 {
+		t.Fatalf("turn should advance to 1, got %d", session.CurrentTurn)
+	}
+
+	if session.Round != Showdown {
+		t.Fatalf("round should be Showdown, got %s", session.Round)
+	}
+
 }
 
 func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {
