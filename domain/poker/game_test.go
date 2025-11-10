@@ -157,7 +157,6 @@ func TestApplyAction_Fold(t *testing.T) {
 			{Name: "Alice", Bet: 50, HasFolded: false},
 			{Name: "Bob", Bet: 50, HasFolded: false},
 			{Name: "John", Bet: 50, HasFolded: false},
-
 		},
 		CurrentTurn: 0,
 	}
@@ -182,7 +181,6 @@ func TestApplyAction_OnePlayerRemained(t *testing.T) {
 			{Name: "Alice", Bet: 50, HasFolded: false},
 			{Name: "Bob", Bet: 50, HasFolded: true},
 			{Name: "John", Bet: 50, HasFolded: false},
-
 		},
 		CurrentTurn: 0,
 	}
@@ -203,7 +201,7 @@ func TestApplyAction_OnePlayerRemained(t *testing.T) {
 	if session.Round != Showdown {
 		t.Fatalf("round should be Showdown, got %s", session.Round)
 	}
-	
+
 }
 
 func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {

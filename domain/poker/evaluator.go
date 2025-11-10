@@ -14,7 +14,7 @@ func (s *Session) winnerEval() (map[int]uint, error) {
 	results := make(map[int]uint)
 	if onePlayerRemained(s.Pots) {
 		for _, p := range s.Pots {
-				results[s.Players[p.Eligible[0]].Id] += p.Amount
+			results[s.Players[p.Eligible[0]].Id] += p.Amount
 		}
 		return results, nil
 	}

@@ -54,7 +54,7 @@ func TestWinnerEvalByFolding(t *testing.T) {
 		Players: []Player{
 			{Id: 0, Name: "p0", Hand: [2]Card{{Club, Ace}, {Heart, 7}}, Bet: 10},
 			{Id: 1, Name: "p1", Hand: [2]Card{{Spade, Ace}, {Heart, 8}}, Bet: 10, HasFolded: true},
-			{Id: 2, Name: "p2", Hand: [2]Card{{Club, 3}, {Heart, 4}}, Bet: 10,HasFolded: true},
+			{Id: 2, Name: "p2", Hand: [2]Card{{Club, 3}, {Heart, 4}}, Bet: 10, HasFolded: true},
 		},
 	}
 	session.Pots = []Pot{{Amount: 30, Eligible: []int{0}}}
