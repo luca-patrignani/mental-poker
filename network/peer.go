@@ -28,7 +28,7 @@ type Peer struct {
 
 type ConnectionError struct {
 	FaultAdresses map[int]string
-	Errors map[int]error
+	Errors        map[int]error
 }
 
 func (e *ConnectionError) Error() string {
@@ -190,7 +190,7 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	p.clock++
 	connErr := &ConnectionError{
 		FaultAdresses: make(map[int]string),
-		Errors: make(map[int]error),
+		Errors:        make(map[int]error),
 	}
 	if root == p.Rank {
 		client := http.Client{Timeout: p.timeout}

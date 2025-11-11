@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ed25519"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -217,11 +218,43 @@ func main() {
 		spinner.Success()
 
 		printState(pokerManager)
+		connectionErr := &network.ConnectionError{}
 		for {
 			var panel pterm.Panel
 			if err := inputAction(pokerManager, *node, myRank); err != nil {
+				if errors.As(err, &connectionErr) {
+					logger.Error("Connection error: " + err.Error())
+					for i, addr := range connectionErr.FaultAdresses {
+						node.RemoveNode(i)
+						log := fmt.Sprintf("Removed node %d with address %s from the game", i, addr)
+						logger.Warn(log)
+						p2p.RemovePeer(i)
+						_, err := pokerManager.RemoveByID(i)
+						if err != nil {
+							logger.Error(err.Error())
+							return
+						}
+					}
+					names, err := testConnections(p2p, name)
+					if err != nil {
+						logger.Error("Error during reconnection: " + err.Error())
+						return
+					}
+					pterm.Success.Printfln("Succesfully discovered with %d players", len(names)-1)
+					for i, name := range names {
+						msg := fmt.Sprintf(" %s: %s", p2p.GetAddresses()[i], string(name))
+						logger.Info(msg)
+					}
+					deck = poker.NewPokerDeck(p2p)
+					err = deck.PrepareDeck()
+					if err != nil {
+						logger.Error(err.Error())
+						return
+					}
+					continue
+				}
 				logger.Error(err.Error())
-				panic(err)
+				return
 			}
 			b, err := blockchain.GetLatest()
 			if err != nil {
