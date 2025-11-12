@@ -235,6 +235,26 @@ func main() {
 							return
 						}
 					}
+					err := p2p.Close()
+					if err != nil {
+						logger.Error("Error closing P2P: " + err.Error())
+						panic(err)
+					}
+					logger.Info("Re-establishing connections...")
+					l, err := net.Listen("tcp", p2p.GetAddresses()[myRank])
+					if err != nil {
+						logger.Error("Error listening on address: " + err.Error())
+						panic(err)
+					}
+
+					peer := network.NewPeer(
+						myRank,
+						p2p.GetAddresses(),
+						l,
+						timeout,
+					)
+					p2p = network.NewP2P(&peer)
+
 					names, err := testConnections(p2p, name)
 					if err != nil {
 						logger.Error("Error during reconnection: " + err.Error())
@@ -249,9 +269,9 @@ func main() {
 					err = deck.PrepareDeck()
 					if err != nil {
 						logger.Error(err.Error())
-						return
+						panic(err)
 					}
-					continue
+					break
 				}
 				logger.Error(err.Error())
 				return
