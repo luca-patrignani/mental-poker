@@ -166,7 +166,7 @@ func (d *Deck) LeaveGame(leaver int) error {
 func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	dataSend, err := bufferSend.MarshalBinary()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to Marshal the requested point, %v", err)
 	}
 	ataResponse, err := d.Peer.AllToAll(dataSend)
 	if err != nil {
@@ -174,11 +174,11 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 	}
 
 	dataReceived := make([]kyber.Point, d.Peer.GetPeerCount())
-	for i := 0; i < d.Peer.GetPeerCount(); i++ {
+	for i := range d.Peer.GetAddresses() {
 		dataReceived[i] = suite.Point()
 		err := dataReceived[i].UnmarshalBinary([]byte(ataResponse[i]))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to Unmarshal the received Point, %v", err)
 		}
 	}
 	return dataReceived, nil
