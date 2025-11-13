@@ -45,3 +45,7 @@ func (p *P2P) Close() error {
 func (p *P2P) RemovePeer(leaver int) {
 	delete(p.peer.Addresses, leaver)
 }
+
+func (p *P2P) GetOrderedRanks() []int {
+	return p.peer.GetOrderedRanks()
+}

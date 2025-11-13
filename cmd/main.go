@@ -196,6 +196,7 @@ func main() {
 	area, _ := pterm.DefaultArea.Start()
 	for {
 		spinner, _ := pterm.DefaultSpinner.Start("Shuffling the cards ...")
+		fmt.Println(deck.Peer.GetAddresses())
 
 		if err := deck.Shuffle(); err != nil {
 			spinner.Fail()
@@ -254,6 +255,7 @@ func main() {
 						timeout,
 					)
 					p2p = network.NewP2P(&peer)
+					fmt.Printf("%v\n", p2p.GetAddresses())
 
 					names, err := testConnections(p2p, name)
 					if err != nil {

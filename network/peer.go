@@ -126,12 +126,7 @@ func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 		return nil, fmt.Errorf("no addresses found")
 	}
 
-	var orderedRanks []int
-	for k := range p.Addresses {
-		orderedRanks = append(orderedRanks, k)
-	}
-	sort.Ints(orderedRanks)
-
+	orderedRanks := p.GetOrderedRanks()
 	bufferRecv = make([][]byte, size+1)
 	for _, i := range orderedRanks {
 		recv, err := p.broadcastNoBarrier(bufferSend, i)
@@ -141,6 +136,15 @@ func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 		bufferRecv[i] = recv
 	}
 	return
+}
+
+func (p Peer) GetOrderedRanks() []int {
+	var orderedRanks []int
+	for k := range p.Addresses {
+		orderedRanks = append(orderedRanks, k)
+	}
+	sort.Ints(orderedRanks)
+	return orderedRanks
 }
 
 // barrier synchronizes the peers.

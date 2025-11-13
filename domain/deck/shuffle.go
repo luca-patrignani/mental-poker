@@ -11,7 +11,8 @@ func (d *Deck) Shuffle() error {
 	for i, card := range d.cardCollection {
 		d.encryptedDeck[i] = card.Clone()
 	}
-	for j := 0; j < len(d.Peer.GetAddresses()); j++ {
+	orderRank := d.Peer.GetOrderedRanks()
+	for j := range orderRank {
 		if j == d.Peer.GetRank() {
 			x := suite.Scalar().Pick(suite.RandomStream())
 			d.secretKey = x

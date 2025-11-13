@@ -20,6 +20,8 @@ type NetworkLayer interface {
 
 	GetPeerCount() int
 
+	GetOrderedRanks() []int
+
 	Close() error
 }
 
@@ -89,8 +91,8 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 
 	//TODO: ZKA (optional)
 
-	hResult := hArray[0]
-	for i := 1; i < len(hArray); i++ {
+	hResult := suite.Point().Null()
+	for i := range d.Peer.GetAddresses() {
 		hResult.Add(hResult, hArray[i])
 	}
 
@@ -173,8 +175,8 @@ func (d *Deck) allToAllSingle(bufferSend kyber.Point) ([]kyber.Point, error) {
 		return nil, err
 	}
 
-	dataReceived := make([]kyber.Point, d.Peer.GetPeerCount())
-	for i := 0; i < d.Peer.GetPeerCount(); i++ {
+	dataReceived := make([]kyber.Point, len(ataResponse))
+	for i := range d.Peer.GetAddresses() {
 		dataReceived[i] = suite.Point()
 		err := dataReceived[i].UnmarshalBinary([]byte(ataResponse[i]))
 		if err != nil {
