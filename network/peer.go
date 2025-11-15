@@ -22,13 +22,14 @@ import (
 // the Rank is an identifier of the Peer.
 // Addresses[i] contains the address to reach the Peer with Rank i.
 type Peer struct {
-	Rank      int
-	Addresses map[int]string
-	CertPool *x509.CertPool
-	clock     uint64
-	server    *http.Server
-	handler   *broadcastHandler
-	timeout   time.Duration
+	Rank       int
+	Addresses  map[int]string
+	CertPool   *x509.CertPool
+	ClientCert *tls.Certificate
+	clock      uint64
+	server     *http.Server
+	handler    *broadcastHandler
+	timeout    time.Duration
 }
 
 func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Duration) Peer {
@@ -53,9 +54,10 @@ func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Du
 	return p
 }
 
-func NewPeerHttps(rank int, addresses map[int]string, l net.Listener, timeout time.Duration, caCertPool *x509.CertPool) Peer {
+func NewPeerHttpsWithClientCert(rank int, addresses map[int]string, l net.Listener, timeout time.Duration, caCertPool *x509.CertPool, clientCert *tls.Certificate) Peer {
 	peer := NewPeer(rank, addresses, l, timeout)
 	peer.CertPool = caCertPool
+	peer.ClientCert = clientCert
 	return peer
 }
 
@@ -246,6 +248,9 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 		for i, addr := range p.Addresses {
 			tlsConfig := tls.Config{
 				RootCAs: p.CertPool,
+			}
+			if p.ClientCert != nil {
+				tlsConfig.Certificates = []tls.Certificate{*p.ClientCert}
 			}
 			completeAddr := addr
 			if !strings.HasPrefix(addr, "https://") {

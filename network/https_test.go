@@ -31,7 +31,7 @@ func generateSelfSignedCert() (tls.Certificate, []byte, error) {
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(1, 0, 0),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
 		IPAddresses:           []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		DNSNames:              []string{"localhost"},
@@ -51,26 +51,28 @@ func generateSelfSignedCert() (tls.Certificate, []byte, error) {
 	return cert, certPEMBytes, nil
 }
 
-func createHttpsListeners(n int) (map[int]net.Listener, map[int]string, *x509.CertPool, error) {
+func createHttpsListeners(n int) (map[int]net.Listener, map[int]string, *x509.CertPool, []*tls.Certificate, error) {
 	listeners, addresses := CreateListeners(n)
 	certPool := x509.NewCertPool()
+	clientCerts := make([]*tls.Certificate, n)
 	for i := 0; i < n; i++ {
 		cert, pem, err := generateSelfSignedCert()
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
+		clientCerts = append(clientCerts, &cert)
 		certPool.AppendCertsFromPEM(pem)
 		listeners[i] = tls.NewListener(listeners[i], &tls.Config{
 			Certificates: []tls.Certificate{cert},
 		})
 		addresses[i] = "https://" + addresses[i]
 	}
-	return listeners, addresses, certPool, nil
+	return listeners, addresses, certPool, clientCerts, nil
 }
 
 func TestHttpsBroadcast(t *testing.T) {
 	n := 4
-	listeners, addresses, certPool, err := createHttpsListeners(n)
+	listeners, addresses, certPool, clientCerts, err := createHttpsListeners(n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +80,7 @@ func TestHttpsBroadcast(t *testing.T) {
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			peer := NewPeerHttps(i, addresses, listeners[i], 50*time.Second, certPool)
+			peer := NewPeerHttpsWithClientCert(i, addresses, listeners[i], 50*time.Second, certPool, clientCerts[i])
 			defer func() {
 				fatal <- peer.Close()
 			}()
@@ -106,14 +108,14 @@ func TestHttpsBroadcast(t *testing.T) {
 
 func TestHttpsAllToAll(t *testing.T) {
 	n := 4
-	listeners, addresses, certPool, err := createHttpsListeners(n)
+	listeners, addresses, certPool, clientCerts, err := createHttpsListeners(n)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			peer := NewPeerHttps(i, addresses, listeners[i], 50*time.Second, certPool)
+			peer := NewPeerHttpsWithClientCert(i, addresses, listeners[i], 50*time.Second, certPool, clientCerts[i])
 			defer func() {
 				fatal <- peer.Close()
 			}()
@@ -132,6 +134,56 @@ func TestHttpsAllToAll(t *testing.T) {
 					fatal <- fmt.Errorf("expected %d, actual %d", 10*j, recv[j])
 					return
 				}
+			}
+		}(i)
+	}
+	for i := 0; i < n; i++ {
+		if err := <-fatal; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestHttpsPeerCommunication(t *testing.T) {
+	n := 4
+	listeners, addresses := CreateListeners(n)
+	certPool := x509.NewCertPool()
+	clientCerts := make([]*tls.Certificate, n)
+	for i := 0; i < n; i++ {
+		cert, pem, err := generateSelfSignedCert()
+		if err != nil {
+			t.Fatal(err)
+		}
+		certPool.AppendCertsFromPEM(pem)
+		clientCerts[i] = &cert
+		listeners[i] = tls.NewListener(listeners[i], &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			ClientAuth:   tls.RequireAndVerifyClientCert,
+			ClientCAs:    certPool,
+		})
+		addresses[i] = "https://" + addresses[i]
+	}
+
+	root := 3
+	fatal := make(chan error, n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			peer := NewPeerHttpsWithClientCert(i, addresses, listeners[i], 50*time.Second, certPool, clientCerts[i])
+			defer func() {
+				fatal <- peer.Close()
+			}()
+			recv, err := peer.Broadcast([]byte{0, byte(10 * i)}, root)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			if len(recv) != 2 {
+				fatal <- fmt.Errorf("expected length 2, %v received", recv)
+				return
+			}
+			if recv[1] != byte(root*10) {
+				fatal <- fmt.Errorf("expected %d, actual %d", recv[1], root*10)
+				return
 			}
 		}(i)
 	}
