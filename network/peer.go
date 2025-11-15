@@ -2,6 +2,8 @@ package network
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +24,7 @@ import (
 type Peer struct {
 	Rank      int
 	Addresses map[int]string
+	CertPool *x509.CertPool
 	clock     uint64
 	server    *http.Server
 	handler   *broadcastHandler
@@ -48,6 +51,12 @@ func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Du
 		}
 	}()
 	return p
+}
+
+func NewPeerHttps(rank int, addresses map[int]string, l net.Listener, timeout time.Duration, caCertPool *x509.CertPool) Peer {
+	peer := NewPeer(rank, addresses, l, timeout)
+	peer.CertPool = caCertPool
+	return peer
 }
 
 func (p Peer) Close() error {
@@ -234,11 +243,18 @@ func CreateListeners(n int) (map[int]net.Listener, map[int]string) {
 func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	p.clock++
 	if root == p.Rank {
-		client := http.Client{Timeout: p.timeout}
 		for i, addr := range p.Addresses {
+			tlsConfig := tls.Config{
+				RootCAs: p.CertPool,
+			}
+			completeAddr := addr
+			if !strings.HasPrefix(addr, "https://") {
+				completeAddr = "http://" + addr
+				tlsConfig.InsecureSkipVerify = true
+			}
+			client := http.Client{Timeout: p.timeout, Transport: &http.Transport{TLSClientConfig: &tlsConfig}}
 			if i != p.Rank {
-				//fmt.Printf("Node %d requesting post to %d\n",p.Rank,i)
-				req, err := http.NewRequest("POST", "http://"+addr, strings.NewReader(string(bufferSend)))
+				req, err := http.NewRequest("POST", completeAddr, strings.NewReader(string(bufferSend)))
 				if err != nil {
 					return nil, err
 				}
