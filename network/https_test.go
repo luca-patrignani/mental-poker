@@ -82,9 +82,6 @@ func TestHttpsBroadcast(t *testing.T) {
 				WithLimitedCAs(certPool),
 			)
 			peer.Start(listeners[i])
-			defer func() {
-				fatal <- peer.Close()
-			}()
 			recv, err := peer.Broadcast([]byte{0, byte(10 * i)}, root)
 			if err != nil {
 				fatal <- err
@@ -98,6 +95,7 @@ func TestHttpsBroadcast(t *testing.T) {
 				fatal <- fmt.Errorf("expected %d, actual %d", recv[1], root*10)
 				return
 			}
+			fatal <- peer.Close()
 		}(i)
 	}
 	for i := 0; i < n; i++ {
@@ -123,9 +121,6 @@ func TestHttpsAllToAll(t *testing.T) {
 				WithCertificate(clientCerts[i]),
 			)
 			peer.Start(listeners[i])
-			defer func() {
-				fatal <- peer.Close()
-			}()
 			data := []byte(fmt.Sprint(10 * i))
 			recv, err := peer.AllToAll(data)
 			if err != nil {
@@ -142,48 +137,7 @@ func TestHttpsAllToAll(t *testing.T) {
 					return
 				}
 			}
-		}(i)
-	}
-	for i := 0; i < n; i++ {
-		if err := <-fatal; err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
-func TestHttpsPeerCommunication(t *testing.T) {
-	n := 4
-	listeners, addresses := CreateListeners(n)
-	certPool, clientCerts, err := createCertificates(n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	root := 3
-	fatal := make(chan error, n)
-	for i := 0; i < n; i++ {
-		go func(i int) {
-			peer := NewPeerWithOptions(i, addresses, 
-				WithTimeout(50*time.Second),
-				WithLimitedCAs(certPool),
-				WithCertificate(clientCerts[i]),
-			)
-			peer.Start(listeners[i])
-			defer func() {
-				fatal <- peer.Close()
-			}()
-			recv, err := peer.Broadcast([]byte{0, byte(10 * i)}, root)
-			if err != nil {
-				fatal <- err
-				return
-			}
-			if len(recv) != 2 {
-				fatal <- fmt.Errorf("expected length 2, %v received", recv)
-				return
-			}
-			if recv[1] != byte(root*10) {
-				fatal <- fmt.Errorf("expected %d, actual %d", recv[1], root*10)
-				return
-			}
+			fatal <- peer.Close()
 		}(i)
 	}
 	for i := 0; i < n; i++ {
