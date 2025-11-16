@@ -51,28 +51,24 @@ func generateSelfSignedCert() (tls.Certificate, []byte, error) {
 	return cert, certPEMBytes, nil
 }
 
-func createHttpsListeners(n int) (map[int]net.Listener, map[int]string, *x509.CertPool, []*tls.Certificate, error) {
-	listeners, addresses := CreateListeners(n)
+func createCertificates(n int) (*x509.CertPool, []tls.Certificate, error) {
 	certPool := x509.NewCertPool()
-	clientCerts := make([]*tls.Certificate, n)
+	clientCerts := []tls.Certificate{}
 	for i := 0; i < n; i++ {
 		cert, pem, err := generateSelfSignedCert()
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, err
 		}
-		clientCerts = append(clientCerts, &cert)
+		clientCerts = append(clientCerts, cert)
 		certPool.AppendCertsFromPEM(pem)
-		listeners[i] = tls.NewListener(listeners[i], &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		})
-		addresses[i] = "https://" + addresses[i]
 	}
-	return listeners, addresses, certPool, clientCerts, nil
+	return certPool, clientCerts, nil
 }
 
 func TestHttpsBroadcast(t *testing.T) {
 	n := 4
-	listeners, addresses, certPool, clientCerts, err := createHttpsListeners(n)
+	listeners, addresses := CreateListeners(n)
+	certPool, clientCerts, err := createCertificates(n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +76,12 @@ func TestHttpsBroadcast(t *testing.T) {
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			peer := NewPeerHttpsWithClientCert(i, addresses, listeners[i], 50*time.Second, certPool, clientCerts[i])
+			peer := NewPeerWithOptions(i, addresses, 
+				WithTimeout(10*time.Second),
+				WithCertificate(clientCerts[i]),
+				WithLimitedCAs(certPool),
+			)
+			peer.Start(listeners[i])
 			defer func() {
 				fatal <- peer.Close()
 			}()
@@ -108,14 +109,20 @@ func TestHttpsBroadcast(t *testing.T) {
 
 func TestHttpsAllToAll(t *testing.T) {
 	n := 4
-	listeners, addresses, certPool, clientCerts, err := createHttpsListeners(n)
+	listeners, addresses := CreateListeners(n)
+	certPool, clientCerts, err := createCertificates(n)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			peer := NewPeerHttpsWithClientCert(i, addresses, listeners[i], 50*time.Second, certPool, clientCerts[i])
+			peer := NewPeerWithOptions(i, addresses, 
+				WithTimeout(50*time.Second),
+				WithLimitedCAs(certPool),
+				WithCertificate(clientCerts[i]),
+			)
+			peer.Start(listeners[i])
 			defer func() {
 				fatal <- peer.Close()
 			}()
@@ -147,28 +154,20 @@ func TestHttpsAllToAll(t *testing.T) {
 func TestHttpsPeerCommunication(t *testing.T) {
 	n := 4
 	listeners, addresses := CreateListeners(n)
-	certPool := x509.NewCertPool()
-	clientCerts := make([]*tls.Certificate, n)
-	for i := 0; i < n; i++ {
-		cert, pem, err := generateSelfSignedCert()
-		if err != nil {
-			t.Fatal(err)
-		}
-		certPool.AppendCertsFromPEM(pem)
-		clientCerts[i] = &cert
-		listeners[i] = tls.NewListener(listeners[i], &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			ClientAuth:   tls.RequireAndVerifyClientCert,
-			ClientCAs:    certPool,
-		})
-		addresses[i] = "https://" + addresses[i]
+	certPool, clientCerts, err := createCertificates(n)
+	if err != nil {
+		t.Fatal(err)
 	}
-
 	root := 3
 	fatal := make(chan error, n)
 	for i := 0; i < n; i++ {
 		go func(i int) {
-			peer := NewPeerHttpsWithClientCert(i, addresses, listeners[i], 50*time.Second, certPool, clientCerts[i])
+			peer := NewPeerWithOptions(i, addresses, 
+				WithTimeout(50*time.Second),
+				WithLimitedCAs(certPool),
+				WithCertificate(clientCerts[i]),
+			)
+			peer.Start(listeners[i])
 			defer func() {
 				fatal <- peer.Close()
 			}()

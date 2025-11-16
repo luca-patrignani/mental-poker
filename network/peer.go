@@ -24,12 +24,14 @@ import (
 type Peer struct {
 	Rank       int
 	Addresses  map[int]string
-	CertPool   *x509.CertPool
-	ClientCert *tls.Certificate
+	certPool   *x509.CertPool
+	clientCert *tls.Certificate
 	clock      uint64
 	server     *http.Server
+	client     http.Client
 	handler    *broadcastHandler
 	timeout    time.Duration
+	tlsConfig  *tls.Config
 }
 
 func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Duration) Peer {
@@ -42,6 +44,7 @@ func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Du
 		Addresses: copyMap(addresses),
 		clock:     0,
 		server:    &http.Server{Addr: addresses[rank], Handler: handler},
+		client:    http.Client{Timeout: timeout},
 		handler:   handler,
 		timeout:   timeout,
 	}
@@ -56,8 +59,8 @@ func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Du
 
 func NewPeerHttpsWithClientCert(rank int, addresses map[int]string, l net.Listener, timeout time.Duration, caCertPool *x509.CertPool, clientCert *tls.Certificate) Peer {
 	peer := NewPeer(rank, addresses, l, timeout)
-	peer.CertPool = caCertPool
-	peer.ClientCert = clientCert
+	peer.certPool = caCertPool
+	peer.clientCert = clientCert
 	return peer
 }
 
@@ -246,18 +249,11 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 	p.clock++
 	if root == p.Rank {
 		for i, addr := range p.Addresses {
-			tlsConfig := tls.Config{
-				RootCAs: p.CertPool,
-			}
-			if p.ClientCert != nil {
-				tlsConfig.Certificates = []tls.Certificate{*p.ClientCert}
-			}
 			completeAddr := addr
 			if !strings.HasPrefix(addr, "https://") {
 				completeAddr = "http://" + addr
-				tlsConfig.InsecureSkipVerify = true
+				// tlsConfig.InsecureSkipVerify = true
 			}
-			client := http.Client{Timeout: p.timeout, Transport: &http.Transport{TLSClientConfig: &tlsConfig}}
 			if i != p.Rank {
 				req, err := http.NewRequest("POST", completeAddr, strings.NewReader(string(bufferSend)))
 				if err != nil {
@@ -266,10 +262,10 @@ func (p *Peer) broadcastNoBarrier(bufferSend []byte, root int) ([]byte, error) {
 				req.Header["Clock"] = []string{fmt.Sprint(p.clock)}
 				req.Header["SenderRank"] = []string{fmt.Sprint(p.Rank)}
 				req.Header["ReceiverRank"] = []string{fmt.Sprint(i)}
-				resp, err := client.Do(req)
+				resp, err := p.client.Do(req)
 				start := time.Now()
 				for err != nil || resp.StatusCode != http.StatusAccepted {
-					resp, err = client.Do(req)
+					resp, err = p.client.Do(req)
 					if p.timeout > 0 && time.Since(start) > p.timeout {
 						if err != nil {
 							return nil, fmt.Errorf("connection attempts timed out with error %w", err)
