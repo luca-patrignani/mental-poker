@@ -743,7 +743,7 @@ Each player runs the complete application stack. Network peers connect directly 
 The system detects several types of faults:
 
 \begin{itemize}
-\item \textbf{Network failures}: Timeouts on broadcast/all-to-all operations detect disconnected players
+\item \textbf{Malicious Stalling}: Timeouts on broadcast/all-to-all operations detect stalling players reacting with default actions
 
 \item \textbf{Invalid cryptographic operations}: Card verification failures detect attempts to reveal fake cards
 
@@ -759,9 +759,6 @@ The system detects several types of faults:
 Recovery mechanisms include:
 
 \begin{itemize}
-\item \textbf{Player disconnect during shuffle}: Shuffle protocol restarts with remaining players
-
-\item \textbf{Player disconnect during betting}: If \texttt{consensus.quorum} players remain, the game continues. Otherwise, the game terminates and chips are returned.
 
 \item \textbf{Detected cheating}: Malicious player is banned via consensus vote. The \texttt{LeaveGame()} method removes their encryption from the deck so the game can continue.
 
@@ -775,7 +772,7 @@ Recovery mechanisms include:
 Comprehensive error messages aid debugging:
 
 \begin{itemize}
-\item Network errors include peer addresses and timeout durations
+\item Network errors include specific error for each faulty peer addresses
 \item Cryptographic errors specify which operation failed and why
 \item Game logic errors explain rule violations (e.g., "Cannot raise: insufficient chips")
 \item Consensus errors indicate vote tallies and quorum requirements
@@ -793,11 +790,10 @@ The system supports graceful shutdown:
 \item Player's \texttt{LeaveGame()} method is called
 \item Player's encryption is removed from deck
 \item Network connections are closed via \texttt{Peer.Close()}
-\item Blockchain state is persisted (optional)
-\item Application exits cleanly
+\item Application exits cleanly (Blockchain state could be persisted)
 \end{enumerate}
 
-If too many players leave (below minimum threshold), the game terminates and all players receive error messages.
+If too many players leave (below minimum threshold), the game terminates and all players exit gracefully.
 
 \section{Salient implementation details}
 
@@ -949,98 +945,25 @@ Comprehensive GoDoc documentation is provided for all public APIs. Examples:
 
 To view documentation:
 \begin{verbatim}
-godoc -http=:6060
-# Navigate to localhost:6060/pkg/github.com/luca-patrignani/mental-poker/
+# Navigate to *GITHUB PAGES URL*
 \end{verbatim}
 
 \section{Validation}
 
 \subsection{Testing Strategy}
 
-The validation strategy employs automated testing at multiple levels:
-
-\begin{enumerate}
-\item \textbf{Unit tests}: Test individual functions in isolation
-\item \textbf{Integration tests}: Test component interactions
-\item \textbf{End-to-end tests}: Test complete game scenarios
-\item \textbf{Property-based tests}: Verify cryptographic properties
-\end{enumerate}
-
-\subsection{Cryptographic Security Tests}
-
-Tests verify the deck requirements:
-
-\begin{lstlisting}[language=Go, caption=Shuffle fairness test]
-func TestShuffleFairness(t *testing.T) {
-    // Verify no player controls card order
-    // Run shuffle multiple times with same players
-    // Verify different outcomes each time
-}
-\end{lstlisting}
-
-\begin{lstlisting}[language=Go, caption=Card privacy test]
-func TestCardPrivacy(t *testing.T) {
-    // Verify other players cannot determine dealt cards
-    // Deal card to player A
-    // Verify players B, C cannot recover card value
-    // from encrypted intermediate values
-}
-\end{lstlisting}
-
-\begin{lstlisting}[language=Go, caption=Card verifiability test]
-func TestCardVerifiability(t *testing.T) {
-    // Verify revealed cards can be validated
-    // Player reveals a card
-    // All other players verify it matches cryptographic
-    // commitment from shuffle
-}
-\end{lstlisting}
-
-\subsection{Game Logic Tests}
-
-Tests verify poker rules:
-
-\begin{lstlisting}[language=Go, caption=Hand evaluation test]
-func TestHandEvaluator(t *testing.T) {
-    // Test all hand rankings
-    // Royal flush beats straight flush
-    // Straight flush beats four of a kind
-    // ... etc
-}
-\end{lstlisting}
-
-\begin{lstlisting}[language=Go, caption=Pot distribution test]
-func TestPotDistribution(t *testing.T) {
-    // Test main pot and side pots
-    // Player A all-in 100, Player B bets 200, Player C calls 200
-    // Main pot: 300 (all eligible)
-    // Side pot: 200 (B and C eligible)
-}
-\end{lstlisting}
-
-\subsection{Consensus Tests}
-
-Tests verify blockchain and voting:
-
-\begin{lstlisting}[language=Go, caption=Blockchain integrity test]
-func TestBlockchainVerify(t *testing.T) {
-    // Create blockchain with valid blocks
-    // Verify passes
-    // Tamper with a block
-    // Verify fails
-}
-\end{lstlisting}
+The validation strategy employs automated testing for \textbf{Unit tests}
 
 \subsection{Test Coverage}
 
 Test coverage statistics (from \texttt{coverage} file):
 
 \begin{itemize}
-\item \texttt{domain/deck}: 87\% line coverage
-\item \texttt{domain/poker}: 92\% line coverage
-\item \texttt{ledger}: 95\% line coverage
-\item \texttt{network}: 78\% line coverage
-\item \textbf{Overall}: 88\% line coverage
+\item \texttt{domain/deck}: X\% line coverage
+\item \texttt{domain/poker}: X\% line coverage
+\item \texttt{ledger}: X\% line coverage
+\item \texttt{network}: X\% line coverage
+\item \textbf{Overall}: X\% line coverage
 \end{itemize}
 
 Coverage is measured with:
@@ -1056,13 +979,10 @@ Manual testing scenarios:
 \begin{enumerate}
 \item \textbf{3-player game}: Alice, Bob, Charlie play a complete game. Verify all betting rounds, community cards, showdown.
 
-\item \textbf{All-in scenario}: Player goes all-in with fewer chips than the bet. Verify side pot creation and correct distribution.
+\item \textbf{Network disruption}: Verify graceful termination handling.
 
-\item \textbf{Fold scenario}: All players but one fold. Verify remaining player wins without showdown.
+\item \textbf{Malicious stalling}: Verify timeout default action works properly.
 
-\item \textbf{Network disruption}: Disconnect one player mid-game. Verify graceful handling.
-
-\item \textbf{Blockchain audit}: After game completion, verify blockchain contains complete history and all hashes are valid.
 \end{enumerate}
 
 \subsection{Compliance with Requirements}
@@ -1079,7 +999,14 @@ Validation demonstrates compliance with all requirements:
 
 \section{Deployment Instructions}
 
-\subsection{Prerequisites}
+\subsection{ Download Prebuilt Binaries}
+Prebuilt binaries for end user are available for download in the release section of the GitHub repository:
+\begin{verbatim}
+    https://github.com/luca-patrignani/mental-poker/releases
+\end{verbatim}
+
+\subsection{Build from source}
+\subsubsection{Prerequisites}
 
 \begin{itemize}
 \item \textbf{Go}: Version 1.21 or later
@@ -1096,7 +1023,7 @@ git --version
 \item \textbf{Network}: All players must be on the same local network or have direct connectivity
 \end{itemize}
 
-\subsection{Installation Steps}
+\subsubsection{Installation Steps}
 
 \begin{enumerate}
 \item Clone the repository:
@@ -1125,19 +1052,6 @@ go install ./cmd
 \end{verbatim}
 \end{enumerate}
 
-\subsection{Configuration}
-
-Create a configuration file \texttt{config.yaml}:
-
-\begin{verbatim}
-player_count: 3
-deck_size: 52
-quorum: 2  # Majority of 3 players
-network:
-  timeout: 30s
-  buffer_size: 4096
-\end{verbatim}
-
 \subsection{Network Setup}
 
 For each player, determine their network address:
@@ -1153,224 +1067,23 @@ ipconfig
 
 Note the IP address on the local network (typically 192.168.x.x or 10.x.x.x).
 
-\subsection{Running the Application}
+\subsubsection{Running the Application}
 
-\textbf{Player 1 (initializer)}:
+\textbf{Default startup}:
 \begin{verbatim}
-./mental-poker --name Alice --port 8080 --init
+./mental-poker *Your IP address*
 \end{verbatim}
 
-This starts the application and displays connection information for other players.
+This starts the application and displays connection information for other players with the default timeout.
 
-\textbf{Player 2}:
+\textbf{Specified Timeout}:
 \begin{verbatim}
-./mental-poker --name Bob --port 8081 --connect 192.168.1.100:8080
+./mental-poker *Your IP address* -t *timeout_in_seconds*
 \end{verbatim}
 
-Replace \texttt{192.168.1.100} with Player 1's IP address.
-
-\textbf{Player 3}:
-\begin{verbatim}
-./mental-poker --name Charlie --port 8082 --connect 192.168.1.100:8080
-\end{verbatim}
-
-Once all players are connected, the game initializes automatically.
-
-\subsection{Docker Deployment (Alternative)}
-
-For easier deployment, use Docker:
-
-\begin{enumerate}
-\item Build the Docker image:
-\begin{verbatim}
-docker build -t mental-poker .
-\end{verbatim}
-
-\item Run containers for each player:
-\begin{verbatim}
-# Player 1
-docker run -it --name player1 -p 8080:8080 mental-poker \
-  --name Alice --port 8080 --init
-
-# Player 2 (in another terminal)
-docker run -it --name player2 -p 8081:8081 mental-poker \
-  --name Bob --port 8081 --connect player1:8080
-
-# Player 3 (in another terminal)
-docker run -it --name player3 -p 8082:8082 mental-poker \
-  --name Charlie --port 8082 --connect player1:8080
-\end{verbatim}
-\end{enumerate}
-
-\subsection{Troubleshooting}
-
-Common issues:
-
-\begin{itemize}
-\item \textbf{Connection timeout}: Verify firewall settings allow TCP traffic on the specified ports
-
-\item \textbf{Port already in use}: Choose a different port with \texttt{--port}
-
-\item \textbf{Dependency errors}: Run \texttt{go mod tidy} to resolve
-
-\item \textbf{Build errors}: Ensure Go version is 1.21+
-\end{itemize}
+This starts the application and displays connection information for other players with the specified timeout.
 
 \section{Usage Examples}
-
-\subsection{Example 1: Basic 3-Player Game}
-
-After deployment, players see a CLI interface:
-
-\begin{verbatim}
-Welcome to Mental Poker, Alice!
-Connected players: Alice, Bob, Charlie
-Starting new round...
-
-Your hand: [A♠ K♠]
-Board: []
-Pot: 30 (small blind: 10, big blind: 20)
-
-Your turn. Options:
-  [c] Call 20
-  [r] Raise
-  [f] Fold
-> 
-\end{verbatim}
-
-Alice decides to raise:
-
-\begin{verbatim}
-> r
-Raise amount: 40
-Broadcasting action to all players...
-Waiting for consensus votes...
-Action approved (3/3 votes)
-
-New pot: 70
-Board: []
-
-Bob's turn...
-\end{verbatim}
-
-After all betting rounds complete:
-
-\begin{verbatim}
-Showdown!
-Alice: [A♠ K♠] - Pair of Aces
-Bob: [Q♥ Q♦] - Pair of Queens
-Charlie: [7♣ 2♦] - High Card
-
-Alice wins 210 chips!
-
-New round? [y/n]
-\end{verbatim}
-
-\subsection{Example 2: All-In Scenario}
-
-Charlie has only 50 chips left and goes all-in:
-
-\begin{verbatim}
-Your turn. Options:
-  [c] Call 100
-  [r] Raise
-  [f] Fold
-  [a] All-in (50 chips)
-> a
-
-Broadcasting all-in action...
-Action approved (3/3 votes)
-
-Main pot: 150 (Alice: 50, Bob: 50, Charlie: 50)
-Side pot: 100 (Alice: 50, Bob: 50)
-
-Charlie is all-in and cannot act further.
-\end{verbatim}
-
-At showdown:
-
-\begin{verbatim}
-Showdown!
-Alice: [K♦ K♥] - Three of a Kind
-Bob: [J♠ 10♠] - Straight
-Charlie: [A♣ A♦] - Pair of Aces
-
-Main pot (150) -> Bob
-Side pot (100) -> Bob
-
-Bob wins 250 chips total!
-\end{verbatim}
-
-\subsection{Example 3: Blockchain Audit}
-
-After the game, players can audit the blockchain:
-
-\begin{verbatim}
-> audit
-
-Blockchain verification: PASSED
-Total blocks: 47
-
-Block #0 (Genesis)
-  Timestamp: 2024-01-15 14:30:00
-  State: 3 players, 1000 chips each
-  Hash: 0x1a2b3c...
-
-Block #1
-  Timestamp: 2024-01-15 14:31:15
-  Action: Alice raises 40
-  Votes: 3/3 (Alice, Bob, Charlie)
-  State: Pot=70, Round=PreFlop
-  Hash: 0x4d5e6f...
-  PrevHash: 0x1a2b3c...
-
-Block #2
-  Timestamp: 2024-01-15 14:31:42
-  Action: Bob calls 40
-  Votes: 3/3
-  State: Pot=110, Round=PreFlop
-  Hash: 0x7a8b9c...
-  PrevHash: 0x4d5e6f...
-
-... [43 more blocks]
-
-All blocks verified. Chain integrity confirmed.
-\end{verbatim}
-
-This demonstrates that all actions were consensually approved and the game history is tamper-proof.
-
-\subsection{Example 4: Player Disconnection}
-
-If a player disconnects mid-game:
-
-\begin{verbatim}
-Warning: Charlie disconnected
-Remaining players: Alice, Bob
-
-Options:
-  [1] Wait for Charlie to reconnect (60s timeout)
-  [2] Continue without Charlie (Charlie forfeits)
-  [3] End game and return bets
-> 1
-
-Waiting for Charlie... (45s remaining)
-Charlie reconnected!
-
-Resuming game...
-\end{verbatim}
-
-If Charlie doesn't reconnect:
-
-\begin{verbatim}
-Charlie did not reconnect.
-Initiating removal protocol...
-Broadcasting LeaveGame(Charlie)...
-
-Charlie's encryption removed from deck.
-Charlie's current bets forfeited to pot.
-
-Game continues with Alice and Bob.
-\end{verbatim}
 
 \section{Conclusions}
 
@@ -1378,29 +1091,9 @@ This project successfully implemented a decentralized poker game meeting all spe
 
 \subsection{Achievements}
 
-Key accomplishments include:
-
-\begin{itemize}
-\item \textbf{Cryptographic security}: Implementation of the Wei \& Wang mental poker protocol providing computational security against coalitions of $k-1$ malicious players
-
-\item \textbf{Distributed architecture}: Peer-to-peer design eliminating single points of failure and trusted third parties
-
-\item \textbf{Blockchain integration}: Immutable ledger ensuring non-repudiation and enabling post-game auditing
-
-\item \textbf{Complete poker implementation}: Full Texas Hold'em rules including complex scenarios like side pots and all-ins
-
-\item \textbf{Usable interface}: Command-line interface enabling actual gameplay
-
-\item \textbf{Comprehensive testing}: High test coverage validating security properties and game logic
-\end{itemize}
-
-The implementation demonstrates that cryptographic protocols from academic literature can be successfully translated into practical, usable systems.
-
 \subsection{Future Works}
 
 Several extensions could enhance the system:
-
-\subsubsection{Not Implemented}
 
 \begin{itemize}
 \item \textbf{Graphical user interface}: A web-based or desktop GUI would improve usability for non-technical players
@@ -1411,15 +1104,12 @@ Several extensions could enhance the system:
 
 \item \textbf{Zero-knowledge proofs}: More efficient card verification using ZK-SNARKs or similar techniques
 
-\item \textbf{Formal verification}: Machine-checked proofs of protocol correctness using tools like TLA+ or Coq
-
 \item \textbf{Mobile clients}: iOS and Android applications for poker on mobile devices
 
 \item \textbf{Tournament management}: Support for multi-table tournaments with automatic player seating and blind progression
 
 \item \textbf{Statistical analysis}: Tools for analyzing player performance and hand histories
 
-\item \textbf{AI opponents}: Integration of poker-playing AI for single-player practice
 \end{itemize}
 
 \subsubsection{Performance Optimizations}
@@ -1437,67 +1127,10 @@ Several extensions could enhance the system:
 \subsubsection{Security Enhancements}
 
 \begin{itemize}
-\item \textbf{Timeout mechanisms}: Automatic player removal after inactivity
-
 \item \textbf{Reputation system}: Tracking player behavior to identify and exclude cheaters
-
-\item \textbf{Threshold cryptography}: Requiring $t$ out of $n$ players to collaborate for certain operations
-
-\item \textbf{Secure random generation}: Incorporating hardware random number generators for additional entropy
 \end{itemize}
 
-\subsection{What did we learn}
-
-\subsubsection{Technical Lessons}
-
-\begin{itemize}
-\item \textbf{Cryptographic protocol implementation}: Translating mathematical protocols into code requires careful attention to edge cases and encoding details
-
-\item \textbf{Distributed systems design}: Consensus mechanisms and Byzantine fault tolerance are complex but essential for trustless systems
-
-\item \textbf{Go concurrency}: Goroutines and channels are powerful tools for implementing parallel protocols
-
-\item \textbf{Testing distributed systems}: Testing requires careful orchestration of multiple concurrent processes
-
-\item \textbf{MPI parallels}: The SPMD model from HPC translates effectively to decentralized systems
-\end{itemize}
-
-\subsubsection{Design Lessons}
-
-\begin{itemize}
-\item \textbf{Modularity}: Clean separation between cryptographic layer, game logic, and consensus significantly simplified development and testing
-
-\item \textbf{Interface abstraction}: The \texttt{NetworkLayer} interface enabled testing without actual network I/O
-
-\item \textbf{Incremental development}: Building and testing components individually before integration prevented complex debugging scenarios
-
-\item \textbf{Documentation}: Comprehensive comments and tests serve as executable documentation
-\end{itemize}
-
-\subsubsection{Conceptual Insights}
-
-\begin{itemize}
-\item \textbf{Decentralization tradeoffs}: Eliminating trusted parties increases complexity and latency but provides stronger security guarantees
-
-\item \textbf{Cryptography enables new paradigms}: Mental poker would be impossible without modern cryptographic primitives
-
-\item \textbf{Theory meets practice}: Academic protocols require significant engineering work to become usable systems
-
-\item \textbf{Consensus costs}: Requiring agreement from all players introduces latency and failure modes that centralized systems avoid
-\end{itemize}
-
-\subsubsection{Personal Growth}
-
-\begin{itemize}
-\item \textbf{Collaboration}: Working in a team required clear communication, code reviews, and division of responsibilities
-
-\item \textbf{Problem-solving}: Debugging distributed systems required systematic approaches and patience
-
-\item \textbf{Research skills}: Reading and understanding academic papers is a valuable skill for implementing novel systems
-
-\item \textbf{Software engineering}: Large codebases require discipline in organization, naming, and documentation
-\end{itemize}
-
+\subsection{Personal Consideration}
 Overall, this project provided valuable experience in cryptography, distributed systems, blockchain technology, and software engineering practices. The successful implementation demonstrates that complex theoretical concepts can be realized as practical, working systems with careful design and implementation.
 
 \nocite{*} % Includes all references from the references.bib file
