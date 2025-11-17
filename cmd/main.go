@@ -21,6 +21,7 @@ import (
 	"github.com/luca-patrignani/mental-poker/network"
 )
 
+
 var timeout = 30 * time.Second
 
 const defaultPort = 53550
@@ -307,6 +308,8 @@ func main() {
 
 }
 
+// Test the connections with all the other players by exchanging their names
+// and return the list of names
 func testConnections(p2p *network.P2P, name string) ([]string, error) {
 	byteNames, err := p2p.AllToAllwithTimeout([]byte(name), timeout)
 	if err != nil {
@@ -319,6 +322,8 @@ func testConnections(p2p *network.P2P, name string) ([]string, error) {
 	return names, nil
 }
 
+// Create the P2P network and determine the rank of the current player
+// by sorting the addresses
 func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int) {
 	sort.Slice(addresses, func(i, j int) bool {
 		return addresses[i] < addresses[j]
@@ -339,6 +344,7 @@ func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int
 	return network.NewP2P(&peer), myRank
 }
 
+// Distribute two cards to each player
 func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 	for i := range psm.Session.Players {
 		card1, err := deck.DrawCard(i)
@@ -355,6 +361,7 @@ func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 	return nil
 }
 
+// Show the cards of each player
 func showCards(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 	for i := range psm.Session.Players {
 		card1 := psm.Session.Players[i].Hand[0]
@@ -375,6 +382,7 @@ func showCards(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 	return nil
 }
 
+// Open a card in idx position on the board for all players
 func cardOnBoard(psm *poker.PokerManager, deck *poker.PokerDeck, idx int) error {
 	card, err := deck.DrawCard(0)
 	if err != nil {
@@ -404,6 +412,7 @@ func postBlinds(psm *poker.PokerManager, node *consensus.ConsensusNode, smallBli
 	return nil
 }
 
+// helper function to add a blind for the current player if it's his turn
 func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uint) error {
 	idx := psm.FindPlayerIndex(psm.Player)
 
@@ -435,6 +444,8 @@ func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uin
 	return nil
 }
 
+// Handle the input action from the user with a timeout
+// If the user doesn't input an action before the timeout, a default action is proposed
 func inputAction(pokerManager poker.PokerManager, consensusNode consensus.ConsensusNode, myRank int) error {
 	var timedOut uint32 = 0 // use atomic access to avoid races
 	isPlayerTurn := pokerManager.Session.CurrentTurn == uint(pokerManager.FindPlayerIndex(myRank))
@@ -567,6 +578,7 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 	}
 }
 
+// apply the showdown action for the current player
 func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank int) error {
 	if psm.Session.CurrentTurn == uint(psm.FindPlayerIndex(myRank)) {
 		action, err := consensus.MakeAction(psm.Player, psm.ActionShowdown())
@@ -586,6 +598,9 @@ func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank 
 	return nil
 }
 
+// Ask all players if they want to leave the game or start a new round
+// Return true if the current player wants to leave the game
+// and the list of players that left the game
 func askForLeavers(psm poker.PokerManager, node consensus.ConsensusNode, deck poker.PokerDeck, p2p network.P2P) (bool, []string, error) {
 	area, _ := pterm.DefaultArea.Start()
 	var playersThatLeft []string

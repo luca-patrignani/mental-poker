@@ -6,6 +6,8 @@ import (
 	"go.dedis.ch/kyber/v4"
 )
 
+// Protocol 3: Shuffle Deck
+// Each peer shuffles and re-encrypts the deck
 func (d *Deck) Shuffle() error {
 	d.encryptedDeck = make([]kyber.Point, d.DeckSize+1)
 	for i, card := range d.cardCollection {
@@ -29,12 +31,12 @@ func (d *Deck) Shuffle() error {
 		if err != nil {
 			return err
 		}
-		//TODO: prove that shuffle is good with protocol 4 (ZKA, so it's optional)
 	}
 
 	return nil
 }
 
+// Helper function to generate a random permutation of size permSize
 func permutation(permSize int) []int {
 	perm := rand.Perm(permSize)
 	for i := 0; i < permSize; i++ {

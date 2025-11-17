@@ -4,18 +4,22 @@ import (
 	"fmt"
 )
 
-// PokerManager is an adapter of Peer to the interface NetworkLayer
+// PokerManager adapts a poker session to the consensus.StateManager interface.
+// It validates actions against poker rules and applies state transitions.
 type PokerManager struct {
-	Session *Session
-	Player  int
+	Session *Session // The current poker game state
+	Player  int      // This node's player ID
 }
 
-// NewPokerManager creates a new PokerManager wrapping the provided poker session and
-// implementing the consensus.StateMachine interface.
-
-// Validate checks whether a poker action is valid in the current session state by verifying
-// the round ID, player existence, turn order, and poker rules. Returns an error describing
-// the validation failure, or nil if the action is valid.
+// Validate checks whether a poker action is valid in the current session state.
+//
+// Validation checks:
+//   - Round ID matches current game round
+//   - Player exists in the session
+//   - It's the player's turn to act
+//   - Action complies with poker rules (sufficient funds, valid bet amounts, etc.)
+//
+// Returns nil if the action is valid, or an error describing the validation failure.
 func (psm *PokerManager) Validate(pa PokerAction) error {
 
 	index := psm.FindPlayerIndex(pa.PlayerID)
@@ -38,9 +42,18 @@ func (psm *PokerManager) Validate(pa PokerAction) error {
 	return nil
 }
 
-// Apply applies a validated poker action to the session state and advances the game accordingly.
-// It delegates to ApplyAction with the player's session index. Returns an error if the player
-// is not found in the session.
+// Apply executes a validated poker action, modifying the session state.
+//
+// This method delegates to applyAction which handles:
+//   - Updating player chip stacks
+//   - Advancing the turn
+//   - Progressing betting rounds
+//   - Calculating side pots
+//   - Determining winners
+//
+// Returns an error if the player is not found or if the state transition fails.
+//
+// Warning: This method assumes the action has already been validated.
 func (psm *PokerManager) Apply(pa PokerAction) error {
 	idx := psm.FindPlayerIndex(pa.PlayerID)
 	if idx == -1 {

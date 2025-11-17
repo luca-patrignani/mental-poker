@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// guessIpAddress takes a base IP address and a partial address string,
+// and fills in the missing octets from the base address.
 func guessIpAddress(baseAddress net.IP, partialAddr string) (net.IP, error) {
 	ip := make(net.IP, len(baseAddress))
 	copy(ip, baseAddress)
@@ -64,6 +66,7 @@ func subnetOfListener(l *net.TCPListener) (net.IPNet, error) {
 	return net.IPNet{}, fmt.Errorf("no interface found for ip %v", ip)
 }
 
+// splitHostPort splits an address into host and port, using defaultPort if no port is specified.
 func splitHostPort(addr string, defaultPort int) (string, string, error) {
 	ipaddr, port, err := net.SplitHostPort(addr)
 	if err != nil {

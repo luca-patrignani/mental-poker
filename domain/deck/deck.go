@@ -87,8 +87,6 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 		return nil, err
 	}
 
-	//TODO: ZKA (optional)
-
 	hResult := hArray[0]
 	for i := 1; i < len(hArray); i++ {
 		hResult.Add(hResult, hArray[i])
