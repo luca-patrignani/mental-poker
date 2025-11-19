@@ -21,7 +21,7 @@ type Block struct {
 
 // Metadata contains consensus-specific information about a block.
 type Metadata struct {
-	ProposerID int               `json:"proposer_id"`    // ID of player who proposed the action
-	Quorum     int               `json:"quorum"`         // Required votes for consensus
+	ProposerID int               `json:"proposer_id"`     // ID of player who proposed the action
+	Quorum     int               `json:"quorum"`          // Required votes for consensus
 	Extra      map[string]string `json:"extra,omitempty"` // Optional metadata (e.g., ban reasons)
 }

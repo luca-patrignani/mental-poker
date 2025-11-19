@@ -8,7 +8,19 @@ import (
 )
 
 // guessIpAddress takes a base IP address and a partial address string,
-// and fills in the missing octets from the base address.
+// and fills in the missing octets from the base address. This allows users
+// to specify abbreviated addresses when connecting to peers on the same subnet.
+//
+// Examples:
+//   - guessIpAddress(192.168.0.1, "42") → 192.168.0.42
+//   - guessIpAddress(192.168.0.1, "15.42") → 192.168.15.42
+//   - guessIpAddress(192.168.0.1, "") → 192.168.0.1
+//
+// Parameters:
+//   - baseAddress: The local IP address to use as a template
+//   - partialAddr: Partial IP address (empty, or 1-4 octets separated by dots)
+//
+// Returns the complete IP address or an error if parsing fails.
 func guessIpAddress(baseAddress net.IP, partialAddr string) (net.IP, error) {
 	ip := make(net.IP, len(baseAddress))
 	copy(ip, baseAddress)
@@ -28,7 +40,13 @@ func guessIpAddress(baseAddress net.IP, partialAddr string) (net.IP, error) {
 }
 
 // subnetOfListener returns the IP network (CIDR) of the interface that contains
-// the local address used by the provided TCP listener.
+// the local address used by the provided TCP listener. This is useful for
+// determining which subnet a listener is bound to.
+//
+// Parameters:
+//   - l: TCP listener whose subnet should be determined
+//
+// Returns the IPNet (CIDR notation) or an error if the subnet cannot be determined.
 func subnetOfListener(l *net.TCPListener) (net.IPNet, error) {
 	tcpAddr, ok := l.Addr().(*net.TCPAddr)
 	if !ok {
@@ -67,6 +85,13 @@ func subnetOfListener(l *net.TCPListener) (net.IPNet, error) {
 }
 
 // splitHostPort splits an address into host and port, using defaultPort if no port is specified.
+// This is a convenience wrapper around net.SplitHostPort that provides a default port.
+//
+// Parameters:
+//   - addr: Address string (may or may not include port)
+//   - defaultPort: Port to use if none is specified in addr
+//
+// Returns the host string, port string, and any error encountered.
 func splitHostPort(addr string, defaultPort int) (string, string, error) {
 	ipaddr, port, err := net.SplitHostPort(addr)
 	if err != nil {

@@ -21,7 +21,6 @@ import (
 	"github.com/luca-patrignani/mental-poker/network"
 )
 
-
 var timeout = 30 * time.Second
 
 const defaultPort = 53550
@@ -308,8 +307,14 @@ func main() {
 
 }
 
-// Test the connections with all the other players by exchanging their names
-// and return the list of names
+// testConnections verifies network connectivity with all peers by exchanging names.
+// This is called during initialization to ensure all players can communicate.
+//
+// Parameters:
+//   - p2p: Network layer for peer-to-peer communication
+//   - name: This player's username to broadcast
+//
+// Returns a slice of all player names in rank order, or an error if communication fails.
 func testConnections(p2p *network.P2P, name string) ([]string, error) {
 	byteNames, err := p2p.AllToAllwithTimeout([]byte(name), timeout)
 	if err != nil {
@@ -322,8 +327,14 @@ func testConnections(p2p *network.P2P, name string) ([]string, error) {
 	return names, nil
 }
 
-// Create the P2P network and determine the rank of the current player
-// by sorting the addresses
+// createP2P creates the P2P network and determines the rank of the current player
+// by sorting the addresses lexicographically. Lower addresses get lower ranks.
+//
+// Parameters:
+//   - addresses: All player addresses (including local)
+//   - l: Local network listener
+//
+// Returns the initialized P2P network and this player's rank.
 func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int) {
 	sort.Slice(addresses, func(i, j int) bool {
 		return addresses[i] < addresses[j]
@@ -344,7 +355,14 @@ func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int
 	return network.NewP2P(&peer), myRank
 }
 
-// Distribute two cards to each player
+// distributeHands deals two cards to each player using the mental poker protocol.
+// Cards are drawn secretly and remain encrypted until revealed.
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - deck: Mental poker deck to draw from
+//
+// Returns an error if card distribution fails.
 func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 	for i := range psm.Session.Players {
 		card1, err := deck.DrawCard(i)
@@ -361,7 +379,14 @@ func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 	return nil
 }
 
-// Show the cards of each player
+// showCards reveals all players' hole cards using the mental poker protocol.
+// This is called at showdown when cards must be compared.
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - deck: Mental poker deck containing the cards
+//
+// Returns an error if card revealing fails.
 func showCards(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 	for i := range psm.Session.Players {
 		card1 := psm.Session.Players[i].Hand[0]
@@ -382,7 +407,15 @@ func showCards(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 	return nil
 }
 
-// Open a card in idx position on the board for all players
+// cardOnBoard reveals a community card at the specified board position.
+// The card is drawn and immediately revealed to all players.
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - deck: Mental poker deck to draw from
+//   - idx: Board position (0-4) to place the card
+//
+// Returns an error if drawing or revealing fails.
 func cardOnBoard(psm *poker.PokerManager, deck *poker.PokerDeck, idx int) error {
 	card, err := deck.DrawCard(0)
 	if err != nil {
@@ -396,7 +429,15 @@ func cardOnBoard(psm *poker.PokerManager, deck *poker.PokerDeck, idx int) error 
 	return nil
 }
 
-// helper function to post small and big blinds
+// postBlinds posts the small and big blinds for the current hand.
+// The two players after the dealer post blinds automatically.
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - node: Consensus node for proposing blind actions
+//   - smallBlind: Amount for the small blind (big blind is 2x)
+//
+// Returns an error if posting blinds fails or there aren't enough players.
 func postBlinds(psm *poker.PokerManager, node *consensus.ConsensusNode, smallBlind uint) error {
 	if len(psm.Session.Players) < 2 {
 		return fmt.Errorf("not enough players to post blinds, at least 2 players are required, got %d", len(psm.Session.Players))
@@ -412,7 +453,15 @@ func postBlinds(psm *poker.PokerManager, node *consensus.ConsensusNode, smallBli
 	return nil
 }
 
-// helper function to add a blind for the current player if it's his turn
+// addBlind posts a single blind for the current player if it's their turn.
+// Automatically folds if the player lacks sufficient chips.
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - node: Consensus node for proposing the action
+//   - amount: Blind amount to post
+//
+// Returns an error if the action fails.
 func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uint) error {
 	idx := psm.FindPlayerIndex(psm.Player)
 
@@ -444,8 +493,15 @@ func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uin
 	return nil
 }
 
-// Handle the input action from the user with a timeout
-// If the user doesn't input an action before the timeout, a default action is proposed
+// inputAction handles player input for their poker action with a timeout.
+// If the player doesn't act before the timeout, automatically checks or folds.
+//
+// Parameters:
+//   - pokerManager: Poker manager containing session state
+//   - consensusNode: Consensus node for proposing actions
+//   - myRank: This player's rank
+//
+// Returns an error if the action fails.
 func inputAction(pokerManager poker.PokerManager, consensusNode consensus.ConsensusNode, myRank int) error {
 	var timedOut uint32 = 0 // use atomic access to avoid races
 	isPlayerTurn := pokerManager.Session.CurrentTurn == uint(pokerManager.FindPlayerIndex(myRank))
@@ -578,7 +634,15 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 	}
 }
 
-// apply the showdown action for the current player
+// applyShowdown executes the showdown action for the current player, distributing
+// pots to winners and advancing the game state.
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - node: Consensus node for proposing the showdown
+//   - myRank: This player's rank
+//
+// Returns an error if the showdown fails.
 func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank int) error {
 	if psm.Session.CurrentTurn == uint(psm.FindPlayerIndex(myRank)) {
 		action, err := consensus.MakeAction(psm.Player, psm.ActionShowdown())
@@ -598,9 +662,16 @@ func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank 
 	return nil
 }
 
-// Ask all players if they want to leave the game or start a new round
-// Return true if the current player wants to leave the game
-// and the list of players that left the game
+// askForLeavers prompts all players whether they want to continue playing or leave.
+// Players who leave are removed from the game through consensus.
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - node: Consensus node for coordinating departures
+//   - deck: Mental poker deck for cleanup
+//   - p2p: Network layer for coordinating with peers
+//
+// Returns whether this player is leaving, names of players who left, and any error.
 func askForLeavers(psm poker.PokerManager, node consensus.ConsensusNode, deck poker.PokerDeck, p2p network.P2P) (bool, []string, error) {
 	area, _ := pterm.DefaultArea.Start()
 	var playersThatLeft []string

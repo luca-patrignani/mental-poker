@@ -59,9 +59,9 @@ func NewBlockchain(initialSession poker.Session) (*Blockchain, error) {
 // Append adds a new validated block to the blockchain.
 //
 // The method:
-//   1. Calculates the block hash
-//   2. Validates against the previous block
-//   3. Appends to the chain
+//  1. Calculates the block hash
+//  2. Validates against the previous block
+//  3. Appends to the chain
 //
 // Validation ensures:
 //   - Correct index (prev + 1)

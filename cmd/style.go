@@ -7,7 +7,14 @@ import (
 	"github.com/pterm/pterm"
 )
 
-// Create a panel showing the last action performed in the game
+// getActionPanel creates a panel displaying the last action performed in the game.
+// The panel shows the player name and action details in a formatted box.
+//
+// Parameters:
+//   - pa: The poker action to display
+//   - psm: Poker manager containing session state
+//
+// Returns a pterm.Panel with formatted action information.
 func getActionPanel(pa poker.PokerAction, psm poker.PokerManager) pterm.Panel {
 	pbox := pterm.DefaultBox.WithHorizontalPadding(4).WithTopPadding(1).WithBottomPadding(1)
 	actionString := ""
@@ -21,7 +28,13 @@ func getActionPanel(pa poker.PokerAction, psm poker.PokerManager) pterm.Panel {
 	return pterm.Panel{Data: pbox.WithTitle(pterm.LightYellow("|LAST ACTION|")).WithTitleTopCenter().Sprintf(actionString)}
 }
 
-// Create a panel showing the winner(s) of the game
+// getWinnerPanel creates a panel showing the winner(s) of the game with their
+// winnings and winning hand descriptions. Handles both single winners and split pots.
+//
+// Parameters:
+//   - psm: Poker manager containing session state and winner information
+//
+// Returns a pterm.Panel with formatted winner information or an error.
 func getWinnerPanel(psm poker.PokerManager) (pterm.Panel, error) {
 	winners, err := psm.GetWinners()
 	if err != nil {
@@ -53,7 +66,15 @@ func getWinnerPanel(psm poker.PokerManager) (pterm.Panel, error) {
 	return pterm.Panel{Data: pbox.WithTitle(pterm.LightGreen("|SHOWDOWN|")).WithTitleTopCenter().Sprintf(infoString)}, nil
 }
 
-// helper function to print info about a single winner
+// printSingleWinnerInfo formats information about a single winner for display.
+// Shows the winner's name, amount won, and winning hand (if cards were shown).
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - id: Player ID of the winner
+//   - amount: Amount won by the player
+//
+// Returns formatted string with winner information or an error.
 func printSingleWinnerInfo(psm poker.PokerManager, id int, amount int) (string, error) {
 	s := psm.GetSession()
 	idx := psm.FindPlayerIndex(id)
@@ -71,7 +92,12 @@ func printSingleWinnerInfo(psm poker.PokerManager, id int, amount int) (string, 
 	return playerString, nil
 }
 
-// Print the current state of the game including players info, board and additional panels
+// printState prints the current game state including player information, board,
+// and any additional panels. This is the main UI rendering function.
+//
+// Parameters:
+//   - psm: Poker manager containing session state
+//   - additionalPanel: Optional panels to display (e.g., action or winner panels)
 func printState(psm poker.PokerManager, additionalPanel ...pterm.Panel) {
 	s := psm.GetSession()
 	var panels []pterm.Panel
@@ -97,8 +123,14 @@ func printState(psm poker.PokerManager, additionalPanel ...pterm.Panel) {
 	}).Render()
 }
 
-// helper function to print info about a player
-// If main is true, it adds more padding to the box
+// printPlayerInfo formats a player's information for display in a box.
+// Shows status (active/folded), current bet, bankroll, and hand cards.
+//
+// Parameters:
+//   - p: Player to display
+//   - main: If true, adds extra padding for the main player's box
+//
+// Returns formatted string with player information.
 func printPlayerInfo(p poker.Player, main bool) string {
 	hpadding := 4
 	if main {
@@ -115,7 +147,15 @@ func printPlayerInfo(p poker.Player, main bool) string {
 	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("%s\nCurrent Bet: %d\nBankroll: %d\n%s\n", active, p.Bet, p.Pot, hand)
 }
 
-// helper function to print info about the board
+// printBoardInfo formats the community cards and pot information for display.
+// Shows all board cards, pot amounts, and the current betting round.
+//
+// Parameters:
+//   - b: Slice of board cards
+//   - round: Current betting round
+//   - pots: All active pots
+//
+// Returns formatted string with board and pot information.
 func printBoardInfo(b []poker.Card, round poker.Round, pots []poker.Pot) string {
 	board := ""
 	for _, c := range b {

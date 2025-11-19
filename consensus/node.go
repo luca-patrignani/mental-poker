@@ -84,20 +84,21 @@ type NetworkLayer interface {
 }
 
 // ConsensusNode represents a node participating in the BFT consensus protocol.
-// Each node maintains cryptographic keys, tracks peer public keys, manages
-// consensus state, and coordinates with the state machine and ledger.
+// It maintains cryptographic identity, tracks peer public keys, manages consensus
+// state (proposals and votes), and coordinates with the state machine and ledger.
+//
+// Each node operates independently, validating actions locally before voting.
+// Consensus is reached when sufficient votes (quorum) agree on an action.
 type ConsensusNode struct {
-	pub       ed25519.PublicKey
-	priv      ed25519.PrivateKey
-	playersPK map[int]ed25519.PublicKey
-	quorum    int
-
-	pokerSM StateManager
-	ledger  Ledger
-	network NetworkLayer
-
-	proposal *Action
-	votes    map[int]Vote
+	pub       ed25519.PublicKey              // This node's public key
+	priv      ed25519.PrivateKey             // This node's private key (sensitive!)
+	playersPK map[int]ed25519.PublicKey      // Public keys of all peers (ID → pubkey)
+	quorum    int                            // Minimum votes needed for consensus
+	pokerSM   StateManager                   // Game state manager
+	ledger    Ledger                         // Immutable decision log
+	network   NetworkLayer                   // P2P communication
+	proposal  *Action                        // Current proposal being voted on
+	votes     map[int]Vote                   // Collected votes (VoterID → Vote)
 }
 
 // NewConsensusNode creates and initializes a new consensus node with the given cryptographic keys,
@@ -184,6 +185,11 @@ func (node *ConsensusNode) UpdatePeers() error {
 	return nil
 }
 
-// computeQuorum calculates the minimum number of votes required to reach Byzantine Fault
-// Tolerance consensus. It returns ceiling((2n+2)/3) where n is the number of nodes.
+// computeQuorum calculates the minimum votes needed for Byzantine Fault Tolerance.
+// Formula: ceiling((2n+2)/3) ensures any two quorums overlap in at least one honest node.
+//
+// Examples:
+//   - n=3: quorum=3 (tolerates 0 Byzantine)
+//   - n=4: quorum=3 (tolerates 1 Byzantine)
+//   - n=7: quorum=5 (tolerates 2 Byzantine)
 func computeQuorum(n int) int { return (2*n + 2) / 3 }
