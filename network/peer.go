@@ -233,7 +233,7 @@ func CreateListeners(n int) (map[int]net.Listener, map[int]string) {
 	listeners := make(map[int]net.Listener)
 	addresses := make(map[int]string)
 	for i := 0; i < n; i++ {
-		l, err := net.Listen("tcp", "localhost:0")
+		l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.%d:0", i+1))
 		if err != nil {
 			panic(err)
 		}
