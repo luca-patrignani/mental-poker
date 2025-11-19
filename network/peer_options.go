@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-type peerOption func(Peer) Peer
+type PeerOption func(Peer) Peer
 
-func NewPeerWithOptions(rank int, addresses map[int]string, opts ...peerOption) Peer {
+func NewPeerWithOptions(rank int, addresses map[int]string, opts ...PeerOption) Peer {
 	handler := &broadcastHandler{
 		contentChannel: make(chan []byte),
 		errChannel:     make(chan error),
@@ -44,14 +44,14 @@ func (p Peer) Start(l net.Listener) {
 	}()
 }
 
-func WithTimeout(timeout time.Duration) peerOption {
+func WithTimeout(timeout time.Duration) PeerOption {
 	return func(p Peer) Peer {
 		p.timeout = timeout
 		return p
 	}
 }
 
-func WithCertificate(cert tls.Certificate) peerOption {
+func WithCertificate(cert tls.Certificate) PeerOption {
 	return func(p Peer) Peer {
 		if p.client.Transport == nil {
 			p.client.Transport = &http.Transport{TLSClientConfig: p.tlsConfig}
@@ -61,7 +61,7 @@ func WithCertificate(cert tls.Certificate) peerOption {
 	}
 }
 
-func WithLimitedCAs(certPool *x509.CertPool) peerOption {
+func WithLimitedCAs(certPool *x509.CertPool) PeerOption {
 	return func(p Peer) Peer {
 		if p.client.Transport == nil {
 			p.client.Transport = &http.Transport{TLSClientConfig: p.tlsConfig}
@@ -69,6 +69,16 @@ func WithLimitedCAs(certPool *x509.CertPool) peerOption {
 		p.tlsConfig.RootCAs = certPool
 		p.tlsConfig.ClientCAs = certPool
 		p.tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		return p
+	}
+}
+
+func WithInsecureSkipVerify() PeerOption {
+	return func(p Peer) Peer {
+		if p.client.Transport == nil {
+			p.client.Transport = &http.Transport{TLSClientConfig: p.tlsConfig}
+		}
+		p.tlsConfig.InsecureSkipVerify = true
 		return p
 	}
 }

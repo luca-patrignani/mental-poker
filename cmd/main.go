@@ -27,6 +27,7 @@ const defaultPort = 53550
 func main() {
 	timeoutFlag := flag.Uint("timeout", 30, "timeout in seconds")
 	portFlag := flag.Uint("port", defaultPort, "port to listen on")
+	httpsFlag := flag.Bool("https", false, "use https for communication")
 	flag.Parse()
 
 	if flag.NArg() != 1 {
@@ -36,6 +37,8 @@ func main() {
 
 	timeout = time.Duration(*timeoutFlag) * time.Second
 	port := *portFlag
+	https := *httpsFlag
+
 
 	ip := flag.Arg(0)
 
@@ -125,7 +128,12 @@ func main() {
 		}
 		addresses = append(addresses, guessedAddr.String()+":"+strconv.Itoa(tcpAddr.Port))
 	}
-	p2p, myRank := createP2P(addresses, l)
+	networkOptions := []network.PeerOption{}
+	if https {
+		networkOptions = append(networkOptions, network.WithInsecureSkipVerify())
+	}
+	myRank := getRank(addresses, l)
+	p2p := createP2P(myRank, addresses, l, networkOptions)
 	pterm.Info.Printfln("Your rank is %d\n", myRank)
 	spinner, _ := pterm.DefaultSpinner.Start("Trying to establish the connections with the other players...")
 
@@ -306,24 +314,40 @@ func testConnections(p2p *network.P2P, name string) ([]string, error) {
 	return names, nil
 }
 
-func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int) {
+func createMapAddresses(addresses []string) map[int]string {
 	sort.Slice(addresses, func(i, j int) bool {
 		return addresses[i] < addresses[j]
 	})
 	mapAddresses := make(map[int]string)
 	for i, addr := range addresses {
 		mapAddresses[i] = addr
-		if mapAddresses[i] == l.Addr().String() {
+	}
+	return mapAddresses
+}
+
+func getRank(addresses []string, l net.Listener) int {
+	sort.Slice(addresses, func(i, j int) bool {
+		return addresses[i] < addresses[j]
+	})
+	myRank := -1
+	for i, addr := range addresses {
+		if addr == l.Addr().String() {
 			myRank = i
 		}
 	}
+	return myRank
+}
+
+func createP2P(rank int, addresses []string, l net.Listener, options []network.PeerOption) (p2p *network.P2P) {
+	mapAddresses := createMapAddresses(addresses)
 	peer := network.NewPeer(
-		myRank,
+		rank,
 		mapAddresses,
 		l,
 		timeout,
 	)
-	return network.NewP2P(&peer), myRank
+	go peer.Start(l)
+	return network.NewP2P(&peer)
 }
 
 func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {

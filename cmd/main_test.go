@@ -29,8 +29,8 @@ func TestTestConnections(t *testing.T) {
 	errChan := make(chan error)
 	for i := range n {
 		go func() {
-			p2p, myRank := createP2P(addresses, mapListeners[i])
-			names, err := testConnections(p2p, "name"+fmt.Sprint(myRank))
+			p2p := createP2P(i, addresses, mapListeners[i], []network.PeerOption{})
+			names, err := testConnections(p2p, "name"+fmt.Sprint(i))
 			if err != nil {
 				errChan <- err
 				return
