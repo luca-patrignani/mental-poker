@@ -45,22 +45,3 @@ jobs:
           tag_name: ${{ github.event.workflow_run.head_branch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  doc:
-    
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') && github.ref == 'refs/heads/main'}}
-    runs-on: ubuntu-latest
-    name: Deploy documentation
-    steps:
-        - name: Checkout
-          uses: actions/checkout@v4
-
-        - name: Generate GoDoc
-          uses: ktr0731/godoc-action@v0.1.0
-          env:
-            GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-
-        - name: Push changes
-          uses: ad-m/github-push-action@master
-          with:
-            github_token: ${{ secrets.GITHUB_TOKEN }}
-            branch: gh-pages
