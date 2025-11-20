@@ -395,13 +395,13 @@ func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int
 }
 
 func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
-	for i := range psm.Session.Players {
-		card1, err := deck.DrawCard(i)
+	for i,p := range psm.Session.Players {
+		card1, err := deck.DrawCard(p.Id)
 		if err != nil {
 			return err
 		}
 		psm.Session.Players[i].Hand[0] = *card1
-		card2, err := deck.DrawCard(i)
+		card2, err := deck.DrawCard(p.Id)
 		if err != nil {
 			return err
 		}

@@ -104,7 +104,9 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 func (d *Deck) DrawCard(drawer int) (int, error) {
 	d.lastDrawnCard++
 	cj := d.encryptedDeck[d.lastDrawnCard].Clone()
-	for j := 0; j < d.Peer.GetPeerCount(); j++ {
+	orderRank := d.Peer.GetOrderedRanks()
+
+	for _,j := range orderRank {
 		if j != drawer {
 			xj_1 := suite.Scalar().Inv(d.secretKey)
 			cj.Mul(xj_1, cj)
@@ -147,8 +149,9 @@ func (d *Deck) OpenCard(player int, card int) (int, error) {
 
 // The player with rank leaver leave the game and remove his secret key from the deck
 func (d *Deck) LeaveGame(leaver int) error {
+	orderRank := d.Peer.GetOrderedRanks()
 	for i, c := range d.encryptedDeck {
-		for j := range d.Peer.GetPeerCount() {
+		for _,j := range orderRank {
 			if j == leaver {
 				xj_1 := suite.Scalar().Inv(d.secretKey)
 				c.Mul(xj_1, c)
