@@ -4,7 +4,6 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
@@ -33,11 +32,7 @@ type Ledger interface {
 type NetworkLayer interface {
 	Broadcast(data []byte, root int) ([]byte, error)
 
-	BroadcastwithTimeout(data []byte, rank int, timeout time.Duration) ([]byte, error)
-
 	AllToAll(data []byte) ([][]byte, error)
-
-	AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte, error)
 
 	GetRank() int
 

@@ -308,7 +308,7 @@ func main() {
 }
 
 func testConnections(p2p *network.P2P, name string) ([]string, error) {
-	byteNames, err := p2p.AllToAllwithTimeout([]byte(name), timeout)
+	byteNames, err := p2p.AllToAll([]byte(name))
 	if err != nil {
 		return nil, err
 	}

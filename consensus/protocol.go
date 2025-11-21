@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
@@ -87,7 +86,7 @@ func (node *ConsensusNode) ProposeAction(a *Action) error {
 	node.proposal = a
 
 	b, _ := json.Marshal(*node.proposal)
-	if _, err := node.network.BroadcastwithTimeout(b, node.network.GetRank(), 30*time.Second); err != nil {
+	if _, err := node.network.Broadcast(b, node.network.GetRank()); err != nil {
 		return err
 	}
 	err := node.onReceiveProposal(node.proposal)
@@ -103,7 +102,7 @@ func (node *ConsensusNode) ProposeAction(a *Action) error {
 func (node *ConsensusNode) WaitForProposal() error {
 	proposer := node.pokerSM.GetCurrentPlayer()
 
-	data, err := node.network.BroadcastwithTimeout(nil, proposer, 30*time.Second)
+	data, err := node.network.Broadcast(nil, proposer)
 	if err != nil {
 		return err
 	}
@@ -186,7 +185,7 @@ func (node *ConsensusNode) broadcastVoteForProposal(p *Action, v VoteValue, reas
 	if err != nil {
 		return err
 	}
-	votesBytes, err := node.network.AllToAllwithTimeout(b, 30*time.Second)
+	votesBytes, err := node.network.AllToAll(b)
 	if err != nil {
 		return err
 	}
