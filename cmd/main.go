@@ -440,14 +440,13 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 	isPlayerTurn := pokerManager.Session.CurrentTurn == uint(pokerManager.FindPlayerIndex(myRank))
 
 	duration := timeout - 5*time.Second
-	if duration <= 0 {
-		duration = 1 * time.Second
+	if duration < 0 {
+		duration = 9999 * time.Second
 	}
 	if isPlayerTurn {
-		deadline := time.Now().Add(duration)
 
 		done := make(chan struct{})
-		ticker := time.NewTicker(500 * time.Millisecond)
+		ticker := time.NewTicker(duration)
 
 		// ensure goroutine is cancelled when this function returns
 		defer func() {
@@ -459,7 +458,6 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 			for {
 				select {
 				case <-ticker.C:
-					if time.Now().After(deadline) {
 						// mark timedOut in a race-free way; main goroutine can read this via
 						// atomic.LoadUint32(&timedOut) == 1
 						atomic.StoreUint32(&timedOut, 1)
@@ -485,7 +483,6 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 							}
 						}
 						return
-					}
 				case <-done:
 					return
 				}
