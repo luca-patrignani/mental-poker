@@ -267,6 +267,7 @@ func main() {
 						msg := fmt.Sprintf(" %s: %s", p2p.GetAddresses()[i], string(name))
 						logger.Info(msg)
 					}
+					node.SetNetwork(p2p)
 					deck = poker.NewPokerDeck(p2p)
 					err = deck.PrepareDeck()
 					if err != nil {

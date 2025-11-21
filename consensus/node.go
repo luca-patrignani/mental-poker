@@ -116,3 +116,8 @@ func (node *ConsensusNode) UpdatePeers() error {
 // computeQuorum calculates the minimum number of votes required to reach Byzantine Fault
 // Tolerance consensus. It returns ceiling((2n+2)/3) where n is the number of nodes.
 func computeQuorum(n int) int { return (2*n + 2) / 3 }
+
+
+func (node *ConsensusNode) SetNetwork(net NetworkLayer) {
+	node.network = net
+}

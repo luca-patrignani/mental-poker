@@ -49,3 +49,7 @@ func (p *P2P) RemovePeer(leaver int) {
 func (p *P2P) GetOrderedRanks() []int {
 	return p.peer.GetOrderedRanks()
 }
+
+func (p *P2P) ChangePeer(peer *Peer) {
+	p.peer = peer
+}
