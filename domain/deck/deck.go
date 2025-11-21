@@ -49,6 +49,7 @@ func (d *Deck) PrepareDeck() error {
 		deck[i] = card
 	}
 	d.cardCollection = deck
+	d.lastDrawnCard = 0
 	return nil
 }
 
@@ -85,8 +86,6 @@ func (d *Deck) generateRandomElement() (kyber.Point, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	//TODO: ZKA (optional)
 
 	hResult := hArray[0]
 	for i := 1; i < len(hArray); i++ {

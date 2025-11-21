@@ -12,21 +12,31 @@ import (
 	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
 
+// Blockchain maintains an append-only log of consensus decisions.
+// It provides cryptographic verification of the entire history through
+// hash chaining and ensures that all recorded actions received quorum approval.
 type Blockchain struct {
-	mu     sync.RWMutex
-	blocks []Block
+	mu     sync.RWMutex // Protects concurrent access to blocks
+	blocks []Block      // The chain of consensus decisions
 }
 
-// NewBlockchain creates a new blockchain with an initialized genesis block.
-// The genesis block captures the initial session state, has index 0, previous hash "0",
-// and empty action/votes arrays. This ensures the blockchain starts with a record of the
-// initial game state.
+// NewBlockchain creates a new blockchain initialized with a genesis block.
+//
+// The genesis block:
+//   - Records the initial game state
+//   - Has index 0 and previous hash "0"
+//   - Contains no action or votes
+//   - Serves as the immutable root of the blockchain
+//
+// Parameters:
+//   - initialSession: The starting state of the poker game
+//
+// Returns the initialized blockchain or an error if genesis hash calculation fails.
 func NewBlockchain(initialSession poker.Session) (*Blockchain, error) {
 	bc := &Blockchain{
 		blocks: make([]Block, 0),
 	}
 
-	// Create genesis block with initial session
 	genesis := Block{
 		Index:     0,
 		Timestamp: time.Now().Unix(),
@@ -46,9 +56,30 @@ func NewBlockchain(initialSession poker.Session) (*Blockchain, error) {
 	return bc, nil
 }
 
-// Append adds a new validated block to the blockchain. It calculates the block hash,
-// validates the block against the previous block, and appends it. Returns an error if
-// the block is invalid. The extra parameter can optionally contain additional metadata.
+// Append adds a new validated block to the blockchain.
+//
+// The method:
+//  1. Calculates the block hash
+//  2. Validates against the previous block
+//  3. Appends to the chain
+//
+// Validation ensures:
+//   - Correct index (prev + 1)
+//   - Correct previous hash
+//   - Sufficient votes (>= quorum)
+//   - Valid block hash
+//
+// Parameters:
+//   - session: Game state after the action
+//   - pa: The poker action executed
+//   - votes: Quorum votes approving the action
+//   - proposerID: ID of the player who proposed the action
+//   - quorum: Minimum votes required for consensus
+//   - extra: Optional metadata (e.g., ban reasons)
+//
+// Returns an error if the block is invalid or if appending fails.
+//
+// Thread-safety: This method is safe for concurrent access.
 func (bc *Blockchain) Append(session poker.Session, pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
@@ -114,8 +145,20 @@ func (bc *Blockchain) GetByIndex(index int) (*Block, error) {
 	return &bc.blocks[index], nil
 }
 
-// Verify validates the integrity of the entire blockchain by checking the genesis block
-// and verifying each subsequent block's hash, index continuity, and previous hash linkage.
+// Verify validates the integrity of the entire blockchain.
+//
+// Verification checks:
+//   - Blockchain is not empty
+//   - Genesis block has previous hash "0"
+//   - Each block's index is sequential
+//   - Each block's previous hash matches the previous block's hash
+//   - Each block's hash is correctly calculated
+//   - Each block has sufficient votes
+//
+// Returns nil if the blockchain is valid, or an error describing the first
+// integrity violation found.
+//
+// Thread-safety: This method is safe for concurrent access.
 func (bc *Blockchain) Verify() error {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()

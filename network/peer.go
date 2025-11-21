@@ -14,18 +14,29 @@ import (
 	"time"
 )
 
-// Peer is an helper struct for communication between nodes.
-// the Rank is an identifier of the Peer.
-// Addresses[i] contains the address to reach the Peer with Rank i.
+// Peer represents a node in the peer-to-peer network.
+// It maintains connections to other nodes and provides communication primitives
+// for distributed consensus protocols.
 type Peer struct {
-	Rank      int
-	Addresses map[int]string
-	clock     uint64
-	server    *http.Server
-	handler   *broadcastHandler
-	timeout   time.Duration
+	Rank      int               // Unique identifier for this peer
+	Addresses map[int]string    // Map of rank to network address
+	clock     uint64            // Logical clock for message ordering
+	server    *http.Server      // HTTP server for receiving messages
+	handler   *broadcastHandler // Handler for incoming broadcasts
+	timeout   time.Duration     // Communication timeout
 }
 
+// NewPeer creates and starts a new peer.
+//
+// Parameters:
+//   - rank: Unique identifier for this peer
+//   - addresses: Map of all peer ranks to their network addresses
+//   - l: Network listener for this peer
+//   - timeout: Maximum time to wait for responses
+//
+// The peer's HTTP server starts immediately in a background goroutine.
+//
+// Returns the initialized peer.
 func NewPeer(rank int, addresses map[int]string, l net.Listener, timeout time.Duration) Peer {
 	handler := &broadcastHandler{
 		contentChannel: make(chan []byte),
@@ -90,9 +101,21 @@ func (h *broadcastHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	rw.WriteHeader(http.StatusAccepted)
 }
 
-// Peer with Rank root sends the content of bufferSend to every node.
-// bufferRecv will contain the value sent by the Peer with Rank root.
-// This function will implicitly synchronize the peers.
+// Broadcast performs a one-to-all communication pattern.
+//
+// The peer with rank 'root' sends bufferSend to all other peers.
+// All peers (including root) receive the same data in bufferRecv.
+//
+// This operation includes an implicit barrier synchronization, ensuring
+// all peers have completed the broadcast before any peer returns.
+//
+// Parameters:
+//   - bufferSend: Data to send (only used by the root peer)
+//   - root: Rank of the peer that broadcasts
+//
+// Returns the broadcast data or an error if communication fails.
+//
+// Thread-safety: This method synchronizes all participating peers.
 func (p *Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 	bufferRecv, err := p.broadcastNoBarrier(bufferSend, root)
 	if err != nil {
@@ -106,9 +129,19 @@ func (p *Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 }
 
 
-// Each caller of AllToAll sends the content of bufferSend to every node.
-// bufferRecv[i] will contain the value sent by the Peer with Rank i.
-// This function will implicitly synchronize the peers.
+// AllToAll performs an all-to-all communication pattern.
+//
+// Each peer sends its bufferSend to all other peers.
+// bufferRecv[i] contains the data sent by peer with rank i.
+//
+// This operation includes an implicit barrier synchronization.
+//
+// Parameters:
+//   - bufferSend: Data to send from this peer
+//
+// Returns a slice where index i contains data from peer i, or an error.
+//
+// Thread-safety: This method synchronizes all participating peers.
 func (p *Peer) AllToAll(bufferSend []byte) (bufferRecv [][]byte, err error) {
 	size, b := maxKey(p.Addresses)
 	if !b {

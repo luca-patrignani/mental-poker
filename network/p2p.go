@@ -1,6 +1,7 @@
 package network
 
-// P2P is an adapter of Peer to the interface NetworkLayer
+// P2P is an adapter that wraps a Peer to implement the consensus.NetworkLayer interface.
+// It provides a clean separation between network transport and consensus logic.
 type P2P struct {
 	peer *Peer
 }
