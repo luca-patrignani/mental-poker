@@ -169,6 +169,13 @@ package ledger {
 package consensus {
 
     class Node {
+        - ID: int
+        - Peer: NetworkLayer
+        - Ledger: Ledger
+        - PokerManager: PokerManager
+        --
+        + ProposeAction(action: Action): error
+        + ListenForProposal(): error
     }
     
     
@@ -192,8 +199,10 @@ package network {
         + Close(): void
     }
     
-    
     class Peer {
+        + Broadcast(data: []byte, root: int): error
+        + AllToAll(data: [][]byte): [][]byte
+        + Close(): void
     }
     
     note top of NetworkLayer
