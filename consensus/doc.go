@@ -25,22 +25,23 @@
 //
 // # Consensus Protocol Flow
 //
-// 1. Proposal Phase: The current player creates and signs an action, then broadcasts
-//    it to all peers with a 30-second timeout.
+//  1. Proposal Phase: The current player creates and signs an action, then broadcasts
+//     it to all peers with a 30-second timeout.
 //
-// 2. Validation Phase: Each node independently validates the action against poker
-//    rules and cryptographic signatures.
+//  2. Validation Phase: Each node independently validates the action against poker
+//     rules and cryptographic signatures.
 //
-// 3. Voting Phase: Nodes broadcast signed votes (ACCEPT or REJECT) to all peers
-//    using all-to-all communication.
+//  3. Voting Phase: Nodes broadcast signed votes (ACCEPT or REJECT) to all peers
+//     using all-to-all communication.
 //
-// 4. Commitment Phase: Once a quorum is reached, the action is committed to the
-//    ledger and applied to the game state. Invalid actions result in proposer banning.
+//  4. Commitment Phase: Once a quorum is reached, the action is committed to the
+//     ledger and applied to the game state. Invalid actions result in proposer banning.
 //
 // # Byzantine Fault Tolerance
 //
 // The protocol tolerates up to f Byzantine (malicious or faulty) nodes where:
-//   f < n/3
+//
+//	f < n/3
 //
 // Quorum is calculated as: ceiling((2n+2)/3)
 //
@@ -58,19 +59,19 @@
 //
 //	// Initialize consensus node
 //	node := consensus.NewConsensusNode(pub, priv, peerKeys, stateManager, ledger, network)
-//	
+//
 //	// Exchange public keys with peers
 //	if err := node.UpdatePeers(); err != nil {
 //	    return err
 //	}
-//	
+//
 //	// Propose an action (when it's your turn)
 //	action, _ := consensus.MakeAction(playerID, pokerAction)
 //	action.Sign(privateKey)
 //	if err := node.ProposeAction(&action); err != nil {
 //	    return err
 //	}
-//	
+//
 //	// Wait for others' actions (when it's not your turn)
 //	if err := node.WaitForProposal(); err != nil {
 //	    return err

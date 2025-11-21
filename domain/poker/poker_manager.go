@@ -115,6 +115,11 @@ func (psm *PokerManager) PrepareNextMatch() {
 		psm.Session.Players[i].Bet = 0
 		psm.Session.Players[i].Hand[0] = c
 		psm.Session.Players[i].Hand[1] = c
+
+		if psm.Session.Players[i].Pot <= 0 {
+			psm.Session.Players[i].HasFolded = true
+		}
+
 	}
 	for i := range psm.Session.Board {
 		psm.Session.Board[i] = c

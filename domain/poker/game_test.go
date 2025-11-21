@@ -154,9 +154,9 @@ func TestRecalculatePotsEqualBetsNoSide(t *testing.T) {
 func TestApplyAction_Fold(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Bet: 50, HasFolded: false},
-			{Name: "Bob", Bet: 50, HasFolded: false},
-			{Name: "John", Bet: 50, HasFolded: false},
+			{Name: "Alice", Bet: 50, HasFolded: false, Pot: 100},
+			{Name: "Bob", Bet: 50, HasFolded: false, Pot: 100},
+			{Name: "John", Bet: 50, HasFolded: false, Pot: 100},
 		},
 		CurrentTurn: 0,
 	}
@@ -178,9 +178,9 @@ func TestApplyAction_Fold(t *testing.T) {
 func TestApplyAction_OnePlayerRemained(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Bet: 50, HasFolded: false},
-			{Name: "Bob", Bet: 50, HasFolded: true},
-			{Name: "John", Bet: 50, HasFolded: false},
+			{Name: "Alice", Bet: 50, HasFolded: false, Pot: 100},
+			{Name: "Bob", Bet: 50, HasFolded: true, Pot: 100},
+			{Name: "John", Bet: 50, HasFolded: false, Pot: 100},
 		},
 		CurrentTurn: 0,
 	}
@@ -308,6 +308,64 @@ func TestApplyAction_AllIn_EmptiesPot(t *testing.T) {
 	}
 }
 
+func TestApplyAction_AllIn_Brings_To_Showdown(t *testing.T) {
+	session := &Session{
+		Players: []Player{
+			{Id: 0, Name: "Alice", Pot: 75, Bet: 50},
+			{Id: 1, Name: "Bob", Pot: 100, Bet: 400},
+		},
+		CurrentTurn: 0,
+		HighestBet:  400,
+		Round:       PreFlop,
+	}
+
+	err := applyAction(ActionAllIn, 0, session, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if session.Players[0].Pot != 0 {
+		t.Fatalf("expected pot 0, got %d", session.Players[0].Pot)
+	}
+
+	if session.Players[0].Bet != 125 {
+		t.Fatalf("expected bet 125, got %d", session.Players[0].Bet)
+	}
+
+	if session.Round != Showdown {
+		t.Fatalf("expected round Showdown, got %s", session.Round)
+	}
+}
+
+func TestApplyAction_Call_AllIn_Brings_To_Showdown(t *testing.T) {
+	session := &Session{
+		Players: []Player{
+			{Id: 0, Name: "Alice", Pot: 400, Bet: 0},
+			{Id: 1, Name: "Bob", Pot: 0, Bet: 400},
+		},
+		CurrentTurn: 0,
+		HighestBet:  400,
+		Round:       PreFlop,
+	}
+
+	err := applyAction(ActionCall, 0, session, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if session.Players[0].Pot != 0 {
+		t.Fatalf("expected pot 0, got %d", session.Players[0].Pot)
+	}
+
+	if session.Players[0].Bet != 400 {
+		t.Fatalf("expected bet 400, got %d", session.Players[0].Bet)
+	}
+
+	if session.Round != Showdown {
+		t.Fatalf("expected round Showdown, got %s", session.Round)
+	}
+}
+
 func TestApplyAction_Check_NoStateChange(t *testing.T) {
 	session := &Session{
 		Players: []Player{
@@ -360,9 +418,9 @@ func TestApplyAction_Ban_RemovesPlayer(t *testing.T) {
 func TestAdvanceTurn_SkipsFoldedPlayers(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", HasFolded: false},
-			{Name: "Bob", HasFolded: true},
-			{Name: "Carol", HasFolded: false},
+			{Name: "Alice", HasFolded: false, Pot: 100},
+			{Name: "Bob", HasFolded: true, Pot: 100},
+			{Name: "Carol", HasFolded: false, Pot: 100},
 		},
 		CurrentTurn: 0,
 	}
@@ -377,8 +435,8 @@ func TestAdvanceTurn_SkipsFoldedPlayers(t *testing.T) {
 func TestAdvanceTurn_WrapsAround(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", HasFolded: false},
-			{Name: "Bob", HasFolded: false},
+			{Name: "Alice", HasFolded: false, Pot: 100},
+			{Name: "Bob", HasFolded: false, Pot: 100},
 		},
 		CurrentTurn: 1,
 	}

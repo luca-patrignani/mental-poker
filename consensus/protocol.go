@@ -92,12 +92,12 @@ type Certificate struct {
 // ProposeAction initiates the consensus protocol by broadcasting a poker action proposal.
 //
 // Protocol Steps:
-//   1. Validates that the proposer is the current player
-//   2. Caches the proposal locally
-//   3. Broadcasts to all peers with 30-second timeout
-//   4. Validates and votes on own proposal
-//   5. Collects votes from peers
-//   6. Commits if quorum is reached
+//  1. Validates that the proposer is the current player
+//  2. Caches the proposal locally
+//  3. Broadcasts to all peers with 30-second timeout
+//  4. Validates and votes on own proposal
+//  5. Collects votes from peers
+//  6. Commits if quorum is reached
 //
 // This method should ONLY be called when it's your turn to act. Calling it
 // out-of-turn will result in an error and potential ban.
@@ -139,12 +139,12 @@ func (node *ConsensusNode) ProposeAction(a *Action) error {
 // This should be called by all non-proposing nodes during another player's turn.
 //
 // Protocol Steps:
-//   1. Determines which player should propose next
-//   2. Waits for broadcast from that player (30-second timeout)
-//   3. Unmarshals the received proposal
-//   4. Validates and votes on the proposal
-//   5. Collects votes from all peers
-//   6. Commits if quorum is reached
+//  1. Determines which player should propose next
+//  2. Waits for broadcast from that player (30-second timeout)
+//  3. Unmarshals the received proposal
+//  4. Validates and votes on the proposal
+//  5. Collects votes from all peers
+//  6. Commits if quorum is reached
 //
 // Parameters: None (uses internal state to determine proposer)
 //
@@ -170,10 +170,10 @@ func (node *ConsensusNode) WaitForProposal() error {
 // onReceiveProposal validates a received proposal and broadcasts a vote.
 //
 // Validation checks (in order):
-//   1. Proposer's public key is known
-//   2. Cryptographic signature is valid
-//   3. Player exists in current session
-//   4. Action complies with poker rules
+//  1. Proposer's public key is known
+//  2. Cryptographic signature is valid
+//  3. Player exists in current session
+//  4. Action complies with poker rules
 //
 // If any check fails, broadcasts REJECT vote with reason. Otherwise broadcasts ACCEPT.
 //
@@ -357,9 +357,9 @@ func (node *ConsensusNode) onReceiveVotes(votes []Vote) error {
 // checkAndCommit determines if quorum has been reached and commits accordingly.
 //
 // Three outcomes:
-//   1. ACCEPT quorum reached → Commit the action, apply to state
-//   2. REJECT quorum reached → Ban the proposer, remove from game
-//   3. No quorum → Return error (need more votes)
+//  1. ACCEPT quorum reached → Commit the action, apply to state
+//  2. REJECT quorum reached → Ban the proposer, remove from game
+//  3. No quorum → Return error (need more votes)
 //
 // When banning a player:
 //   - Creates a ban action
@@ -458,9 +458,9 @@ func getBanReason(rejectVotes []Vote) string {
 }
 
 // applyCommit applies a validated certificate by:
-//   1. Executing the action through the state machine
-//   2. Appending the decision to the ledger
-//   3. Removing banned players from consensus (if applicable)
+//  1. Executing the action through the state machine
+//  2. Appending the decision to the ledger
+//  3. Removing banned players from consensus (if applicable)
 //
 // Parameters:
 //   - cert: Certificate containing proposal and quorum votes

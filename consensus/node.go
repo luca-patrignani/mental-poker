@@ -90,15 +90,15 @@ type NetworkLayer interface {
 // Each node operates independently, validating actions locally before voting.
 // Consensus is reached when sufficient votes (quorum) agree on an action.
 type ConsensusNode struct {
-	pub       ed25519.PublicKey              // This node's public key
-	priv      ed25519.PrivateKey             // This node's private key (sensitive!)
-	playersPK map[int]ed25519.PublicKey      // Public keys of all peers (ID → pubkey)
-	quorum    int                            // Minimum votes needed for consensus
-	pokerSM   StateManager                   // Game state manager
-	ledger    Ledger                         // Immutable decision log
-	network   NetworkLayer                   // P2P communication
-	proposal  *Action                        // Current proposal being voted on
-	votes     map[int]Vote                   // Collected votes (VoterID → Vote)
+	pub       ed25519.PublicKey         // This node's public key
+	priv      ed25519.PrivateKey        // This node's private key (sensitive!)
+	playersPK map[int]ed25519.PublicKey // Public keys of all peers (ID → pubkey)
+	quorum    int                       // Minimum votes needed for consensus
+	pokerSM   StateManager              // Game state manager
+	ledger    Ledger                    // Immutable decision log
+	network   NetworkLayer              // P2P communication
+	proposal  *Action                   // Current proposal being voted on
+	votes     map[int]Vote              // Collected votes (VoterID → Vote)
 }
 
 // NewConsensusNode creates and initializes a new consensus node with the given cryptographic keys,

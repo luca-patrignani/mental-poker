@@ -191,9 +191,9 @@ func TestAdvanceRound(t *testing.T) {
 			name: "Advance to next active player",
 			session: Session{
 				Players: []Player{
-					{Id: 0, HasFolded: false},
-					{Id: 1, HasFolded: false},
-					{Id: 2, HasFolded: false},
+					{Id: 0, HasFolded: false, Pot: 100},
+					{Id: 1, HasFolded: false, Pot: 100},
+					{Id: 2, HasFolded: false, Pot: 100},
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
@@ -207,9 +207,9 @@ func TestAdvanceRound(t *testing.T) {
 			name: "Skip folded players",
 			session: Session{
 				Players: []Player{
-					{Id: 0, HasFolded: false},
-					{Id: 1, HasFolded: true},
-					{Id: 2, HasFolded: false},
+					{Id: 0, HasFolded: false, Pot: 100},
+					{Id: 1, HasFolded: true, Pot: 100},
+					{Id: 2, HasFolded: false, Pot: 100},
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
@@ -223,9 +223,9 @@ func TestAdvanceRound(t *testing.T) {
 			name: "Wrap around from last to first player",
 			session: Session{
 				Players: []Player{
-					{Id: 0, HasFolded: false},
-					{Id: 1, HasFolded: false},
-					{Id: 2, HasFolded: false},
+					{Id: 0, HasFolded: false, Pot: 100},
+					{Id: 1, HasFolded: false, Pot: 100},
+					{Id: 2, HasFolded: false, Pot: 100},
 				},
 				Dealer:      2,
 				CurrentTurn: 2,
@@ -239,9 +239,9 @@ func TestAdvanceRound(t *testing.T) {
 			name: "Only one player left (all others folded)",
 			session: Session{
 				Players: []Player{
-					{Id: 0, HasFolded: true},
-					{Id: 1, HasFolded: false},
-					{Id: 2, HasFolded: true},
+					{Id: 0, HasFolded: false, Pot: 0},
+					{Id: 1, HasFolded: false, Pot: 100},
+					{Id: 2, HasFolded: true, Pot: 100},
 				},
 				Dealer:      0,
 				CurrentTurn: 0,

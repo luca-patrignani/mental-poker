@@ -8,18 +8,18 @@ import (
 
 // Card suit constants (0-3)
 const (
-	Club    = 0  // ♣ (black)
-	Diamond = 1  // ♦ (red)
-	Heart   = 2  // ♥ (red)
-	Spade   = 3  // ♠ (black)
+	Club    = 0 // ♣ (black)
+	Diamond = 1 // ♦ (red)
+	Heart   = 2 // ♥ (red)
+	Spade   = 3 // ♠ (black)
 )
 
 // Card rank constants for face cards and ace
 const (
-	Jack  = 11  // J
-	Queen = 12  // Q
-	King  = 13  // K
-	Ace   = 1   // A (low in straights, high in value)
+	Jack  = 11 // J
+	Queen = 12 // Q
+	King  = 13 // K
+	Ace   = 1  // A (low in straights, high in value)
 )
 
 // FaceDown is the display character for hidden cards
@@ -30,8 +30,8 @@ const (
 // Card represents a playing card with suit and rank.
 // Rank 0 indicates a face-down or uninitialized card.
 type Card struct {
-	suit uint8  // 0-3: clubs, diamonds, hearts, spades
-	rank uint8  // 1-13: ace through king (0 = face down)
+	suit uint8 // 0-3: clubs, diamonds, hearts, spades
+	rank uint8 // 1-13: ace through king (0 = face down)
 }
 
 // NewCard creates a new Card with validation.

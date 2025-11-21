@@ -79,7 +79,7 @@ func (session *Session) getNextActivePlayer(currentIdx uint) int {
 
 	for i := 1; i <= n; i++ {
 		next := (int(currentIdx) + i) % n
-		if !session.Players[next].HasFolded {
+		if !session.Players[next].HasFolded && session.Players[next].Pot > 0 {
 			return next
 		}
 	}

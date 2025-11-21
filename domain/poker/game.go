@@ -105,7 +105,7 @@ func (s *Session) recalculatePots() {
 		})
 	}
 
-	if onePlayerRemained(s.Pots) {
+	if everybodyFolded(s.Players) {
 		totalPot := 0
 		for _, p := range s.Pots {
 			totalPot += int(p.Amount)
@@ -119,17 +119,32 @@ func (s *Session) recalculatePots() {
 
 // onePlayerRemained checks if all pots have exactly one eligible player, which consolidates
 // multiple pots into a single pot for that player.
-func onePlayerRemained(lists []Pot) bool {
-	for _, pot := range lists {
-		if len(pot.Eligible) != 1 {
-			return false
+func onePlayerRemained(players []Player) bool {
+	pRemained := 0
+	for _, p := range players {
+		if !p.HasFolded && p.Pot > 0 {
+			pRemained++
 		}
 	}
-	return true
+	return pRemained <= 1
+}
+
+func everybodyFolded(players []Player) bool {
+	pRemained := 0
+	for _, p := range players {
+		if !p.HasFolded {
+			pRemained++
+		}
+	}
+	return pRemained <= 1
 }
 
 func (s *Session) OnePlayerRemained() bool {
-	return onePlayerRemained(s.Pots)
+	return onePlayerRemained(s.Players)
+}
+
+func (s *Session) EverybodyFolded() bool {
+	return everybodyFolded(s.Players)
 }
 
 // ApplyAction applies a poker action to the session state and advances the turn to the next
@@ -140,7 +155,7 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 	case ActionFold:
 		session.Players[idx].HasFolded = true
 		session.recalculatePots()
-		if onePlayerRemained(session.Pots) {
+		if onePlayerRemained(session.Players) {
 			session.Round = Showdown
 			session.advanceTurn()
 		} else {
@@ -169,34 +184,51 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 		session.HighestBet = session.Players[idx].Bet
 		session.LastToRaise = uint(idx)
 		session.recalculatePots()
-		if session.isRoundFinished() {
-			session.advanceRound()
-		} else {
+		if onePlayerRemained(session.Players) {
+			session.Round = Showdown
 			session.advanceTurn()
+		} else {
+			if session.isRoundFinished() {
+				session.advanceRound()
+			} else {
+				session.advanceTurn()
+			}
 		}
 	case ActionCall:
 		diff := session.HighestBet - session.Players[idx].Bet
 		session.Players[idx].Bet += diff
 		session.Players[idx].Pot -= diff
 		session.recalculatePots()
-		if session.isRoundFinished() {
-			session.advanceRound()
-		} else {
+		if onePlayerRemained(session.Players) {
+			session.Round = Showdown
 			session.advanceTurn()
+		} else {
+			if session.isRoundFinished() {
+				session.advanceRound()
+			} else {
+				session.advanceTurn()
+			}
 		}
 	case ActionAllIn:
 		session.Players[idx].Bet += session.Players[idx].Pot
 		session.Players[idx].Pot = 0
-		if session.Players[idx].Bet >= session.HighestBet {
+		if session.Players[idx].Bet > session.HighestBet {
 			session.HighestBet = session.Players[idx].Bet
 			session.LastToRaise = uint(idx)
+		} else {
+			if onePlayerRemained(session.Players) {
+				session.Round = Showdown
+				session.advanceTurn()
+			}
 		}
 		session.recalculatePots()
+
 		if session.isRoundFinished() {
 			session.advanceRound()
 		} else {
 			session.advanceTurn()
 		}
+
 	case ActionCheck:
 		if session.isRoundFinished() {
 			session.advanceRound()

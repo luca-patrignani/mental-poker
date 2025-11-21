@@ -231,12 +231,19 @@ func main() {
 
 			round := pokerManager.Session.Round
 			if round == poker.Showdown {
-				if !session.OnePlayerRemained() {
+				if !session.EverybodyFolded() {
+					if session.OnePlayerRemained() {
+						err := showdownByAllIn(&pokerManager, &deck)
+						if err != nil {
+							logger.Error(err.Error())
+						}
+					}
 					err := showCards(&pokerManager, &deck)
 					if err != nil {
 						logger.Error(err.Error())
 					}
 				}
+
 				panel, err = getWinnerPanel(pokerManager)
 				if err != nil {
 					logger.Error(err.Error())
@@ -278,6 +285,17 @@ func main() {
 			area.Update()
 			printState(pokerManager, actionPanel)
 		}
+		pokerManager.PrepareNextMatch()
+		if pokerManager.Session.OnePlayerRemained() {
+			if pokerManager.Session.Players[myRank].Pot > 0 {
+				pterm.Success.Println("You are the last player remaining, Congratulations!")
+				break
+			} else {
+				pterm.Error.Println("You have been eliminated, better luck next time!")
+				break
+			}
+		}
+
 		leave, leaveList, err := askForLeavers(pokerManager, *node, deck, *p2p)
 		if err != nil {
 			panic(err)
@@ -298,12 +316,12 @@ func main() {
 		}
 
 		logger.Info("Starting a new match")
-		pokerManager.PrepareNextMatch()
 	}
 
 	area.Stop()
 	pterm.Println("Thank you for playing...")
 	pterm.Print(title)
+	pterm.Println()
 
 }
 
@@ -471,7 +489,7 @@ func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uin
 		if psm.Session.Players[idx].Pot < amount {
 			action, err = consensus.MakeAction(psm.Player, psm.ActionFold())
 		} else {
-			action, err = consensus.MakeAction(psm.Player, psm.ActionRaise(amount))
+			action, err = consensus.MakeAction(psm.Player, psm.ActionBet(amount))
 		}
 		if err != nil {
 			return err
@@ -621,8 +639,11 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 		}
 		return consensusNode.ProposeAction(&action)
 	} else {
-		currentName := pterm.LightCyan(pokerManager.GetSession().Players[pokerManager.GetCurrentPlayer()].Name)
-		text := pterm.Sprintf("Waiting for %s to make an action ...", currentName)
+		text := "Waiting for the other player to make an action ..."
+		if pokerManager.GetCurrentPlayer() > 0 {
+			currentName := pterm.LightCyan(pokerManager.GetSession().Players[pokerManager.GetCurrentPlayer()].Name)
+			text = pterm.Sprintf("Waiting for %s to make an action ...", currentName)
+		}
 		spinner, _ := pterm.DefaultSpinner.Start(text)
 		err := consensusNode.WaitForProposal()
 		if err != nil {
@@ -657,6 +678,17 @@ func applyShowdown(psm poker.PokerManager, node consensus.ConsensusNode, myRank 
 		err := node.WaitForProposal()
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func showdownByAllIn(psm *poker.PokerManager, deck *poker.PokerDeck) error {
+	for i, c := range psm.Session.Board {
+		if c.Rank() == 0 {
+			if err := cardOnBoard(psm, deck, i); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

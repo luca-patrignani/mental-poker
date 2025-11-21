@@ -12,7 +12,7 @@ import (
 // the pot equally, and excludes folded players. Returns a map of player ID to winnings.
 func (s *Session) winnerEval() (map[int]uint, error) {
 	results := make(map[int]uint)
-	if onePlayerRemained(s.Pots) {
+	if everybodyFolded(s.Players) {
 		for _, p := range s.Pots {
 			results[s.Players[p.Eligible[0]].Id] += p.Amount
 		}

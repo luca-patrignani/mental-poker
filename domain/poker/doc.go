@@ -54,7 +54,7 @@
 //	    {Name: "Alice", Id: 0, Pot: 1000},
 //	    {Name: "Bob", Id: 1, Pot: 1000},
 //	}
-//	
+//
 //	// Initialize session
 //	session := poker.Session{
 //	    Players:     players,
@@ -62,10 +62,10 @@
 //	    CurrentTurn: 1,
 //	    Round:       poker.PreFlop,
 //	}
-//	
+//
 //	// Create poker manager
 //	manager := poker.PokerManager{Session: &session, Player: 0}
-//	
+//
 //	// Validate and apply action
 //	action := manager.ActionRaise(50)
 //	if err := manager.Validate(action); err != nil {
