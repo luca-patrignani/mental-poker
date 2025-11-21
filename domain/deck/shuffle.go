@@ -7,6 +7,7 @@ import (
 )
 
 func (d *Deck) Shuffle() error {
+	d.lastDrawnCard = 0
 	d.encryptedDeck = make([]kyber.Point, d.DeckSize+1)
 	for i, card := range d.cardCollection {
 		d.encryptedDeck[i] = card.Clone()

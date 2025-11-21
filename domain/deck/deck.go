@@ -49,7 +49,6 @@ func (d *Deck) PrepareDeck() error {
 		deck[i] = card
 	}
 	d.cardCollection = deck
-	d.lastDrawnCard = 0
 	return nil
 }
 
