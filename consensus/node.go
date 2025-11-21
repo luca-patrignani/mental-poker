@@ -4,7 +4,6 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
@@ -61,17 +60,9 @@ type NetworkLayer interface {
 	// Returns the data received from the root node or an error if communication fails.
 	Broadcast(data []byte, root int) ([]byte, error)
 
-	// BroadcastwithTimeout performs a broadcast with a specified timeout.
-	// Returns the received data or an error if the timeout is exceeded.
-	BroadcastwithTimeout(data []byte, rank int, timeout time.Duration) ([]byte, error)
-
 	// AllToAll sends data from this node to all peers and receives data from all peers.
 	// Returns a slice where index i contains the data sent by peer i.
 	AllToAll(data []byte) ([][]byte, error)
-
-	// AllToAllwithTimeout performs an all-to-all exchange with a specified timeout.
-	// Returns partial results if the timeout is exceeded.
-	AllToAllwithTimeout(data []byte, timeout time.Duration) ([][]byte, error)
 
 	// GetRank returns this node's unique identifier in the network.
 	GetRank() int
