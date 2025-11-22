@@ -1,0 +1,27 @@
+\begin{thebibliography}{1}
+
+\bibitem{adams1995hitchhiker}
+D.~Adams.
+\newblock {\em The Hitchhiker's Guide to the Galaxy}.
+\newblock San Val, 1995.
+
+\bibitem{proactivesc-blockchain2019}
+Giovanni Ciatto, Alfredo Maffi, Stefano Mariani, and Andrea Omicini.
+\newblock Smart contracts are more than objects: Pro-activeness on the blockchain.
+\newblock In Javier Prieto, Ashok~Das Kumar, Stefano Ferretti, Ant{\'o}nio Pinto, and Juan~Manuel Corchado, editors, {\em Blockchain and Applications}, volume 1010 of {\em Advances in Intelligent Systems and Computing}, pages 45--53. Springer, 2020.
+
+\bibitem{mpi41}
+{Message Passing Interface Forum}.
+\newblock {\em {MPI}: A Message-Passing Interface Standard Version 4.1}, November 2023.
+
+\bibitem{Wei-Wang-Protocol}
+Tzer-jen Wei and Lih-Chung Wang.
+\newblock A fast mental poker protocol.
+\newblock {\em IACR Cryptology ePrint Archive}, 2009:439, 05 2012.
+
+\bibitem{spmd}
+{Wikipedia contributors}.
+\newblock Single program, multiple data --- {Wikipedia}{,} the free encyclopedia, 2025.
+\newblock [Online; accessed 13-February-2025].
+
+\end{thebibliography}
