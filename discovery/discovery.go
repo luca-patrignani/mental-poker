@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -10,16 +11,18 @@ import (
 
 type Discover struct {
 	Entries chan Entry
+	port	 uint16
 	startPort uint16
 	endPort   uint16
+	server  *http.Server
 }
 
 type Entry struct {
 	Info string
 }
 
-func New(info string) (*Discover, error) {
-	return NewWithPortRange(info, 9000, 9010, 2)
+func New(info string, port uint16) (*Discover, error) {
+	return NewWithPortRange(info, port, port, 2)
 }
 
 type handler struct {
@@ -50,14 +53,16 @@ func NewWithPortRange(info string, startPort, endPort uint16, attempts int) (*Di
 		Handler: handler{info: info},
 	}
 	go func() {
-		if err := server.Serve(l); err != nil {
+		if err := server.Serve(l); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
 	discover := &Discover{
 		Entries:   make(chan Entry),
+		port:      port,
 		startPort: startPort,
 		endPort:   endPort,
+		server: &server,
 	}
 	go func() {
 		for range attempts {
@@ -70,6 +75,9 @@ func NewWithPortRange(info string, startPort, endPort uint16, attempts int) (*Di
 
 func (d *Discover) search() {
 	for port := d.startPort; port <= d.endPort; port++ {
+		if port == d.port {
+			continue
+		}
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d", port))
 		if err != nil {
 			continue
@@ -82,4 +90,8 @@ func (d *Discover) search() {
 			Info: string(buf),
 		}
 	}
+}
+
+func (d *Discover) Close() error {
+	return d.server.Shutdown(context.Background())
 }
