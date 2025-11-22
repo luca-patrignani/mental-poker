@@ -70,9 +70,9 @@ func TestRecalculatePotsWithFold(t *testing.T) {
 func TestRecalculatePotsAllIn(t *testing.T) {
 	session := Session{
 		Players: []Player{
-			{Name: "Alice", Bet: 50, Pot: 0, HasFolded: false},
-			{Name: "Bob", Bet: 200, Pot: 0, HasFolded: false},
-			{Name: "Carol", Bet: 100, Pot: 0, HasFolded: false},
+			{Name: "Alice", Bet: 50, BankRoll: 0, HasFolded: false},
+			{Name: "Bob", Bet: 200, BankRoll: 0, HasFolded: false},
+			{Name: "Carol", Bet: 100, BankRoll: 0, HasFolded: false},
 		},
 	}
 
@@ -154,9 +154,9 @@ func TestRecalculatePotsEqualBetsNoSide(t *testing.T) {
 func TestApplyAction_Fold(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Bet: 50, HasFolded: false, Pot: 100},
-			{Name: "Bob", Bet: 50, HasFolded: false, Pot: 100},
-			{Name: "John", Bet: 50, HasFolded: false, Pot: 100},
+			{Name: "Alice", Bet: 50, HasFolded: false, BankRoll: 100},
+			{Name: "Bob", Bet: 50, HasFolded: false, BankRoll: 100},
+			{Name: "John", Bet: 50, HasFolded: false, BankRoll: 100},
 		},
 		CurrentTurn: 0,
 	}
@@ -178,9 +178,9 @@ func TestApplyAction_Fold(t *testing.T) {
 func TestApplyAction_OnePlayerRemained(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Bet: 50, HasFolded: false, Pot: 100},
-			{Name: "Bob", Bet: 50, HasFolded: true, Pot: 100},
-			{Name: "John", Bet: 50, HasFolded: false, Pot: 100},
+			{Name: "Alice", Bet: 50, HasFolded: false, BankRoll: 100},
+			{Name: "Bob", Bet: 50, HasFolded: true, BankRoll: 100},
+			{Name: "John", Bet: 50, HasFolded: false, BankRoll: 100},
 		},
 		CurrentTurn: 0,
 	}
@@ -207,8 +207,8 @@ func TestApplyAction_OnePlayerRemained(t *testing.T) {
 func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 0},
-			{Name: "Bob", Pot: 100, Bet: 0},
+			{Name: "Alice", BankRoll: 100, Bet: 0},
+			{Name: "Bob", BankRoll: 100, Bet: 0},
 		},
 		CurrentTurn: 0,
 		HighestBet:  0,
@@ -224,8 +224,8 @@ func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {
 		t.Fatalf("expected bet 50, got %d", session.Players[0].Bet)
 	}
 
-	if session.Players[0].Pot != 50 {
-		t.Fatalf("expected pot 50, got %d", session.Players[0].Pot)
+	if session.Players[0].BankRoll != 50 {
+		t.Fatalf("expected pot 50, got %d", session.Players[0].BankRoll)
 	}
 
 	if session.HighestBet != 50 {
@@ -236,8 +236,8 @@ func TestApplyAction_Bet_UpdatesHighestBet(t *testing.T) {
 func TestApplyAction_Raise_UpdatesHighestBet(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 200, Bet: 50},
-			{Name: "Bob", Pot: 100, Bet: 50},
+			{Name: "Alice", BankRoll: 200, Bet: 50},
+			{Name: "Bob", BankRoll: 100, Bet: 50},
 		},
 		CurrentTurn: 0,
 		HighestBet:  50,
@@ -261,8 +261,8 @@ func TestApplyAction_Raise_UpdatesHighestBet(t *testing.T) {
 func TestApplyAction_Call_MatchesHighestBet(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 50},
-			{Name: "Bob", Pot: 100, Bet: 100},
+			{Name: "Alice", BankRoll: 100, Bet: 50},
+			{Name: "Bob", BankRoll: 100, Bet: 100},
 		},
 		CurrentTurn: 0,
 		HighestBet:  100,
@@ -278,16 +278,16 @@ func TestApplyAction_Call_MatchesHighestBet(t *testing.T) {
 		t.Fatalf("expected bet 100, got %d", session.Players[0].Bet)
 	}
 
-	if session.Players[0].Pot != 50 {
-		t.Fatalf("expected pot 50, got %d", session.Players[0].Pot)
+	if session.Players[0].BankRoll != 50 {
+		t.Fatalf("expected pot 50, got %d", session.Players[0].BankRoll)
 	}
 }
 
 func TestApplyAction_AllIn_EmptiesPot(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 75, Bet: 50},
-			{Name: "Bob", Pot: 100, Bet: 100},
+			{Name: "Alice", BankRoll: 75, Bet: 50},
+			{Name: "Bob", BankRoll: 100, Bet: 100},
 		},
 		CurrentTurn: 0,
 		HighestBet:  100,
@@ -299,8 +299,8 @@ func TestApplyAction_AllIn_EmptiesPot(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if session.Players[0].Pot != 0 {
-		t.Fatalf("expected pot 0, got %d", session.Players[0].Pot)
+	if session.Players[0].BankRoll != 0 {
+		t.Fatalf("expected pot 0, got %d", session.Players[0].BankRoll)
 	}
 
 	if session.Players[0].Bet != 125 {
@@ -311,11 +311,12 @@ func TestApplyAction_AllIn_EmptiesPot(t *testing.T) {
 func TestApplyAction_AllIn_Brings_To_Showdown(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Id: 0, Name: "Alice", Pot: 75, Bet: 50},
-			{Id: 1, Name: "Bob", Pot: 100, Bet: 400},
+			{Id: 0, Name: "Alice", BankRoll: 75, Bet: 50},
+			{Id: 1, Name: "Bob", BankRoll: 100, Bet: 400},
 		},
 		CurrentTurn: 0,
 		HighestBet:  400,
+		LastToRaise: 1,
 		Round:       PreFlop,
 	}
 
@@ -324,8 +325,8 @@ func TestApplyAction_AllIn_Brings_To_Showdown(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if session.Players[0].Pot != 0 {
-		t.Fatalf("expected pot 0, got %d", session.Players[0].Pot)
+	if session.Players[0].BankRoll != 0 {
+		t.Fatalf("expected pot 0, got %d", session.Players[0].BankRoll)
 	}
 
 	if session.Players[0].Bet != 125 {
@@ -340,11 +341,12 @@ func TestApplyAction_AllIn_Brings_To_Showdown(t *testing.T) {
 func TestApplyAction_Call_AllIn_Brings_To_Showdown(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Id: 0, Name: "Alice", Pot: 400, Bet: 0},
-			{Id: 1, Name: "Bob", Pot: 0, Bet: 400},
+			{Id: 0, Name: "Alice", BankRoll: 500, Bet: 0},
+			{Id: 1, Name: "Bob", BankRoll: 0, Bet: 400},
 		},
 		CurrentTurn: 0,
 		HighestBet:  400,
+		LastToRaise: 1,
 		Round:       PreFlop,
 	}
 
@@ -353,8 +355,8 @@ func TestApplyAction_Call_AllIn_Brings_To_Showdown(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if session.Players[0].Pot != 0 {
-		t.Fatalf("expected pot 0, got %d", session.Players[0].Pot)
+	if session.Players[0].BankRoll != 100 {
+		t.Fatalf("expected pot 100, got %d", session.Players[0].BankRoll)
 	}
 
 	if session.Players[0].Bet != 400 {
@@ -366,11 +368,45 @@ func TestApplyAction_Call_AllIn_Brings_To_Showdown(t *testing.T) {
 	}
 }
 
+func TestApplyAction_Consecutive_AllIn_Dont_Brings_To_Showdown(t *testing.T) {
+	session := &Session{
+		Players: []Player{
+			{Id: 0, Name: "Alice", BankRoll: 100, Bet: 0},
+			{Id: 1, Name: "Bob", BankRoll: 500, Bet: 0},
+			{Id: 2, Name: "John", BankRoll: 200, Bet: 0},
+		},
+		CurrentTurn: 0,
+		HighestBet:  0,
+		Round:       PreFlop,
+	}
+
+	err := applyAction(ActionAllIn, 0, session, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = applyAction(ActionAllIn, 0, session, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if session.Players[0].BankRoll != 0 {
+		t.Fatalf("expected pot 0, got %d", session.Players[0].BankRoll)
+	}
+
+	if session.Players[1].BankRoll != 0 {
+		t.Fatalf("expected bankroll 0, got %d", session.Players[1].BankRoll)
+	}
+
+	if session.Round != PreFlop {
+		t.Fatalf("expected round Preflop, got %s", session.Round)
+	}
+}
+
 func TestApplyAction_Check_NoStateChange(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 50},
-			{Name: "Bob", Pot: 100, Bet: 50},
+			{Name: "Alice", BankRoll: 100, Bet: 50},
+			{Name: "Bob", BankRoll: 100, Bet: 50},
 		},
 		CurrentTurn: 0,
 		HighestBet:  50,
@@ -418,9 +454,9 @@ func TestApplyAction_Ban_RemovesPlayer(t *testing.T) {
 func TestAdvanceTurn_SkipsFoldedPlayers(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", HasFolded: false, Pot: 100},
-			{Name: "Bob", HasFolded: true, Pot: 100},
-			{Name: "Carol", HasFolded: false, Pot: 100},
+			{Name: "Alice", HasFolded: false, BankRoll: 100},
+			{Name: "Bob", HasFolded: true, BankRoll: 100},
+			{Name: "Carol", HasFolded: false, BankRoll: 100},
 		},
 		CurrentTurn: 0,
 	}
@@ -435,8 +471,8 @@ func TestAdvanceTurn_SkipsFoldedPlayers(t *testing.T) {
 func TestAdvanceTurn_WrapsAround(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", HasFolded: false, Pot: 100},
-			{Name: "Bob", HasFolded: false, Pot: 100},
+			{Name: "Alice", HasFolded: false, BankRoll: 100},
+			{Name: "Bob", HasFolded: false, BankRoll: 100},
 		},
 		CurrentTurn: 1,
 	}

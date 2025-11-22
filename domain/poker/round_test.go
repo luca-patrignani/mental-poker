@@ -80,9 +80,9 @@ func TestIsRoundFinished(t *testing.T) {
 			name: "Round not finished - not back to last raiser",
 			session: Session{
 				Players: []Player{
-					{Id: 0, Bet: 100, HasFolded: false, Pot: 1000},
-					{Id: 1, Bet: 100, HasFolded: false, Pot: 1000},
-					{Id: 2, Bet: 100, HasFolded: false, Pot: 1000},
+					{Id: 0, Bet: 100, HasFolded: false, BankRoll: 1000},
+					{Id: 1, Bet: 100, HasFolded: false, BankRoll: 1000},
+					{Id: 2, Bet: 100, HasFolded: false, BankRoll: 1000},
 				},
 				HighestBet:  100,
 				LastToRaise: 2,
@@ -95,9 +95,9 @@ func TestIsRoundFinished(t *testing.T) {
 			name: "Round finished - all bets equal and back to raiser",
 			session: Session{
 				Players: []Player{
-					{Id: 0, Bet: 100, HasFolded: false, Pot: 1000},
-					{Id: 1, Bet: 100, HasFolded: false, Pot: 1000},
-					{Id: 2, Bet: 100, HasFolded: false, Pot: 1000},
+					{Id: 0, Bet: 100, HasFolded: false, BankRoll: 1000},
+					{Id: 1, Bet: 100, HasFolded: false, BankRoll: 1000},
+					{Id: 2, Bet: 100, HasFolded: false, BankRoll: 1000},
 				},
 				HighestBet:  100,
 				LastToRaise: 1,
@@ -110,9 +110,9 @@ func TestIsRoundFinished(t *testing.T) {
 			name: "Round not finished - player hasn't matched bet",
 			session: Session{
 				Players: []Player{
-					{Id: 0, Bet: 50, HasFolded: false, Pot: 1000},
-					{Id: 1, Bet: 100, HasFolded: false, Pot: 1000},
-					{Id: 2, Bet: 100, HasFolded: false, Pot: 1000},
+					{Id: 0, Bet: 50, HasFolded: false, BankRoll: 1000},
+					{Id: 1, Bet: 100, HasFolded: false, BankRoll: 1000},
+					{Id: 2, Bet: 100, HasFolded: false, BankRoll: 1000},
 				},
 				HighestBet:  100,
 				LastToRaise: 1,
@@ -125,9 +125,9 @@ func TestIsRoundFinished(t *testing.T) {
 			name: "Round finished - folded players ignored",
 			session: Session{
 				Players: []Player{
-					{Id: 0, Bet: 100, HasFolded: false, Pot: 1000},
-					{Id: 1, Bet: 50, HasFolded: true, Pot: 1000},
-					{Id: 2, Bet: 100, HasFolded: false, Pot: 1000},
+					{Id: 0, Bet: 100, HasFolded: false, BankRoll: 1000},
+					{Id: 1, Bet: 50, HasFolded: true, BankRoll: 1000},
+					{Id: 2, Bet: 100, HasFolded: false, BankRoll: 1000},
 				},
 				HighestBet:  100,
 				LastToRaise: 2,
@@ -140,9 +140,9 @@ func TestIsRoundFinished(t *testing.T) {
 			name: "Round finished - all-in player with less than highest bet",
 			session: Session{
 				Players: []Player{
-					{Id: 0, Bet: 50, HasFolded: false, Pot: 50}, // all-in
-					{Id: 1, Bet: 100, HasFolded: false, Pot: 1000},
-					{Id: 2, Bet: 100, HasFolded: false, Pot: 1000},
+					{Id: 0, Bet: 50, HasFolded: false, BankRoll: 50}, // all-in
+					{Id: 1, Bet: 100, HasFolded: false, BankRoll: 1000},
+					{Id: 2, Bet: 100, HasFolded: false, BankRoll: 1000},
 				},
 				HighestBet:  100,
 				LastToRaise: 1,
@@ -155,9 +155,9 @@ func TestIsRoundFinished(t *testing.T) {
 			name: "All players check (no bets)",
 			session: Session{
 				Players: []Player{
-					{Id: 0, Bet: 0, HasFolded: false, Pot: 1000},
-					{Id: 1, Bet: 0, HasFolded: false, Pot: 1000},
-					{Id: 2, Bet: 0, HasFolded: false, Pot: 1000},
+					{Id: 0, Bet: 0, HasFolded: false, BankRoll: 1000},
+					{Id: 1, Bet: 0, HasFolded: false, BankRoll: 1000},
+					{Id: 2, Bet: 0, HasFolded: false, BankRoll: 1000},
 				},
 				HighestBet:  0,
 				LastToRaise: 1,
@@ -191,9 +191,9 @@ func TestAdvanceRound(t *testing.T) {
 			name: "Advance to next active player",
 			session: Session{
 				Players: []Player{
-					{Id: 0, HasFolded: false, Pot: 100},
-					{Id: 1, HasFolded: false, Pot: 100},
-					{Id: 2, HasFolded: false, Pot: 100},
+					{Id: 0, HasFolded: false, BankRoll: 100},
+					{Id: 1, HasFolded: false, BankRoll: 100},
+					{Id: 2, HasFolded: false, BankRoll: 100},
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
@@ -207,9 +207,9 @@ func TestAdvanceRound(t *testing.T) {
 			name: "Skip folded players",
 			session: Session{
 				Players: []Player{
-					{Id: 0, HasFolded: false, Pot: 100},
-					{Id: 1, HasFolded: true, Pot: 100},
-					{Id: 2, HasFolded: false, Pot: 100},
+					{Id: 0, HasFolded: false, BankRoll: 100},
+					{Id: 1, HasFolded: true, BankRoll: 100},
+					{Id: 2, HasFolded: false, BankRoll: 100},
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
@@ -223,9 +223,9 @@ func TestAdvanceRound(t *testing.T) {
 			name: "Wrap around from last to first player",
 			session: Session{
 				Players: []Player{
-					{Id: 0, HasFolded: false, Pot: 100},
-					{Id: 1, HasFolded: false, Pot: 100},
-					{Id: 2, HasFolded: false, Pot: 100},
+					{Id: 0, HasFolded: false, BankRoll: 100},
+					{Id: 1, HasFolded: false, BankRoll: 100},
+					{Id: 2, HasFolded: false, BankRoll: 100},
 				},
 				Dealer:      2,
 				CurrentTurn: 2,
@@ -239,9 +239,9 @@ func TestAdvanceRound(t *testing.T) {
 			name: "Only one player left (all others folded)",
 			session: Session{
 				Players: []Player{
-					{Id: 0, HasFolded: false, Pot: 0},
-					{Id: 1, HasFolded: false, Pot: 100},
-					{Id: 2, HasFolded: true, Pot: 100},
+					{Id: 0, HasFolded: false, BankRoll: 0},
+					{Id: 1, HasFolded: false, BankRoll: 100},
+					{Id: 2, HasFolded: true, BankRoll: 100},
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
@@ -303,9 +303,9 @@ func TestRoundProgression(t *testing.T) {
 func TestAllPlayersCheckScenario(t *testing.T) {
 	session := Session{
 		Players: []Player{
-			{Id: 0, Bet: 10, HasFolded: false, Pot: 1000},
-			{Id: 1, Bet: 10, HasFolded: false, Pot: 1000},
-			{Id: 2, Bet: 10, HasFolded: false, Pot: 1000},
+			{Id: 0, Bet: 10, HasFolded: false, BankRoll: 1000},
+			{Id: 1, Bet: 10, HasFolded: false, BankRoll: 1000},
+			{Id: 2, Bet: 10, HasFolded: false, BankRoll: 1000},
 		},
 		HighestBet:  10,
 		LastToRaise: 1,

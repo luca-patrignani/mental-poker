@@ -128,7 +128,6 @@ func (p *Peer) Broadcast(bufferSend []byte, root int) ([]byte, error) {
 	return bufferRecv, nil
 }
 
-
 // AllToAll performs an all-to-all communication pattern.
 //
 // Each peer sends its bufferSend to all other peers.

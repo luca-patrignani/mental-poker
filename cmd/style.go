@@ -138,13 +138,17 @@ func printPlayerInfo(p poker.Player, main bool) string {
 	}
 	pbox := pterm.DefaultBox.WithHorizontalPadding(hpadding).WithTopPadding(1).WithBottomPadding(1)
 	var active string
+	if p.HasFolded && p.BankRoll <= 0 {
+		active = pterm.Cyan("Spectator Mode")
+		return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("%s", active)
+	}
 	if p.HasFolded {
 		active = pterm.LightRed("Folded")
 	} else {
 		active = pterm.LightGreen("Active")
 	}
 	hand := pterm.BgGreen.Sprintf("%s - %s", p.Hand[0].String(), p.Hand[1].String())
-	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("%s\nCurrent Bet: %d\nBankroll: %d\n%s\n", active, p.Bet, p.Pot, hand)
+	return pbox.WithTitle(p.Name).WithTitleTopLeft().Sprintf("%s\nCurrent Bet: %d\nBankroll: %d\n%s\n", active, p.Bet, p.BankRoll, hand)
 }
 
 // printBoardInfo formats the community cards and pot information for display.

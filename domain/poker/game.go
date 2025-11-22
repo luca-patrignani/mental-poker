@@ -10,7 +10,7 @@ type Player struct {
 	Hand      [2]Card
 	HasFolded bool
 	Bet       uint // The amount of money bet in the current betting round
-	Pot       uint
+	BankRoll  uint
 }
 
 // PokerAction è l'azione specifica del dominio poker
@@ -122,7 +122,7 @@ func (s *Session) recalculatePots() {
 func onePlayerRemained(players []Player) bool {
 	pRemained := 0
 	for _, p := range players {
-		if !p.HasFolded && p.Pot > 0 {
+		if !p.HasFolded && p.BankRoll > 0 {
 			pRemained++
 		}
 	}
@@ -155,7 +155,7 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 	case ActionFold:
 		session.Players[idx].HasFolded = true
 		session.recalculatePots()
-		if onePlayerRemained(session.Players) {
+		if onePlayerRemained(session.Players) && session.isRoundFinished() {
 			session.Round = Showdown
 			session.advanceTurn()
 		} else {
@@ -167,7 +167,7 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 		}
 	case ActionBet:
 		session.Players[idx].Bet += amount
-		session.Players[idx].Pot -= amount
+		session.Players[idx].BankRoll -= amount
 		if session.Players[idx].Bet > session.HighestBet {
 			session.HighestBet = session.Players[idx].Bet
 			session.LastToRaise = uint(idx)
@@ -180,11 +180,11 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 		}
 	case ActionRaise:
 		session.Players[idx].Bet += amount
-		session.Players[idx].Pot -= amount
+		session.Players[idx].BankRoll -= amount
 		session.HighestBet = session.Players[idx].Bet
 		session.LastToRaise = uint(idx)
 		session.recalculatePots()
-		if onePlayerRemained(session.Players) {
+		if onePlayerRemained(session.Players) && session.isRoundFinished() {
 			session.Round = Showdown
 			session.advanceTurn()
 		} else {
@@ -197,11 +197,12 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 	case ActionCall:
 		diff := session.HighestBet - session.Players[idx].Bet
 		session.Players[idx].Bet += diff
-		session.Players[idx].Pot -= diff
+		session.Players[idx].BankRoll -= diff
 		session.recalculatePots()
-		if onePlayerRemained(session.Players) {
+		if onePlayerRemained(session.Players) && session.isRoundFinished() {
 			session.Round = Showdown
 			session.advanceTurn()
+			return nil
 		} else {
 			if session.isRoundFinished() {
 				session.advanceRound()
@@ -210,15 +211,17 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 			}
 		}
 	case ActionAllIn:
-		session.Players[idx].Bet += session.Players[idx].Pot
-		session.Players[idx].Pot = 0
+		session.Players[idx].Bet += session.Players[idx].BankRoll
+		session.Players[idx].BankRoll = 0
 		if session.Players[idx].Bet > session.HighestBet {
 			session.HighestBet = session.Players[idx].Bet
 			session.LastToRaise = uint(idx)
 		} else {
-			if onePlayerRemained(session.Players) {
+			if onePlayerRemained(session.Players) && session.isRoundFinished() {
 				session.Round = Showdown
 				session.advanceTurn()
+				session.recalculatePots()
+				return nil
 			}
 		}
 		session.recalculatePots()
@@ -239,7 +242,7 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 		session.Players = append(session.Players[:idx], session.Players[idx+1:]...)
 		n := len(session.Players)
 		session.Dealer %= uint(n)
-		session.CurrentTurn = uint(session.getNextActivePlayer(session.Dealer))
+		session.CurrentTurn = uint(session.getNextActivePlayer(session.Dealer, false))
 		if session.isRoundFinished() {
 			session.advanceRound()
 		}
@@ -254,7 +257,7 @@ func applyAction(a ActionType, amount uint, session *Session, idx int) error {
 			if winnerIdx == -1 {
 				continue // should not happen
 			}
-			session.Players[winnerIdx].Pot += amount
+			session.Players[winnerIdx].BankRoll += amount
 		}
 		session.advanceRound()
 

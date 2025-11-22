@@ -18,7 +18,7 @@ func (session *Session) advanceTurn() {
 	if n == 0 {
 		return
 	}
-	next := session.getNextActivePlayer(session.CurrentTurn)
+	next := session.getNextActivePlayer(session.CurrentTurn, false)
 	if next == -1 {
 		// All players folded, no advancement
 		return
@@ -28,9 +28,9 @@ func (session *Session) advanceTurn() {
 
 // Verifies if the current betting round is finished.
 func (session *Session) isRoundFinished() bool {
-	if uint(session.getNextActivePlayer(session.CurrentTurn)) == session.LastToRaise {
+	if uint(session.getNextActivePlayer(session.CurrentTurn, true)) == session.LastToRaise {
 		for _, player := range session.Players {
-			if !player.HasFolded && player.Bet != session.HighestBet && player.Pot > player.Bet {
+			if !player.HasFolded && player.Bet != session.HighestBet && player.BankRoll > player.Bet {
 				return false
 			}
 		}
@@ -40,7 +40,7 @@ func (session *Session) isRoundFinished() bool {
 }
 
 func (session *Session) advanceRound() {
-	idx := session.getNextActivePlayer(session.Dealer)
+	idx := session.getNextActivePlayer(session.Dealer, false)
 	session.CurrentTurn = uint(idx)
 	session.LastToRaise = uint(idx)
 	session.Round = nextRound(session.Round)
@@ -74,12 +74,12 @@ func nextRound(current Round) Round {
 }
 
 // Helper: gets the next active (non-folded) player index after the given index
-func (session *Session) getNextActivePlayer(currentIdx uint) int {
+func (session *Session) getNextActivePlayer(currentIdx uint, onlyFolded bool) int {
 	n := len(session.Players)
 
 	for i := 1; i <= n; i++ {
 		next := (int(currentIdx) + i) % n
-		if !session.Players[next].HasFolded && session.Players[next].Pot > 0 {
+		if !session.Players[next].HasFolded && (session.Players[next].BankRoll > 0 || onlyFolded) {
 			return next
 		}
 	}
@@ -89,7 +89,6 @@ func (session *Session) getNextActivePlayer(currentIdx uint) int {
 }
 
 func (s *Session) setNextMatchDealer() {
-	l := uint(len(s.Players))
-	s.Dealer = (s.Dealer + 1) % l
-	s.CurrentTurn = (s.Dealer + 1) % l
+	s.Dealer = uint(s.getNextActivePlayer(s.Dealer, false))
+	s.CurrentTurn = uint(s.getNextActivePlayer(s.Dealer, false))
 }

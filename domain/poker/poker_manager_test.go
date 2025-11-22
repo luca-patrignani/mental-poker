@@ -81,8 +81,8 @@ func TestManager_ApplyValidAction(t *testing.T) {
 	session := &Session{
 		Round: "preflop1",
 		Players: []Player{
-			{Id: 1, Name: "Alice", Pot: 100, Bet: 0},
-			{Id: 2, Name: "Bob", Pot: 100, Bet: 0},
+			{Id: 1, Name: "Alice", BankRoll: 100, Bet: 0},
+			{Id: 2, Name: "Bob", BankRoll: 100, Bet: 0},
 		},
 		CurrentTurn: 0,
 		HighestBet:  0,
@@ -151,7 +151,7 @@ func TestManager_FindPlayerIndex(t *testing.T) {
 func TestManager_NotifyBan(t *testing.T) {
 	session := &Session{
 		Round:   "round1",
-		Players: []Player{{Id: 123, Name: "Alice", Pot: 100}},
+		Players: []Player{{Id: 123, Name: "Alice", BankRoll: 100}},
 	}
 
 	sm := &PokerManager{session, 1}
@@ -170,10 +170,10 @@ func TestManager_RemoveById(t *testing.T) {
 	session := &Session{
 		Round: "preflop",
 		Players: []Player{
-			{Id: 123, Name: "Alice", Pot: 100},
-			{Id: 32, Name: "Fabio", Pot: 100},
-			{Id: 54, Name: "Gianni", Pot: 100},
-			{Id: 2, Name: "Luca", Pot: 100}},
+			{Id: 123, Name: "Alice", BankRoll: 100},
+			{Id: 32, Name: "Fabio", BankRoll: 100},
+			{Id: 54, Name: "Gianni", BankRoll: 100},
+			{Id: 2, Name: "Luca", BankRoll: 100}},
 	}
 
 	sm := &PokerManager{session, 54}
