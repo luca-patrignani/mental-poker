@@ -31,7 +31,7 @@ func (s *Session) winnerEval() (map[int]uint, error) {
 				continue
 			}
 
-			// sanity check
+			// spectator check
 			if player.Hand[0].rank == 0 || player.Hand[1].rank == 0 {
 				continue
 			}

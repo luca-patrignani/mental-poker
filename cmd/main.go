@@ -145,10 +145,10 @@ func main() {
 	players := make([]poker.Player, len(names))
 	for i := range names {
 		players[i] = poker.Player{
-			Name: string(names[i]),
-			Id:   i,
-			Hand: [2]poker.Card{card, card},
-			Pot:  1000,
+			Name:     string(names[i]),
+			Id:       i,
+			Hand:     [2]poker.Card{card, card},
+			BankRoll: 1000,
 		}
 	}
 	deck := poker.NewPokerDeck(p2p)
@@ -287,7 +287,7 @@ func main() {
 		}
 		pokerManager.PrepareNextMatch()
 		if pokerManager.Session.OnePlayerRemained() {
-			if pokerManager.Session.Players[myRank].Pot > 0 {
+			if pokerManager.Session.Players[myRank].BankRoll > 0 {
 				pterm.Success.Println("You are the last player remaining, Congratulations!")
 				break
 			} else {
@@ -382,7 +382,14 @@ func createP2P(addresses []string, l net.Listener) (p2p *network.P2P, myRank int
 //
 // Returns an error if card distribution fails.
 func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
-	for i := range psm.Session.Players {
+	c, _ := poker.NewCard(0, 0)
+	for i, p := range psm.Session.Players {
+		if p.BankRoll <= 0 {
+
+			psm.Session.Players[i].Hand[0] = c
+			psm.Session.Players[i].Hand[1] = c
+			continue
+		}
 		card1, err := deck.DrawCard(i)
 		if err != nil {
 			return err
@@ -406,21 +413,22 @@ func distributeHands(psm *poker.PokerManager, deck *poker.PokerDeck) error {
 //
 // Returns an error if card revealing fails.
 func showCards(psm *poker.PokerManager, deck *poker.PokerDeck) error {
-	for i := range psm.Session.Players {
-		card1 := psm.Session.Players[i].Hand[0]
-		card1, err := deck.OpenCard(i, &card1)
-		if err != nil {
-			return err
-		}
-		psm.Session.Players[i].Hand[0] = card1
+	for i, p := range psm.Session.Players {
+		if !p.HasFolded || p.BankRoll > 0 {
+			card1 := psm.Session.Players[i].Hand[0]
+			card1, err := deck.OpenCard(i, &card1)
+			if err != nil {
+				return err
+			}
+			psm.Session.Players[i].Hand[0] = card1
 
-		card2 := psm.Session.Players[i].Hand[1]
-		card2, err = deck.OpenCard(i, &card2)
-		if err != nil {
-			return err
+			card2 := psm.Session.Players[i].Hand[1]
+			card2, err = deck.OpenCard(i, &card2)
+			if err != nil {
+				return err
+			}
+			psm.Session.Players[i].Hand[1] = card2
 		}
-		psm.Session.Players[i].Hand[1] = card2
-
 	}
 	return nil
 }
@@ -486,7 +494,7 @@ func addBlind(psm *poker.PokerManager, node *consensus.ConsensusNode, amount uin
 	if idx == psm.GetCurrentPlayer() {
 		var action consensus.Action
 		var err error
-		if psm.Session.Players[idx].Pot < amount {
+		if psm.Session.Players[idx].BankRoll < amount {
 			action, err = consensus.MakeAction(psm.Player, psm.ActionFold())
 		} else {
 			action, err = consensus.MakeAction(psm.Player, psm.ActionBet(amount))
@@ -543,31 +551,31 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 			for {
 				select {
 				case <-ticker.C:
-						// mark timedOut in a race-free way; main goroutine can read this via
-						// atomic.LoadUint32(&timedOut) == 1
-						atomic.StoreUint32(&timedOut, 1)
+					// mark timedOut in a race-free way; main goroutine can read this via
+					// atomic.LoadUint32(&timedOut) == 1
+					atomic.StoreUint32(&timedOut, 1)
 
-						// Fallback automatic fold in case you also want the goroutine to propose:
-						if isPlayerTurn {
-							action, err := consensus.MakeAction(myRank, pokerManager.ActionCheck())
-							if err != nil {
-								panic(err)
-							}
-							if val := pokerManager.Validate(action.Payload); val != nil {
-								action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
-								if err != nil {
-									panic(err)
-								}
-							}
-							if err := action.Sign(consensusNode.GetPriv()); err != nil {
-								panic(err)
-							}
-							err = consensusNode.ProposeAction(&action)
+					// Fallback automatic fold in case you also want the goroutine to propose:
+					if isPlayerTurn {
+						action, err := consensus.MakeAction(myRank, pokerManager.ActionCheck())
+						if err != nil {
+							panic(err)
+						}
+						if val := pokerManager.Validate(action.Payload); val != nil {
+							action, err = consensus.MakeAction(myRank, pokerManager.ActionFold())
 							if err != nil {
 								panic(err)
 							}
 						}
-						return
+						if err := action.Sign(consensusNode.GetPriv()); err != nil {
+							panic(err)
+						}
+						err = consensusNode.ProposeAction(&action)
+						if err != nil {
+							panic(err)
+						}
+					}
+					return
 				case <-done:
 					return
 				}
@@ -637,7 +645,7 @@ func inputAction(pokerManager poker.PokerManager, consensusNode consensus.Consen
 		return consensusNode.ProposeAction(&action)
 	} else {
 		text := "Waiting for the other player to make an action ..."
-		if pokerManager.GetCurrentPlayer() > 0 {
+		if pokerManager.GetCurrentPlayer() >= 0 {
 			currentName := pterm.LightCyan(pokerManager.GetSession().Players[pokerManager.GetCurrentPlayer()].Name)
 			text = pterm.Sprintf("Waiting for %s to make an action ...", currentName)
 		}

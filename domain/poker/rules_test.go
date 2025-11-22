@@ -5,7 +5,7 @@ import "testing"
 func TestCheckPokerLogic_Bet_InsufficientFunds(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 50, Bet: 0},
+			{Name: "Alice", BankRoll: 50, Bet: 0},
 		},
 		HighestBet: 0,
 	}
@@ -19,7 +19,7 @@ func TestCheckPokerLogic_Bet_InsufficientFunds(t *testing.T) {
 func TestCheckPokerLogic_Bet_SufficientFunds(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 0},
+			{Name: "Alice", BankRoll: 100, Bet: 0},
 		},
 		HighestBet: 0,
 	}
@@ -33,7 +33,7 @@ func TestCheckPokerLogic_Bet_SufficientFunds(t *testing.T) {
 func TestCheckPokerLogic_Raise_BelowHighestBet(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 50},
+			{Name: "Alice", BankRoll: 100, Bet: 50},
 		},
 		HighestBet: 100,
 	}
@@ -47,7 +47,7 @@ func TestCheckPokerLogic_Raise_BelowHighestBet(t *testing.T) {
 func TestCheckPokerLogic_Call_InsufficientFunds(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 30, Bet: 50},
+			{Name: "Alice", BankRoll: 30, Bet: 50},
 		},
 		HighestBet: 100,
 	}
@@ -61,7 +61,7 @@ func TestCheckPokerLogic_Call_InsufficientFunds(t *testing.T) {
 func TestCheckPokerLogic_Call_SufficientFunds(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 50},
+			{Name: "Alice", BankRoll: 100, Bet: 50},
 		},
 		HighestBet: 100,
 	}
@@ -75,7 +75,7 @@ func TestCheckPokerLogic_Call_SufficientFunds(t *testing.T) {
 func TestCheckPokerLogic_Check_WhenBetRequired(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 50},
+			{Name: "Alice", BankRoll: 100, Bet: 50},
 		},
 		HighestBet: 100,
 	}
@@ -89,7 +89,7 @@ func TestCheckPokerLogic_Check_WhenBetRequired(t *testing.T) {
 func TestCheckPokerLogic_Check_Valid(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 100},
+			{Name: "Alice", BankRoll: 100, Bet: 100},
 		},
 		HighestBet: 100,
 	}
@@ -103,7 +103,7 @@ func TestCheckPokerLogic_Check_Valid(t *testing.T) {
 func TestCheckPokerLogic_AllIn_CorrectAmount(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 100, Bet: 50},
+			{Name: "Alice", BankRoll: 100, Bet: 50},
 		},
 		HighestBet: 0,
 	}
@@ -117,7 +117,7 @@ func TestCheckPokerLogic_AllIn_CorrectAmount(t *testing.T) {
 func TestCheckPokerLogic_Fold_AlwaysValid(t *testing.T) {
 	session := &Session{
 		Players: []Player{
-			{Name: "Alice", Pot: 0, Bet: 0},
+			{Name: "Alice", BankRoll: 0, Bet: 0},
 		},
 		HighestBet: 100,
 	}

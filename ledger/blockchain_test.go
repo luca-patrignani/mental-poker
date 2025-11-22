@@ -59,7 +59,7 @@ func createTestSession(n int) (poker.Session, []*network.P2P, error) {
 				Name:      "Player" + fmt.Sprintf("%d", index),
 				Id:        index,
 				Hand:      [2]poker.Card{}, // Empty until cards are drawn
-				Pot:       1000,
+				BankRoll:  1000,
 				Bet:       0,
 				HasFolded: false,
 			}
