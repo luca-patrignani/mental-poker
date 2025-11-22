@@ -57,8 +57,7 @@ func New(info string, opts ...option) (*Discover, error) {
 
 	var l net.Listener
 	var err error
-	var port uint16
-	for port = d.startPort; port <= d.endPort; port++ {
+	for port := d.startPort; port <= d.endPort; port++ {
 		l, err = net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 		if err == nil {
 			d.port = port
@@ -69,7 +68,7 @@ func New(info string, opts ...option) (*Discover, error) {
 		return nil, err
 	}
 	d.server = &http.Server{
-		Addr:    fmt.Sprintf("localhost:%d", port),
+		Addr:    fmt.Sprintf("localhost:%d", d.port),
 		Handler: handler{info: info},
 	}
 	go func() {
