@@ -11,10 +11,6 @@ type Entry struct {
 	Info string
 }
 
-func New(info string, port uint16) (*Discover, error) {
-	return NewWithPortRange(info, port, port, 2)
-}
-
 type handler struct {
 	info string
 }
@@ -23,13 +19,6 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte(h.info)); err != nil {
 		panic(err)
 	}
-}
-
-func NewWithPortRange(info string, startPort, endPort uint16, attempts uint) (*Discover, error) {
-	return NewWithOptions(info, 
-		WithPortRange(startPort, endPort),
-		WithAttempts(attempts),
-	)
 }
 
 func (d *Discover) search() {

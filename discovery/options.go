@@ -19,12 +19,12 @@ type Discover struct {
 
 type option func(Discover) Discover
 
-func NewWithOptions(info string, opts ...option) (*Discover, error) {
+func New(info string, opts ...option) (*Discover, error) {
 	d := Discover{
 		Entries:   make(chan Entry),
 		startPort: 9000,
-		endPort:   9010,
-		attempts: 1,
+		endPort:   9000,
+		attempts:  1,
 	}
 	for _, opt := range opts {
 		d = opt(d)
