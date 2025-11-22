@@ -56,7 +56,7 @@ jobs:
       uses: golangci/golangci-lint-action@v8
       with:
         version: v2.6
-        working-directory: ./v*
+        working-directory: v2
         
   coverage:
     runs-on: ubuntu-latest
