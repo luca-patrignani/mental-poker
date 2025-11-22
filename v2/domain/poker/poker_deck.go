@@ -3,7 +3,7 @@ package poker
 import (
 	"errors"
 
-	"github.com/luca-patrignani/mental-poker/v2/domain/deck"
+	"github.com/luca-patrignani/mental-poker/domain/deck"
 )
 
 // PokerDeck wraps a generic mental poker deck and provides poker-specific

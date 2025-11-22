@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/luca-patrignani/mental-poker/v2/network"
+	"github.com/luca-patrignani/mental-poker/network"
 	"go.dedis.ch/kyber/v4"
 )
 

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
+	"github.com/luca-patrignani/mental-poker/domain/poker"
 )
 
 // StateManager defines the interface for managing poker game state transitions.

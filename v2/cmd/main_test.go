@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/luca-patrignani/mental-poker/v2/network"
+	"github.com/luca-patrignani/mental-poker/network"
 )
 
 var mapListeners map[int]net.Listener
