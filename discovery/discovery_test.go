@@ -3,6 +3,7 @@ package discovery
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestDiscover(t *testing.T) {
@@ -10,9 +11,8 @@ func TestDiscover(t *testing.T) {
 	fatal := make(chan error)
 	for i := range n {
 		go func() {
-			discover, err := New(fmt.Sprint(i),
-				WithPort(53551),
-				WithAttempts(1),
+			discover, err := New(fmt.Sprint(i), 53551,
+				WithIntervalBetweenAnnouncements(200*time.Millisecond),
 			)
 			if err != nil {
 				fatal <- err

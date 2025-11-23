@@ -15,7 +15,7 @@ type Discover struct {
 	port     uint16
 	conn     *net.UDPConn
 	sendConn *net.UDPConn
-	attempts uint
+	intervalBetweenAnnouncements time.Duration
 	key string
 }
 
@@ -25,25 +25,18 @@ type Entry struct {
 
 type option func(Discover) Discover
 
-func WithPort(port uint16) option {
+func WithIntervalBetweenAnnouncements(i time.Duration) option {
 	return func(d Discover) Discover {
-		d.port = port
+		d.intervalBetweenAnnouncements = i
 		return d
 	}
-}
+}		
 
-func WithAttempts(attempts uint) option {
-	return func(d Discover) Discover {
-		d.attempts = attempts
-		return d
-	}
-}
-
-func New(info string, opts ...option) (*Discover, error) {
+func New(info string, port uint16, opts ...option) (*Discover, error) {
 	d := Discover{
 		Entries:  make(chan Entry),
-		port:     9000,
-		attempts: 1,
+		port: port,
+		intervalBetweenAnnouncements: time.Second,
 	}
 	for _, opt := range opts {
 		d = opt(d)
@@ -96,7 +89,7 @@ func New(info string, opts ...option) (*Discover, error) {
 				}
 				panic(err)
 			}
-			time.Sleep(time.Second)
+			time.Sleep(d.intervalBetweenAnnouncements)
 		}
 	}()
 	return &d, nil
@@ -106,7 +99,4 @@ func (d *Discover) Close() error {
 	err1 := d.conn.Close()
 	err2 := d.sendConn.Close()
 	return errors.Join(err1, err2)
-}
-
-func (d *Discover) dial(info string) {
 }
