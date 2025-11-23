@@ -1,22 +1,22 @@
 package discovery
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"io"
+	"math/rand/v2"
 	"net"
-	"net/http"
 	"time"
 )
 
+const multicastIpAddress = "239.0.0.1"
+
 type Discover struct {
-	Entries   chan Entry
-	port      uint16
-	startPort uint16
-	endPort   uint16
-	server    *http.Server
-	ipAddress string
-	attempts  uint
+	Entries  chan Entry
+	port     uint16
+	conn     *net.UDPConn
+	sendConn *net.UDPConn
+	attempts uint
+	key string
 }
 
 type Entry struct {
@@ -25,16 +25,11 @@ type Entry struct {
 
 type option func(Discover) Discover
 
-func WithPortRange(startPort, endPort uint16) option {
+func WithPort(port uint16) option {
 	return func(d Discover) Discover {
-		d.startPort = startPort
-		d.endPort = endPort
+		d.port = port
 		return d
 	}
-}
-
-func WithPort(port uint16) option {
-	return WithPortRange(port, port)
 }
 
 func WithAttempts(attempts uint) option {
@@ -46,39 +41,61 @@ func WithAttempts(attempts uint) option {
 
 func New(info string, opts ...option) (*Discover, error) {
 	d := Discover{
-		Entries:   make(chan Entry),
-		startPort: 9000,
-		endPort:   9000,
-		attempts:  1,
+		Entries:  make(chan Entry),
+		port:     9000,
+		attempts: 1,
 	}
 	for _, opt := range opts {
 		d = opt(d)
 	}
-
-	var l net.Listener
-	var err error
-	for port := d.startPort; port <= d.endPort; port++ {
-		l, err = net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-		if err == nil {
-			d.port = port
-			break
-		}
+	d.key = fmt.Sprintf("%08x", rand.Uint32())
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.port))
+	if err != nil {
+		panic(err)
 	}
+	d.conn, err = net.ListenMulticastUDP("udp", nil, addr)
 	if err != nil {
 		return nil, err
 	}
-	d.server = &http.Server{
-		Addr:    fmt.Sprintf("localhost:%d", d.port),
-		Handler: handler{info: info},
-	}
 	go func() {
-		if err := d.server.Serve(l); err != nil && err != http.ErrServerClosed {
-			panic(err)
+		for {
+			buffer := make([]byte, 1024)
+			n, _, err := d.conn.ReadFromUDP(buffer)
+			if err != nil {
+				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+					panic(err)
+				}
+				if errors.Is(err, net.ErrClosed) {
+					return
+				}
+				panic(err)
+			}
+			message := string(buffer[:n])
+			if message[:8] == d.key {
+				continue
+			}
+			d.Entries <- Entry{
+				Info: message[8:],
+			}
 		}
 	}()
+
+	sendAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.port))
+	if err != nil {
+		return nil, err
+	}
+	d.sendConn, err = net.DialUDP("udp", nil, sendAddr)
+	if err != nil {
+		return nil, err
+	}
 	go func() {
-		for range d.attempts {
-			d.search()
+		for {
+			if _, err := d.sendConn.Write(append([]byte(d.key), []byte(info)...)); err != nil {
+				if errors.Is(err, net.ErrClosed) {
+					return
+				}
+				panic(err)
+			}
 			time.Sleep(time.Second)
 		}
 	}()
@@ -86,34 +103,10 @@ func New(info string, opts ...option) (*Discover, error) {
 }
 
 func (d *Discover) Close() error {
-	return d.server.Shutdown(context.Background())
+	err1 := d.conn.Close()
+	err2 := d.sendConn.Close()
+	return errors.Join(err1, err2)
 }
 
-func (d *Discover) search() {
-	for port := d.startPort; port <= d.endPort; port++ {
-		if port == d.port {
-			continue
-		}
-		resp, err := http.Get(fmt.Sprintf("http://localhost:%d", port))
-		if err != nil {
-			continue
-		}
-		buf, err := io.ReadAll(resp.Body)
-		if err != nil {
-			panic(err)
-		}
-		d.Entries <- Entry{
-			Info: string(buf),
-		}
-	}
-}
-
-type handler struct {
-	info string
-}
-
-func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if _, err := w.Write([]byte(h.info)); err != nil {
-		panic(err)
-	}
+func (d *Discover) dial(info string) {
 }

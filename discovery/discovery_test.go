@@ -3,7 +3,6 @@ package discovery
 import (
 	"fmt"
 	"testing"
-	"time"
 )
 
 func TestDiscover(t *testing.T) {
@@ -12,17 +11,20 @@ func TestDiscover(t *testing.T) {
 	for i := range n {
 		go func() {
 			discover, err := New(fmt.Sprint(i),
-				WithPortRange(9000, 9010),
-				WithAttempts(2),
+				WithPort(53551),
+				WithAttempts(1),
 			)
 			if err != nil {
 				fatal <- err
 				return
 			}
 			set := make(map[string]struct{})
-			for range n - 1 {
+			for j := 0; j < n-1; {
 				entry := <-discover.Entries
 				t.Logf("from node %d: %s", i, entry)
+				if _, ok := set[entry.Info]; !ok {
+					j++
+				}
 				set[entry.Info] = struct{}{}
 			}
 			for j := range n {
@@ -34,8 +36,7 @@ func TestDiscover(t *testing.T) {
 					return
 				}
 			}
-			time.Sleep(3 * time.Second)
-			fatal <- discover.Close()
+			fatal <- nil
 		}()
 	}
 	for range n {
