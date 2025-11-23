@@ -45,3 +45,28 @@ func TestDiscover(t *testing.T) {
 		}
 	}
 }
+
+func TestClose(t *testing.T) {
+	n := 5
+	fatal := make(chan error)
+	for i := range n {
+		go func() {
+			discover, err := New(fmt.Sprint(i), 53552)
+			if err != nil {
+				fatal <- err
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
+			if err := discover.Close(); err != nil {
+				fatal <- err
+				return
+			}
+			fatal <- nil
+		}()
+	}
+	for range n {
+		if err := <-fatal; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
