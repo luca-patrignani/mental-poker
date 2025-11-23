@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"sync/atomic"
@@ -16,6 +17,7 @@ import (
 	"github.com/pterm/pterm/putils"
 
 	"github.com/luca-patrignani/mental-poker/consensus"
+	"github.com/luca-patrignani/mental-poker/discovery"
 	"github.com/luca-patrignani/mental-poker/domain/poker"
 	"github.com/luca-patrignani/mental-poker/ledger"
 	"github.com/luca-patrignani/mental-poker/network"
@@ -24,6 +26,7 @@ import (
 var timeout = 30 * time.Second
 
 const defaultPort = 53550
+const discoveryPort = 53551
 
 func main() {
 	timeoutFlag := flag.Uint("timeout", 30, "timeout in seconds")
@@ -92,6 +95,10 @@ func main() {
 	// Print two new lines as spacer.
 	pterm.Print("\n")
 
+	discover, err := discovery.New(l.Addr().String(), discoveryPort)
+	if err != nil {
+		panic(err)
+	}
 	addresses := []string{l.Addr().String()}
 	for {
 		addr, _ := pterm.DefaultInteractiveTextInput.
@@ -125,6 +132,14 @@ func main() {
 			continue
 		}
 		addresses = append(addresses, guessedAddr.String()+":"+strconv.Itoa(tcpAddr.Port))
+	}
+	discover.Close()
+	close(discover.Entries)
+	for entry := range discover.Entries {
+		pterm.Info.Printfln("Discovered address: %s", entry.Info)
+		if !slices.Contains(addresses, entry.Info) {
+			addresses = append(addresses, entry.Info)
+		}
 	}
 	p2p, myRank := createP2P(addresses, l)
 	pterm.Info.Printfln("Your rank is %d\n", myRank)

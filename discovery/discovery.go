@@ -11,12 +11,12 @@ import (
 const multicastIpAddress = "239.0.0.1"
 
 type Discover struct {
-	Entries  chan Entry
-	port     uint16
-	conn     *net.UDPConn
-	sendConn *net.UDPConn
+	Entries                      chan Entry
+	port                         uint16
+	conn                         *net.UDPConn
+	sendConn                     *net.UDPConn
 	intervalBetweenAnnouncements time.Duration
-	key string
+	key                          string
 }
 
 type Entry struct {
@@ -30,12 +30,12 @@ func WithIntervalBetweenAnnouncements(i time.Duration) option {
 		d.intervalBetweenAnnouncements = i
 		return d
 	}
-}		
+}
 
 func New(info string, port uint16, opts ...option) (*Discover, error) {
 	d := Discover{
-		Entries:  make(chan Entry),
-		port: port,
+		Entries:                      make(chan Entry, 100),
+		port:                         port,
 		intervalBetweenAnnouncements: time.Second,
 	}
 	for _, opt := range opts {
