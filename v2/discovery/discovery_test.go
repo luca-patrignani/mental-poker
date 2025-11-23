@@ -23,6 +23,10 @@ func TestDiscover(t *testing.T) {
 			for j := 0; j < n-1; {
 				entry := <-discover.Entries
 				t.Logf("from node %d: %s", i, entry)
+				if time.Since(entry.Time) < 0 {
+					fatal <- fmt.Errorf("from node %d: time out of clock", i)
+					return
+				}
 				if _, ok := set[entry.Info]; !ok {
 					j++
 				}

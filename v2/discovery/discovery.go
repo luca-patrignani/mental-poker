@@ -22,6 +22,7 @@ type Discover struct {
 
 type Entry struct {
 	Info string
+	Time time.Time
 }
 
 type option func(Discover) Discover
@@ -95,6 +96,7 @@ func (d Discover) startListener() {
 			}
 			d.Entries <- Entry{
 				Info: message[8:],
+				Time: time.Now(),
 			}
 		}
 	}()
