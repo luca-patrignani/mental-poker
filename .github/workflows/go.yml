@@ -30,10 +30,14 @@ jobs:
         go-version: '1.23.5'
 
     - name: Test
-      run: ${{ matrix.flags }} go test -v ./...
+      run: |-
+        cd v*
+        ${{ matrix.flags }} go test -v ./...
 
     - name: Build
-      run: ${{ matrix.flags }} go build -v ./...
+      run: |-
+        cd v*
+        ${{ matrix.flags }} go build -v ./...
 
   lint:
     runs-on: ubuntu-latest
@@ -52,6 +56,7 @@ jobs:
       uses: golangci/golangci-lint-action@v8
       with:
         version: v2.6
+        working-directory: v2
         
   coverage:
     runs-on: ubuntu-latest
@@ -64,7 +69,9 @@ jobs:
         go-version: '1.23.5'
 
     - name: Test
-      run: go test -coverprofile=coverage.txt ./...
+      run: |-
+        cd v*
+        go test -coverprofile=coverage.txt ./...
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5

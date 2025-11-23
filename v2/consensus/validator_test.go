@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/luca-patrignani/mental-poker/domain/poker"
+	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
 )
 
 func TestNewEd25519KeypairAndSignVerify(t *testing.T) {

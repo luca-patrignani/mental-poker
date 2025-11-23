@@ -180,9 +180,10 @@ func TestApplyAction_OnePlayerRemained(t *testing.T) {
 		Players: []Player{
 			{Name: "Alice", Bet: 50, HasFolded: false, BankRoll: 100},
 			{Name: "Bob", Bet: 50, HasFolded: true, BankRoll: 100},
-			{Name: "John", Bet: 50, HasFolded: false, BankRoll: 100},
+			{Name: "John", Bet: 100, HasFolded: false, BankRoll: 100},
 		},
 		CurrentTurn: 0,
+		LastToRaise: 2,
 	}
 
 	err := applyAction(ActionFold, 0, session, 0)

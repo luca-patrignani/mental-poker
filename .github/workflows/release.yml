@@ -33,9 +33,10 @@ jobs:
       - name: Build binaries
         run: |
           mkdir -p dist
-          GOOS=linux GOARCH=amd64 go build -o dist/MentalPoker-linux-amd64 ./cmd
-          GOOS=windows GOARCH=amd64 go build -o dist/MentalPoker-windows-amd64.exe ./cmd
-          GOOS=darwin GOARCH=arm64 go build -o dist/MentalPoker-darwin-arm64 ./cmd
+          cd v*
+          GOOS=linux GOARCH=amd64 go build -o ../dist/MentalPoker-linux-amd64 ./cmd
+          GOOS=windows GOARCH=amd64 go build -o ../dist/MentalPoker-windows-amd64.exe ./cmd
+          GOOS=darwin GOARCH=arm64 go build -o ../dist/MentalPoker-darwin-arm64 ./cmd
 
       - name: Create Release
         id: create_release

@@ -16,11 +16,11 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
 
-	"github.com/luca-patrignani/mental-poker/consensus"
-	"github.com/luca-patrignani/mental-poker/discovery"
-	"github.com/luca-patrignani/mental-poker/domain/poker"
-	"github.com/luca-patrignani/mental-poker/ledger"
-	"github.com/luca-patrignani/mental-poker/network"
+	"github.com/luca-patrignani/mental-poker/v2/discovery"
+	"github.com/luca-patrignani/mental-poker/v2/consensus"
+	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
+	"github.com/luca-patrignani/mental-poker/v2/ledger"
+	"github.com/luca-patrignani/mental-poker/v2/network"
 )
 
 var timeout = 30 * time.Second

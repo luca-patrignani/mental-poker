@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/luca-patrignani/mental-poker/consensus"
-	"github.com/luca-patrignani/mental-poker/domain/poker"
-	"github.com/luca-patrignani/mental-poker/network"
+	"github.com/luca-patrignani/mental-poker/v2/consensus"
+	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
+	"github.com/luca-patrignani/mental-poker/v2/network"
 )
 
 // createTestSession creates a realistic poker session with initialized peers.
