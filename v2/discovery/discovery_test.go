@@ -14,6 +14,7 @@ func TestDiscover(t *testing.T) {
 			discover, err := New(fmt.Sprint(i), 53551,
 				WithIntervalBetweenAnnouncements(200*time.Millisecond),
 			)
+			discover.Start()
 			if err != nil {
 				fatal <- err
 				return
@@ -52,6 +53,7 @@ func TestClose(t *testing.T) {
 	for i := range n {
 		go func() {
 			discover, err := New(fmt.Sprint(i), 53552)
+			discover.Start()
 			if err != nil {
 				fatal <- err
 				return

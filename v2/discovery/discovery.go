@@ -12,6 +12,7 @@ const multicastIpAddress = "239.0.0.1"
 
 type Discover struct {
 	Entries                      chan Entry
+	Info                         string
 	port                         uint16
 	conn                         *net.UDPConn
 	sendConn                     *net.UDPConn
@@ -35,13 +36,14 @@ func WithIntervalBetweenAnnouncements(i time.Duration) option {
 func New(info string, port uint16, opts ...option) (*Discover, error) {
 	d := Discover{
 		Entries:                      make(chan Entry, 100),
+		Info:                         info,
 		port:                         port,
 		intervalBetweenAnnouncements: time.Second,
+		key:                          fmt.Sprintf("%08x", rand.Uint32()),
 	}
 	for _, opt := range opts {
 		d = opt(d)
 	}
-	d.key = fmt.Sprintf("%08x", rand.Uint32())
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.port))
 	if err != nil {
 		panic(err)
@@ -50,6 +52,30 @@ func New(info string, port uint16, opts ...option) (*Discover, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	sendAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.port))
+	if err != nil {
+		return nil, err
+	}
+	d.sendConn, err = net.DialUDP("udp", nil, sendAddr)
+	if err != nil {
+		return nil, err
+	}
+	return &d, nil
+}
+
+func (d *Discover) Start() {
+	d.startListener()
+	d.startDialer()
+}
+
+func (d *Discover) Close() error {
+	err1 := d.conn.Close()
+	err2 := d.sendConn.Close()
+	return errors.Join(err1, err2)
+}
+
+func (d Discover) startListener() {
 	go func() {
 		for {
 			buffer := make([]byte, 1024)
@@ -72,18 +98,12 @@ func New(info string, port uint16, opts ...option) (*Discover, error) {
 			}
 		}
 	}()
+}
 
-	sendAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.port))
-	if err != nil {
-		return nil, err
-	}
-	d.sendConn, err = net.DialUDP("udp", nil, sendAddr)
-	if err != nil {
-		return nil, err
-	}
+func (d Discover) startDialer() {
 	go func() {
 		for {
-			if _, err := d.sendConn.Write(append([]byte(d.key), []byte(info)...)); err != nil {
+			if _, err := d.sendConn.Write(append([]byte(d.key), []byte(d.Info)...)); err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					return
 				}
@@ -92,11 +112,4 @@ func New(info string, port uint16, opts ...option) (*Discover, error) {
 			time.Sleep(d.intervalBetweenAnnouncements)
 		}
 	}()
-	return &d, nil
-}
-
-func (d *Discover) Close() error {
-	err1 := d.conn.Close()
-	err2 := d.sendConn.Close()
-	return errors.Join(err1, err2)
 }

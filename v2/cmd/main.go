@@ -99,6 +99,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	discover.Start()
 	addresses := []string{l.Addr().String()}
 	for {
 		addr, _ := pterm.DefaultInteractiveTextInput.
