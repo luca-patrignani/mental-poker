@@ -43,9 +43,9 @@ type StateManager interface {
 // Implementations should provide append-only semantics with cryptographic verification.
 type Ledger interface {
 	// Append adds a new consensus decision to the ledger.
-	// The decision includes the game state, action, votes, proposer, and quorum threshold.
+	// The decision includes the action, votes, proposer, and quorum threshold.
 	// Optional extra metadata can be included (e.g., ban reasons).
-	Append(session poker.Session, action poker.PokerAction, votes []Vote, proposerID int, quorum int, extra ...map[string]string) error
+	Append(saction poker.PokerAction, votes []Vote, proposerID int, quorum int, extra ...map[string]string) error
 
 	// Verify checks the integrity of the entire ledger.
 	// Returns an error if any tampering or inconsistency is detected.

@@ -1,6 +1,7 @@
 package ledger
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"testing"
@@ -178,60 +179,26 @@ func TestNewBlockchainWithInitialSession(t *testing.T) {
 		t.Fatal("genesis block should have a hash")
 	}
 
+	var s poker.Session
+	err = json.Unmarshal([]byte(genesis.Metadata.Extra["session"]),&s) // Access to ensure it exists
+	if err != nil {
+		t.Fatalf("failed to unmarshal session from genesis metadata: %v", err)
+	}
 	// Verify the session is correctly stored in the genesis block
-	if genesis.Session.Round != initialSession.Round {
-		t.Fatalf("genesis session RoundID should be '%s', got '%s'", initialSession.Round, genesis.Session.Round)
+	if s.Round != initialSession.Round {
+		t.Fatalf("genesis session RoundID should be '%s', got '%s'", initialSession.Round, s.Round)
 	}
 
-	if len(genesis.Session.Players) != len(initialSession.Players) {
-		t.Fatalf("genesis session should have %d players, got %d", len(initialSession.Players), len(genesis.Session.Players))
+	if len(s.Players) != len(initialSession.Players) {
+		t.Fatalf("genesis session should have %d players, got %d", len(initialSession.Players), len(s.Players))
 	}
 
-	if genesis.Session.Dealer != initialSession.Dealer {
-		t.Fatalf("genesis session Dealer should be %d, got %d", initialSession.Dealer, genesis.Session.Dealer)
+	if s.Dealer != initialSession.Dealer {
+		t.Fatalf("genesis session Dealer should be %d, got %d", initialSession.Dealer, s.Dealer)
 	}
 
-	if genesis.Session.HighestBet != initialSession.HighestBet {
-		t.Fatalf("genesis session HighestBet should be %d, got %d", initialSession.HighestBet, genesis.Session.HighestBet)
-	}
-}
-
-// TestNewBlockchainWithDifferentSessions verifies that different initial sessions produce
-// different genesis block hashes. This ensures each blockchain instance is unique to its game.
-func TestNewBlockchainWithDifferentSessions(t *testing.T) {
-	n := 5
-	session1, p2ps1, err := createTestSession(n)
-	if err != nil {
-		t.Fatalf("failed to create test sessions 1: %v", err)
-	}
-	defer func() {
-		err := cleanupP2PInstances(p2ps1)
-		if err != nil {
-			t.Fatalf("failed to cleanup P2P instances: %v", err)
-		}
-	}()
-	session2, p2ps2, err := createTestSession(n)
-	if err != nil {
-		t.Fatalf("failed to create test sessions 2: %v", err)
-	}
-	defer func() {
-		err := cleanupP2PInstances(p2ps2)
-		if err != nil {
-			t.Fatalf("failed to cleanup P2P instances: %v", err)
-		}
-	}()
-	session2.Round = "different-round"
-
-	bc1, err := NewBlockchain(session1)
-	if err != nil {
-		t.Fatalf("failed to create blockchain 1: %v", err)
-	}
-	bc2, err := NewBlockchain(session2)
-	if err != nil {
-		t.Fatalf("failed to create blockchain 2: %v", err)
-	}
-	if bc1.blocks[0].Hash == bc2.blocks[0].Hash {
-		t.Fatal("different sessions should produce different genesis block hashes")
+	if s.HighestBet != initialSession.HighestBet {
+		t.Fatalf("genesis session HighestBet should be %d, got %d", initialSession.HighestBet, s.HighestBet)
 	}
 }
 
@@ -266,7 +233,7 @@ func TestAppendValidBlock(t *testing.T) {
 		{ActionId: "action1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append(session, action, votes, 1, 2)
+	err = bc.Append( action, votes, 1, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending valid block: %v", err)
 	}
@@ -325,7 +292,7 @@ func TestAppendBlockInsufficientVotes(t *testing.T) {
 	}
 
 	// Try to append with quorum of 2 but only 1 vote
-	err = bc.Append(session, action, votes, 0, 2)
+	err = bc.Append( action, votes, 0, 2)
 	if err == nil {
 		t.Fatal("expected error for insufficient votes, got nil")
 	}
@@ -371,7 +338,7 @@ func TestAppendWithExtraMetadata(t *testing.T) {
 		"info":   "unexpected-timeout",
 	}
 
-	err = bc.Append(session, action, votes, 1, 2, extraData)
+	err = bc.Append( action, votes, 1, 2, extraData)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -412,7 +379,7 @@ func TestGetLatestBlock(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append(session, action, votes, 0, 2)
+	err = bc.Append( action, votes, 0, 2)
 
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
@@ -470,7 +437,7 @@ func TestGetByIndexValid(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append(session, action, votes, 0, 2)
+	err = bc.Append( action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
@@ -494,7 +461,14 @@ func TestGetByIndexValid(t *testing.T) {
 		t.Fatal("genesis block should have type 'genesis'")
 	}
 
-	if genesisBlock.Session.Round != initialSession.Round {
+	var s poker.Session
+	err = json.Unmarshal([]byte(genesisBlock.Metadata.Extra["session"]),&s) // Access to ensure it exists
+	if err != nil {
+		t.Fatalf("failed to unmarshal session from genesis metadata: %v", err)
+	}
+	// Verify the session is correctly stored in the genesis block
+
+	if s.Round != initialSession.Round {
 		t.Fatalf("genesis block should preserve initial session RoundID")
 	}
 }
@@ -562,7 +536,7 @@ func TestVerifyValidChain(t *testing.T) {
 			{ActionId: "a" + string(rune(i)), VoterID: 0, Value: consensus.VoteAccept},
 			{ActionId: "a" + string(rune(i)), VoterID: 1, Value: consensus.VoteAccept},
 		}
-		err = bc.Append(session, action, votes, i, 2)
+		err = bc.Append( action, votes, i, 2)
 		if err != nil {
 			t.Fatalf("unexpected error appending block: %v", err)
 		}
@@ -637,7 +611,7 @@ func TestVerifyTamperedBlockHash(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append(session, action, votes, 0, 2)
+	err = bc.Append( action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
@@ -677,12 +651,12 @@ func TestVerifyBrokenChainLink(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append(session, action, votes, 0, 2)
+	err = bc.Append( action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
 
-	err = bc.Append(session, action, votes, 0, 2)
+	err = bc.Append( action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
@@ -722,7 +696,7 @@ func TestVerifyIndexDiscontinuity(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append(session, action, votes, 0, 2)
+	err = bc.Append( action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
@@ -769,7 +743,7 @@ func TestAppendMultipleBlocks(t *testing.T) {
 			{ActionId: "a" + string(rune(i)), VoterID: 1, Value: consensus.VoteAccept},
 		}
 
-		err := bc.Append(session, action, votes, i%2, 2)
+		err := bc.Append( action, votes, i%2, 2)
 		if err != nil {
 			t.Fatalf("unexpected error at block %d: %v", i, err)
 		}

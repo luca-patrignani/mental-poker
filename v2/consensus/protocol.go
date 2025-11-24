@@ -476,17 +476,15 @@ func (node *ConsensusNode) applyCommit(cert Certificate, ban ...*Action) error {
 		return err
 	}
 
-	ses := node.pokerSM.GetSession()
-
 	if len(ban) > 0 {
 		data := map[string]string{"rejectedAction": ban[0].ToString()}
 
-		err = node.ledger.Append(*ses, cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum, data)
+		err = node.ledger.Append(cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum, data)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := node.ledger.Append(*ses, cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum)
+		err := node.ledger.Append(cert.Proposal.Payload, cert.Votes, cert.Proposal.PlayerID, node.quorum)
 		if err != nil {
 			return err
 		}

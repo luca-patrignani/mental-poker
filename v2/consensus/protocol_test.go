@@ -13,7 +13,6 @@ import (
 )
 
 type mockBlock struct {
-	Session poker.Session     `json:"session"`
 	Action  poker.PokerAction `json:"poker_action"` // Generic action data
 	Votes   []Vote            `json:"votes"`
 }
@@ -28,7 +27,6 @@ func NewBlockchain() *mockBlockChain {
 
 	// Crea genesis block
 	genesis := mockBlock{
-		Session: poker.Session{},
 		Action:  poker.PokerAction{Type: "genesis"},
 		Votes:   []Vote{},
 	}
@@ -37,10 +35,9 @@ func NewBlockchain() *mockBlockChain {
 	return bc
 }
 
-func (m *mockBlockChain) Append(session poker.Session, pa poker.PokerAction, votes []Vote, proposerID int, quorum int, extra ...map[string]string) error {
+func (m *mockBlockChain) Append( pa poker.PokerAction, votes []Vote, proposerID int, quorum int, extra ...map[string]string) error {
 
 	newBlock := mockBlock{
-		Session: session,
 		Action:  pa,
 		Votes:   votes,
 	}

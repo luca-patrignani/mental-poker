@@ -13,7 +13,6 @@ type Block struct {
 	Timestamp int64             `json:"timestamp"`    // Unix timestamp when block was created
 	PrevHash  string            `json:"prev_hash"`    // SHA256 hash of previous block
 	Hash      string            `json:"hash"`         // SHA256 hash of this block
-	Session   poker.Session     `json:"session"`      // Complete game state after action
 	Action    poker.PokerAction `json:"poker_action"` // The action that was executed
 	Votes     []consensus.Vote  `json:"votes"`        // Quorum votes approving this action
 	Metadata  Metadata          `json:"metadata"`     // Additional consensus metadata

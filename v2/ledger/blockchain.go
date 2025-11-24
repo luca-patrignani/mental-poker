@@ -37,14 +37,18 @@ func NewBlockchain(initialSession poker.Session) (*Blockchain, error) {
 		blocks: make([]Block, 0),
 	}
 
+	sessionData, err := json.Marshal(initialSession)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal initial session: %w", err)
+	}
+
 	genesis := Block{
 		Index:     0,
 		Timestamp: time.Now().Unix(),
 		PrevHash:  "0",
-		Session:   initialSession,
 		Action:    poker.PokerAction{Type: "genesis"},
 		Votes:     []consensus.Vote{},
-		Metadata:  Metadata{ProposerID: -1, Quorum: 0},
+		Metadata:  Metadata{ProposerID: -1, Quorum: 0, Extra: map[string]string{"session": string(sessionData)}},
 	}
 	hash, err := bc.calculateHash(genesis)
 	genesis.Hash = hash
@@ -80,7 +84,7 @@ func NewBlockchain(initialSession poker.Session) (*Blockchain, error) {
 // Returns an error if the block is invalid or if appending fails.
 //
 // Thread-safety: This method is safe for concurrent access.
-func (bc *Blockchain) Append(session poker.Session, pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
+func (bc *Blockchain) Append( pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
@@ -94,7 +98,6 @@ func (bc *Blockchain) Append(session poker.Session, pa poker.PokerAction, votes 
 		Index:     latest.Index + 1,
 		Timestamp: time.Now().Unix(),
 		PrevHash:  latest.Hash,
-		Session:   session,
 		Action:    pa,
 		Votes:     votes,
 		Metadata: Metadata{
@@ -231,20 +234,13 @@ func (bc *Blockchain) calculateHash(block Block) (string, error) {
 		return "", err
 	}
 
-	sessionBytes, err := json.Marshal(block.Session)
-
-	if err != nil {
-		return "", err
-	}
-
 	// Concatenate all data
-	data := fmt.Sprintf("%d%d%s%s%s%s%d%d",
+	data := fmt.Sprintf("%d%d%s%s%s%d%d",
 		block.Index,
 		block.Timestamp,
 		block.PrevHash,
 		string(actionBytes),
 		string(votesBytes),
-		string(sessionBytes),
 		block.Metadata.ProposerID,
 		block.Metadata.Quorum,
 	)
