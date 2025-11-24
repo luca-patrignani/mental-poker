@@ -199,7 +199,7 @@ func TestAdvanceRound(t *testing.T) {
 				CurrentTurn: 0,
 				Round:       PreFlop,
 			},
-			expectedTurn:  1,
+			expectedTurn:  2,
 			expectedRound: Flop, // Round doesn't change in advanceRound, just turn
 			description:   "Should advance to player 1",
 		},
@@ -208,14 +208,15 @@ func TestAdvanceRound(t *testing.T) {
 			session: Session{
 				Players: []Player{
 					{Id: 0, HasFolded: false, BankRoll: 100},
-					{Id: 1, HasFolded: true, BankRoll: 100},
-					{Id: 2, HasFolded: false, BankRoll: 100},
+					{Id: 1, HasFolded: false, BankRoll: 100},
+					{Id: 2, HasFolded: true, BankRoll: 100},
+					{Id: 3, HasFolded: false, BankRoll: 100},
 				},
 				Dealer:      0,
 				CurrentTurn: 0,
 				Round:       Flop,
 			},
-			expectedTurn:  2,
+			expectedTurn:  3,
 			expectedRound: Turn,
 			description:   "Should skip folded player 1 and go to player 2",
 		},
@@ -231,9 +232,9 @@ func TestAdvanceRound(t *testing.T) {
 				CurrentTurn: 2,
 				Round:       Turn,
 			},
-			expectedTurn:  0,
+			expectedTurn:  1,
 			expectedRound: River,
-			description:   "Should wrap around to player 0",
+			description:   "Should wrap around to player 1",
 		},
 		{
 			name: "Only one player left (all others folded)",
@@ -324,8 +325,8 @@ func TestAllPlayersCheckScenario(t *testing.T) {
 	session.advanceRound()
 
 	// Verify turn advanced
-	if session.CurrentTurn != 0 {
-		t.Error("CurrentTurn should have been the first player after dealer")
+	if session.CurrentTurn != 1 {
+		t.Errorf("CurrentTurn should have been the big blind (1), got %d", session.CurrentTurn)
 	}
 
 	// Verify round progressed

@@ -84,7 +84,7 @@ func NewBlockchain(initialSession poker.Session) (*Blockchain, error) {
 // Returns an error if the block is invalid or if appending fails.
 //
 // Thread-safety: This method is safe for concurrent access.
-func (bc *Blockchain) Append( pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
+func (bc *Blockchain) Append(pa poker.PokerAction, votes []consensus.Vote, proposerID int, quorum int, extra ...map[string]string) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 

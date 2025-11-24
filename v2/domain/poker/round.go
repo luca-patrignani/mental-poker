@@ -40,7 +40,8 @@ func (session *Session) isRoundFinished() bool {
 }
 
 func (session *Session) advanceRound() {
-	idx := session.getNextActivePlayer(session.Dealer, false)
+	//idx := session.getNextActivePlayer(session.Dealer, false)
+	idx := session.getNextActivePlayer(uint((session.Dealer+1)%uint(len(session.Players))), false)
 	session.CurrentTurn = uint(idx)
 	session.LastToRaise = uint(idx)
 	session.Round = nextRound(session.Round)

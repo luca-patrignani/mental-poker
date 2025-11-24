@@ -180,7 +180,7 @@ func TestNewBlockchainWithInitialSession(t *testing.T) {
 	}
 
 	var s poker.Session
-	err = json.Unmarshal([]byte(genesis.Metadata.Extra["session"]),&s) // Access to ensure it exists
+	err = json.Unmarshal([]byte(genesis.Metadata.Extra["session"]), &s) // Access to ensure it exists
 	if err != nil {
 		t.Fatalf("failed to unmarshal session from genesis metadata: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestAppendValidBlock(t *testing.T) {
 		{ActionId: "action1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append( action, votes, 1, 2)
+	err = bc.Append(action, votes, 1, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending valid block: %v", err)
 	}
@@ -292,7 +292,7 @@ func TestAppendBlockInsufficientVotes(t *testing.T) {
 	}
 
 	// Try to append with quorum of 2 but only 1 vote
-	err = bc.Append( action, votes, 0, 2)
+	err = bc.Append(action, votes, 0, 2)
 	if err == nil {
 		t.Fatal("expected error for insufficient votes, got nil")
 	}
@@ -338,7 +338,7 @@ func TestAppendWithExtraMetadata(t *testing.T) {
 		"info":   "unexpected-timeout",
 	}
 
-	err = bc.Append( action, votes, 1, 2, extraData)
+	err = bc.Append(action, votes, 1, 2, extraData)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -379,7 +379,7 @@ func TestGetLatestBlock(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append( action, votes, 0, 2)
+	err = bc.Append(action, votes, 0, 2)
 
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
@@ -437,7 +437,7 @@ func TestGetByIndexValid(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append( action, votes, 0, 2)
+	err = bc.Append(action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
@@ -462,7 +462,7 @@ func TestGetByIndexValid(t *testing.T) {
 	}
 
 	var s poker.Session
-	err = json.Unmarshal([]byte(genesisBlock.Metadata.Extra["session"]),&s) // Access to ensure it exists
+	err = json.Unmarshal([]byte(genesisBlock.Metadata.Extra["session"]), &s) // Access to ensure it exists
 	if err != nil {
 		t.Fatalf("failed to unmarshal session from genesis metadata: %v", err)
 	}
@@ -536,7 +536,7 @@ func TestVerifyValidChain(t *testing.T) {
 			{ActionId: "a" + string(rune(i)), VoterID: 0, Value: consensus.VoteAccept},
 			{ActionId: "a" + string(rune(i)), VoterID: 1, Value: consensus.VoteAccept},
 		}
-		err = bc.Append( action, votes, i, 2)
+		err = bc.Append(action, votes, i, 2)
 		if err != nil {
 			t.Fatalf("unexpected error appending block: %v", err)
 		}
@@ -611,7 +611,7 @@ func TestVerifyTamperedBlockHash(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append( action, votes, 0, 2)
+	err = bc.Append(action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
@@ -651,12 +651,12 @@ func TestVerifyBrokenChainLink(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append( action, votes, 0, 2)
+	err = bc.Append(action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
 
-	err = bc.Append( action, votes, 0, 2)
+	err = bc.Append(action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
@@ -696,7 +696,7 @@ func TestVerifyIndexDiscontinuity(t *testing.T) {
 		{ActionId: "a1", VoterID: 1, Value: consensus.VoteAccept},
 	}
 
-	err = bc.Append( action, votes, 0, 2)
+	err = bc.Append(action, votes, 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error appending block: %v", err)
 	}
@@ -743,7 +743,7 @@ func TestAppendMultipleBlocks(t *testing.T) {
 			{ActionId: "a" + string(rune(i)), VoterID: 1, Value: consensus.VoteAccept},
 		}
 
-		err := bc.Append( action, votes, i%2, 2)
+		err := bc.Append(action, votes, i%2, 2)
 		if err != nil {
 			t.Fatalf("unexpected error at block %d: %v", i, err)
 		}

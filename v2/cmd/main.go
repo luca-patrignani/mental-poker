@@ -16,8 +16,8 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
 
-	"github.com/luca-patrignani/mental-poker/v2/discovery"
 	"github.com/luca-patrignani/mental-poker/v2/consensus"
+	"github.com/luca-patrignani/mental-poker/v2/discovery"
 	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
 	"github.com/luca-patrignani/mental-poker/v2/ledger"
 	"github.com/luca-patrignani/mental-poker/v2/network"
