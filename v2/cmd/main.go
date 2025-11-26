@@ -16,7 +16,6 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
 
-	"github.com/luca-patrignani/mental-poker/v2/discovery"
 	"github.com/luca-patrignani/mental-poker/v2/consensus"
 	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
 	"github.com/luca-patrignani/mental-poker/v2/ledger"
@@ -95,11 +94,17 @@ func main() {
 	// Print two new lines as spacer.
 	pterm.Print("\n")
 
-	discover, err := discovery.New(l.Addr().String(), discoveryPort)
+	pinger, err := NewPinger(
+		Info{
+			Name: name,
+			Address: l.Addr().String(),
+		},
+		time.Second,
+	)
 	if err != nil {
 		panic(err)
 	}
-	discover.Start()
+	pinger.Start()
 	addresses := []string{l.Addr().String()}
 	for {
 		addr, _ := pterm.DefaultInteractiveTextInput.
@@ -134,12 +139,13 @@ func main() {
 		}
 		addresses = append(addresses, guessedAddr.String()+":"+strconv.Itoa(tcpAddr.Port))
 	}
-	discover.Close()
-	close(discover.Entries)
-	for entry := range discover.Entries {
-		pterm.Info.Printfln("Discovered address: %s", entry.Info)
-		if !slices.Contains(addresses, entry.Info) {
-			addresses = append(addresses, entry.Info)
+	if err := pinger.Close(); err != nil {
+		panic(err)
+	}
+	for info, lastPing := range pinger.PlayersStatus() {
+		pterm.Info.Printfln("Discovered player %s at address %s at time %s", info.Name, info.Address, lastPing.String())
+		if !slices.Contains(addresses, info.Address) {
+			addresses = append(addresses, info.Address)
 		}
 	}
 	p2p, myRank := createP2P(addresses, l)

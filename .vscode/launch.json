@@ -11,7 +11,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${fileDirname}",
-            "args": ["localhost"],
+            "args": ["-timeout", "0", "localhost"],
             "console": "externalTerminal"
         }
     ]

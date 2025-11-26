@@ -5,69 +5,48 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net"
+	"slices"
 	"time"
 )
 
 const multicastIpAddress = "239.0.0.1"
 
 type Discover struct {
+	Info                         []byte
+	Port                         uint16
+	IntervalBetweenAnnouncements time.Duration
 	Entries                      chan Entry
-	Info                         string
-	port                         uint16
 	conn                         *net.UDPConn
 	sendConn                     *net.UDPConn
-	intervalBetweenAnnouncements time.Duration
-	key                          string
+	key                          []byte
 }
 
 type Entry struct {
-	Info string
+	Info []byte
 	Time time.Time
 }
 
 type option func(Discover) Discover
 
-func WithIntervalBetweenAnnouncements(i time.Duration) option {
-	return func(d Discover) Discover {
-		d.intervalBetweenAnnouncements = i
-		return d
-	}
-}
-
-func New(info string, port uint16, opts ...option) (*Discover, error) {
-	d := Discover{
-		Entries:                      make(chan Entry, 100),
-		Info:                         info,
-		port:                         port,
-		intervalBetweenAnnouncements: time.Second,
-		key:                          fmt.Sprintf("%08x", rand.Uint32()),
-	}
-	for _, opt := range opts {
-		d = opt(d)
-	}
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.port))
+func (d *Discover) Start() error {
+	d.Entries = make(chan Entry, 10)
+	d.key = []byte(fmt.Sprintf("%08x", rand.Uint32()))
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.Port))
 	if err != nil {
-		panic(err)
+		return err
 	}
 	d.conn, err = net.ListenMulticastUDP("udp", nil, addr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	sendAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.port))
+	d.sendConn, err = net.DialUDP("udp", nil, addr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	d.sendConn, err = net.DialUDP("udp", nil, sendAddr)
-	if err != nil {
-		return nil, err
-	}
-	return &d, nil
-}
-
-func (d *Discover) Start() {
 	d.startListener()
 	d.startDialer()
+	return nil
 }
 
 func (d *Discover) Close() error {
@@ -90,14 +69,15 @@ func (d Discover) startListener() {
 				}
 				panic(err)
 			}
-			message := string(buffer[:n])
-			if message[:8] == d.key {
+			message := buffer[:n]
+			if slices.Compare(message[:8], d.key) == 0 {
 				continue
 			}
 			d.Entries <- Entry{
 				Info: message[8:],
 				Time: time.Now(),
 			}
+			time.Sleep(d.IntervalBetweenAnnouncements)
 		}
 	}()
 }
@@ -105,13 +85,23 @@ func (d Discover) startListener() {
 func (d Discover) startDialer() {
 	go func() {
 		for {
-			if _, err := d.sendConn.Write(append([]byte(d.key), []byte(d.Info)...)); err != nil {
+			if _, err := d.sendConn.Write(append([]byte(d.key), d.Info...)); err != nil {
 				if errors.Is(err, net.ErrClosed) {
 					return
 				}
 				panic(err)
 			}
-			time.Sleep(d.intervalBetweenAnnouncements)
+			time.Sleep(d.IntervalBetweenAnnouncements)
+		}
+	}()
+}
+
+func (d Discover) startDiscardExpiredEntries() {
+	go func() {
+		time.Sleep(d.IntervalBetweenAnnouncements)
+		for {
+			entry := <-d.Entries
+			time.Sleep(time.Now().Sub(entry.Time))
 		}
 	}()
 }

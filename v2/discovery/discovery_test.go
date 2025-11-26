@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -11,11 +12,12 @@ func TestDiscover(t *testing.T) {
 	fatal := make(chan error)
 	for i := range n {
 		go func() {
-			discover, err := New(fmt.Sprint(i), 53551,
-				WithIntervalBetweenAnnouncements(200*time.Millisecond),
-			)
-			discover.Start()
-			if err != nil {
+			discover := Discover{
+				Info:                         []byte(fmt.Sprint(i)),
+				IntervalBetweenAnnouncements: 200 * time.Millisecond,
+				Port:                         53551,
+			}
+			if err := discover.Start(); err != nil {
 				fatal <- err
 				return
 			}
@@ -27,10 +29,11 @@ func TestDiscover(t *testing.T) {
 					fatal <- fmt.Errorf("from node %d: time out of clock", i)
 					return
 				}
-				if _, ok := set[entry.Info]; !ok {
+				info := string(entry.Info)
+				if _, ok := set[info]; !ok {
 					j++
 				}
-				set[entry.Info] = struct{}{}
+				set[info] = struct{}{}
 			}
 			for j := range n {
 				if j == i {
@@ -56,9 +59,12 @@ func TestClose(t *testing.T) {
 	fatal := make(chan error)
 	for i := range n {
 		go func() {
-			discover, err := New(fmt.Sprint(i), 53552)
-			discover.Start()
-			if err != nil {
+			discover := Discover{
+				Info: []byte(fmt.Sprint(i)),
+				Port: 53551,
+			}
+			
+			if err := discover.Start(); err != nil {
 				fatal <- err
 				return
 			}
@@ -75,4 +81,23 @@ func TestClose(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func workerContext(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(200 * time.Millisecond):
+			panic("this should not happen")
+		}
+	}
+}
+
+func TestMainContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	go workerContext(ctx)
+	go workerContext(ctx)
+	time.Sleep(time.Millisecond)
+	cancel()
 }
