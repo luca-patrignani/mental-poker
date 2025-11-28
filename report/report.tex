@@ -312,14 +312,23 @@ The \textbf{Kyber cryptography library} (Dedis Advanced Crypto Library for Go) p
 
 The design process employed a hybrid top-down and bottom-up approach. The high-level architecture was determined by the requirements for decentralization and cryptographic security (top-down), while specific implementation details emerged from practical constraints and library capabilities (bottom-up).
 
-The solution was designed with three main components:
+\begin{figure}
+\centering
+\includegraphics[width=1.3\linewidth]{report/figures/package-uml.png}
+\caption{UML class diagram showing the main domain entities and relationships}
+\label{fig:class-diagram}
+\end{figure}
+\newpage
+The solution was designed with four main components:
 
 \begin{itemize}
 \item \textbf{The Deck}: Cryptographic layer implementing the Wei \& Wang mental poker protocol
 
 \item \textbf{The Game Logic}: Poker game mechanics, state management, and rules enforcement
 
-\item \textbf{The DLT (Distributed Ledger Technology)}: Blockchain-based consensus and action recording
+\item \textbf{The DLT (Distributed Ledger Technology)}: event-sourcing blockchain to record actions
+
+\item \textbf{The Consensus Node}: Voting mechanisms for action validation
 \end{itemize}
 
 Additionally, supporting components provide:
@@ -327,155 +336,129 @@ Additionally, supporting components provide:
 \begin{itemize}
 \item \textbf{Network Layer}: Peer-to-peer communication primitives
 
-\item \textbf{Consensus Layer}: Voting mechanisms for action validation
-
-\item \textbf{User Interface}: Command-line interface for player interaction
+\item \textbf{User Interface}: Command-line interface for player interaction (not shown here)
 \end{itemize}
 
-\subsection{Structure (domain entities)}
+\subsection{Components}
 
-The following key entities model the problem domain:
+\subsubsection{Domain: Deck Component}
+
+The Deck component implements the cryptographic layer based on the Wei \& Wang mental poker protocol. It ensures that no player can control or predict the card order, and that cards dealt face-down remain private until revealed.
+
+\paragraph{Deck Entity}
+The \texttt{Deck} struct is the core cryptographic abstraction representing a secure card deck. Each player maintains their own Deck instance, participating in collective protocols for shuffling, dealing, and revealing cards. The deck uses elliptic curve cryptography (Ed25519) through the Kyber library, where each card is represented as a point on the curve. Cards are encrypted with each player's secret key during the shuffle protocol, ensuring that the final deck order incorporates randomness from all participants.
+
+Key operations include:
+\begin{itemize}
+\item \texttt{PrepareDeck()}: Initializes 52 cards as cryptographic points using distributed random element generation
+\item \texttt{Shuffle()}: Sequential protocol where each player encrypts the entire deck with their secret key
+\item \texttt{DrawCard(drawer)}: Collective decryption allowing only the specified player to learn the card value
+\item \texttt{OpenCard(player, card)}: Broadcasts and verifies a player's revealed card
+\item \texttt{LeaveGame(leaver)}: Removes a disconnected player's encryption layer from the deck
+\end{itemize}
+
+\subsubsection{Domain: Poker Component}
+
+The Poker component manages game state, enforces Texas Hold'em rules, and evaluates hand strengths. It operates independently of the cryptographic deck, focusing purely on game mechanics.
+
+
+\paragraph{Session Entity}
+The \texttt{Session} struct maintains the complete game state at any point in time. It tracks community cards on the board, player states, pot distributions, betting information, and the current game phase (PreFlop, Flop, Turn, River, Showdown). The session serves as the single source of truth for game state, recorded in the blockchain after each consensus-approved action.
+
+Critical methods handle state transitions:
+\begin{itemize}
+\item \texttt{ApplyAction()}: Executes validated player actions (fold, bet, raise, call, check, all-in)
+\item \texttt{recalculatePots()}: Manages main and side pots for all-in scenarios
+\item \texttt{advanceRound()}: Transitions between betting rounds when all players have acted
+\item \texttt{winnerEval()}: Determines winner(s) at showdown using hand evaluation
+\end{itemize}
+
+\paragraph{Player Entity}
+Each \texttt{Player} represents a participant with their hole cards, chip count, current bet, and fold status. The poker manager coordinates player turns and validates that actions are taken by the correct player.
+
+\paragraph{Card and Hand Evaluation}
+The \texttt{Card} struct represents standard playing cards with rank and suit. The \texttt{Evaluator} module implements poker hand ranking algorithms, comparing hands to determine winners according to standard Texas Hold'em rules (Royal Flush through High Card).
+
+\paragraph{Action Entity}
+The \texttt{Action} struct represents a proposed poker move with a unique ID, player ID, poker action payload, timestamp, and Ed25519 signature.
 
 \begin{figure}
 \centering
-\includegraphics[width=0.9\linewidth]{uml_class_diagram.png}
-\caption{UML class diagram showing domain entities and relationships}
+\includegraphics[width=0.9\linewidth]{report/figures/domain-uml.png}
+\caption{UML class diagram showing the package poker details}
+\label{fig:class-diagram}
+\end{figure}
+ \newpage
+ 
+\subsubsection{Ledger Component}
+
+The Ledger component implements an event-sourced, blockchain-based replicated log ensuring immutability and non-repudiation of all game actions.
+
+
+\paragraph{Blockchain Entity}
+The \texttt{Blockchain} struct maintains an append-only chain of blocks, each cryptographically linked to its predecessor via SHA-256 hashing. The genesis block records the initial game state with all players and starting chip counts. Each subsequent block contains a player action, the resulting game state, consensus votes, and metadata.
+
+The blockchain provides:
+\begin{itemize}
+\item \texttt{Append()}: Validates and adds consensus-approved actions with quorum votes
+\item \texttt{Verify()}: Checks the entire chain integrity by validating hashes and vote counts
+\item \texttt{GetLatest()}: Retrieves the current game state from the most recent block
+\end{itemize}
+
+\paragraph{Block Structure}
+Each \texttt{Block} is self-contained and includes:
+\begin{itemize}
+\item Sequential index and timestamp
+\item Cryptographic hash of the previous block (forming the chain)
+\item The \texttt{PokerAction} that caused the state transition
+\item Consensus \texttt{Votes} from all players (with signatures)
+\item Metadata including proposer ID, quorum threshold, and optional extra data (e.g., ban reasons)
+\end{itemize}
+
+This structure enables post-game auditing, dispute resolution, and verification that all state transitions received proper consensus approval.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\linewidth]{report/figures/ledger-uml.png}
+\caption{UML class diagram showing the detail of the ledger component}
 \label{fig:class-diagram}
 \end{figure}
 
-\subsubsection{Deck Entity}
+\newpage
 
-The \texttt{Deck} struct represents a cryptographic card deck for one player. Key attributes:
+\subsubsection{Consensus Component}
 
+The Consensus component implements a Byzantine Fault Tolerant (BFT) voting protocol ensuring that all players agree on action validity before state changes occur.
+
+\paragraph{Node Entity}
+The \texttt{ConsensusNode} manages the distributed consensus protocol for each player. It maintains cryptographic key pairs (Ed25519) for signing and verifying messages, tracks peer public keys, calculates quorum thresholds using the BFT formula $\lceil\frac{2n+2}{3}\rceil$, and coordinates with the poker state machine and blockchain ledger.
+
+The consensus workflow follows a propose-vote-commit pattern:
 \begin{itemize}
-\item \texttt{DeckSize}: Total number of cards (52 for standard poker)
-\item \texttt{Peer}: Reference to the network layer for communication
-\item \texttt{cardCollection}: Array of kyber.Point values representing unencrypted cards
-\item \texttt{encryptedDeck}: Array of encrypted card values after shuffling
-\item \texttt{secretKey}: Player's private key (kyber.Scalar)
-\item \texttt{lastDrawnCard}: Index tracking which cards have been dealt
+\item \texttt{ProposeAction()}: The current player broadcasts a signed action proposal
+\item \texttt{WaitForProposal()}: Other players receive and validate the proposal
+\item Vote broadcasting: Each player broadcasts ACCEPT or REJECT with signature
+\item \texttt{checkAndCommit()}: If quorum accepts, the action is applied and recorded; if quorum rejects, the proposer is banned
 \end{itemize}
 
-Key methods:
+\paragraph{Vote Entity}
+The \texttt{Vote} struct contains the voter's decision (ACCEPT/REJECT), validation reason, and cryptographic signature. All signatures are verified using the voter's public key to prevent forgery.
 
+\subsubsection{Network Component}
+
+The Network component provides peer-to-peer communication primitives abstracting the underlying TCP connections.
+
+\paragraph{NetworkLayer Interface}
+The \texttt{NetworkLayer} interface defines two fundamental communication patterns inspired by MPI:
 \begin{itemize}
-\item \texttt{PrepareDeck()}: Initializes card representations as cryptographic points
-\item \texttt{Shuffle()}: Participates in the distributed shuffle protocol
-\item \texttt{DrawCard(drawer int)}: Collectively decrypts a card for one player
-\item \texttt{OpenCard(player, card)}: Reveals a player's card to all participants
-\item \texttt{LeaveGame(leaver)}: Removes a player's encryption from the deck
+\item \texttt{Broadcast(data, root)}: One player sends identical data to all peers (analogous to \texttt{MPI\_BCAST})
+\item \texttt{AllToAll(data)}: Every player sends data to every other player simultaneously (analogous to \texttt{MPI\_ALLTOALL})
 \end{itemize}
 
-\subsubsection{NetworkLayer Interface}
+Both operations include timeout variants and implement barrier synchronization, blocking until all participants complete the communication. This ensures consistent ordering of messages and simplifies protocol implementation.
 
-The \texttt{NetworkLayer} interface abstracts communication primitives:
-
-\begin{itemize}
-\item \texttt{Broadcast(data, root)}: One player sends to all others
-\item \texttt{AllToAll(data)}: All players send to all others
-\item \texttt{GetRank()}: Returns this player's ID
-\item \texttt{GetPeerCount()}: Returns total number of players
-\item \texttt{GetAddresses()}: Returns network addresses of all players
-\item \texttt{Close()}: Shuts down network connections
-\end{itemize}
-
-This interface enables dependency injection and simplifies testing with mock implementations.
-
-\subsubsection{Session Entity (Poker Game State)}
-
-The \texttt{Session} struct maintains the current poker game state:
-
-\begin{itemize}
-\item \texttt{Board}: Array of 5 community cards
-\item \texttt{Players}: Slice of Player objects
-\item \texttt{Pots}: Slice of Pot objects (main pot and side pots)
-\item \texttt{HighestBet}: Current maximum bet in the round
-\item \texttt{LastToRaise}: Player ID who last raised
-\item \texttt{Dealer}: Dealer button position
-\item \texttt{CurrentTurn}: Player ID whose turn it is
-\item \texttt{Round}: Current game phase (PreFlop, Flop, Turn, River, Showdown)
-\end{itemize}
-
-Key methods:
-
-\begin{itemize}
-\item \texttt{recalculatePots()}: Computes main and side pots based on all-in situations
-\item \texttt{ApplyAction(action)}: Updates state based on player actions
-\item \texttt{OnePlayerRemained()}: Checks if only one player hasn't folded
-\item \texttt{isRoundFinished()}: Determines if betting round is complete
-\item \texttt{advanceRound()}: Transitions to next game phase
-\item \texttt{advanceTurn()}: Moves to next player
-\item \texttt{winnerEval()}: Evaluates hands at showdown
-\end{itemize}
-
-\subsubsection{Player Entity}
-
-The \texttt{Player} struct represents one participant:
-
-\begin{itemize}
-\item \texttt{Name}: Player's display name
-\item \texttt{Id}: Unique player identifier (rank in network)
-\item \texttt{Hand}: Array of 2 private cards
-\item \texttt{HasFolded}: Boolean indicating if player folded
-\item \texttt{Bet}: Amount bet in current round
-\item \texttt{Pot}: Player's remaining chips
-\end{itemize}
-
-\subsubsection{Card Entity}
-
-The \texttt{Card} struct represents a playing card:
-
-\begin{itemize}
-\item \texttt{Rank}: Card rank (2-10, J, Q, K, A)
-\item \texttt{Suit}: Card suit (Hearts, Diamonds, Clubs, Spades)
-\end{itemize}
-
-Methods:
-\begin{itemize}
-\item \texttt{String()}: Human-readable card representation (e.g., "A♠")
-\end{itemize}
-
-\subsubsection{Blockchain and Block Entities}
-
-The \texttt{Blockchain} struct maintains an immutable ledger:
-
-\begin{itemize}
-\item \texttt{blocks}: Ordered slice of Block objects
-\item \texttt{mu}: Mutex for thread-safe access
-\end{itemize}
-
-The \texttt{Block} struct represents one ledger entry:
-
-\begin{itemize}
-\item \texttt{Index}: Block number in chain
-\item \texttt{Timestamp}: Creation time
-\item \texttt{PrevHash}: Hash of previous block
-\item \texttt{Hash}: Cryptographic hash of this block
-\item \texttt{Session}: Game state after action
-\item \texttt{Action}: Player action that caused state change
-\item \texttt{Votes}: Consensus votes from all players
-\item \texttt{Metadata}: Additional info (proposer ID, quorum, extra data)
-\end{itemize}
-
-Key blockchain methods:
-
-\begin{itemize}
-\item \texttt{NewBlockchain(initialSession)}: Creates genesis block
-\item \texttt{Append(session, action, votes)}: Adds validated block
-\item \texttt{GetLatest()}: Retrieves most recent block
-\item \texttt{Verify()}: Validates entire chain integrity
-\end{itemize}
-
-\subsubsection{Pot Entity}
-
-The \texttt{Pot} struct represents a pot (main or side):
-
-\begin{itemize}
-\item \texttt{Amount}: Total chips in pot
-\item \texttt{Eligible}: Player IDs eligible to win this pot
-\end{itemize}
-
-Side pots are created when players go all-in with different chip amounts. The \texttt{recalculatePots()} method handles the complex logic of splitting bets into appropriate pots.
+\paragraph{Peer Implementation}
+The \texttt{Peer} struct implements the \texttt{NetworkLayer} interface using TCP sockets. Each peer maintains connections to all other peers in a fully-connected topology. The implementation handles connection management, message serialization/deserialization, and timeout enforcement. The \texttt{p2p.go} wrapper provides stable interfaces for the cryptographic deck operations.
 
 \subsection{Interaction}
 
