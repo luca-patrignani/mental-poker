@@ -429,6 +429,12 @@ This structure enables post-game auditing, dispute resolution, and verification 
 \subsubsection{Consensus Component}
 
 The Consensus component implements a Byzantine Fault Tolerant (BFT) voting protocol ensuring that all players agree on action validity before state changes occur.
+\begin{figure}
+\centeringF
+\includegraphics[width=0.8\linewidth]{report/figures/consensus-uml.png}
+\caption{UML class diagram showing the package poker details}
+\label{fig:class-diagram}
+\end{figure}
 
 \paragraph{Node Entity}
 The \texttt{ConsensusNode} manages the distributed consensus protocol for each player. It maintains cryptographic key pairs (Ed25519) for signing and verifying messages, tracks peer public keys, calculates quorum thresholds using the BFT formula $\lceil\frac{2n+2}{3}\rceil$, and coordinates with the poker state machine and blockchain ledger.
@@ -460,7 +466,7 @@ Both operations include timeout variants and implement barrier synchronization, 
 \paragraph{Peer Implementation}
 The \texttt{Peer} struct implements the \texttt{NetworkLayer} interface using TCP sockets. Each peer maintains connections to all other peers in a fully-connected topology. The implementation handles connection management, message serialization/deserialization, and timeout enforcement. The \texttt{p2p.go} wrapper provides stable interfaces for the cryptographic deck operations.
 
-\subsection{Interaction}
+\subsection{Communication}
 
 As previously mentioned, each player communicates only via two primitives:
 
@@ -470,13 +476,6 @@ As previously mentioned, each player communicates only via two primitives:
 \end{itemize}
 
 Both operations implicitly behave as barrier synchronizations, blocking thread execution until all nodes complete the communication. This design decision was made while studying the Wei and Wang paper~\cite{Wei-Wang-Protocol}, whose protocols exclusively use these primitives.
-
-\begin{figure}
-\centering
-\includegraphics[width=0.9\linewidth]{mental_poker_sequence.png}
-\caption{UML sequence diagram for the deck shuffling protocol}
-\label{fig:sequence-diagram}
-\end{figure}
 
 \subsubsection{The high performance computing similarity}
 
@@ -499,73 +498,132 @@ We believe this model extends naturally to decentralized systems like ours, wher
 
 This insight guided our architectural decisions and simplified implementation by enabling code reuse across all nodes.
 
-\subsubsection{Protocol Interactions}
+\subsubsection{Consensus Protocol Sequence}
 
-Key protocol interactions include:
+The consensus protocol ensures that all players agree on the validity of each action before it modifies the game state. Figure~\ref{fig:consensus-sequence} illustrates the complete message flow for a successful action proposal.
 
-\paragraph{Deck Initialization and Shuffling}
+
+\clearpage
+\begin{figure}[p]
+\vspace*{-2cm}  % Move image up by 2cm (adjust as needed)
+\centering
+\includegraphics[width=1.3\textwidth,height=1.1\textheight,keepaspectratio]{report/figures/consensus-protocol-sequence.png}
+\caption{Sequence diagram of the consensus protocol showing the five-phase distributed workflow}
+\label{fig:consensus-sequence}
+\end{figure}
+
+\clearpage
+
+
+The protocol proceeds through five distinct phases:
+
+\paragraph{Phase 1: Action Proposal}
+The player whose turn it is creates a poker action (e.g., BET, FOLD, RAISE) and submits it to their local consensus node. The node generates a unique action ID by combining the player ID, action payload hash, and 128 bits of cryptographic entropy. The action is timestamped and signed with the player's Ed25519 private key. The signed action is then broadcast to all peers using the \texttt{Broadcast} primitive with a 30-second timeout.
+
+All other players are concurrently executing \texttt{WaitForProposal()}, blocking until they receive the broadcast from the current player. This ensures that all nodes process proposals in the same order, maintaining deterministic state transitions.
+
+\paragraph{Phase 2: Proposal Validation}
+Upon receiving a proposal, each consensus node independently validates it:
 
 \begin{enumerate}
-\item Each player calls \texttt{PrepareDeck()} to initialize card representations by a distributed random generation
-\item Each player generates a secret key
-\item Players execute the shuffle protocol:
+\item \textbf{Signature verification}: The node verifies the Ed25519 signature using the proposer's public key to ensure authenticity and prevent tampering.
+
+\item \textbf{Player eligibility}: The node checks that the proposer is in the current game session and has not been banned.
+
+\item \textbf{Game rule validation}: The proposal is passed to the poker state machine, which validates turn order, action legality (e.g., sufficient chips for a bet), and compliance with Texas Hold'em rules.
+\end{enumerate}
+
+If any validation check fails, the node prepares to vote \texttt{REJECT} with a descriptive reason (e.g., "out-of-turn", "insufficient-chips", "bad-signature"). Otherwise, the node votes \texttt{ACCEPT} with reason "valid".
+
+\paragraph{Phase 3: Vote Broadcasting}
+Each node creates a \texttt{Vote} struct containing:
 \begin{itemize}
-\item Player 0 encrypts all cards with their secret key and broadcasts the encrypted deck
-\item Player 1 receives the deck, re-encrypts all cards with their secret key, and broadcasts
-\item This continues for all $k$ players
-\item After player $k-1$ broadcasts, all players have the final encrypted deck
+\item The action ID being voted on
+\item The voter's node ID
+\item The vote value (\texttt{ACCEPT} or \texttt{REJECT})
+\item A human-readable validation reason
+\item An Ed25519 signature over the serialized vote data
 \end{itemize}
-\item No player knows the card order because each card has been encrypted $k$ times with different unknown keys
-\end{enumerate}
 
-\paragraph{Drawing a Face-Down Card}
+All nodes broadcast their votes simultaneously using the \texttt{AllToAll} primitive. This operation blocks until every node has both sent its vote and received votes from all peers, implementing barrier synchronization. The 30-second timeout ensures the protocol progresses even if a peer disconnects.
+
+\paragraph{Phase 4: Vote Collection and Verification}
+Each node receives the vote array from the \texttt{AllToAll} operation and processes it through \texttt{onReceiveVotes()}:
 
 \begin{enumerate}
-\item All players agree on the next card index to draw (managed by \texttt{lastDrawnCard})
-\item For player $j$ drawing the card:
+\item \textbf{Proposal consistency}: Verify that all votes reference the same action ID.
+
+\item \textbf{Signature verification}: For each vote, verify the Ed25519 signature using the voter's public key from the peer map.
+
+\item \textbf{Voter eligibility}: Ensure the voter is a current player in the session and has not been banned.
+
+\item \textbf{Vote caching}: Store valid votes in a local map indexed by voter ID.
+\end{enumerate}
+
+Malformed votes or votes with invalid signatures are logged but do not halt the protocol, providing resilience against Byzantine failures.
+
+\paragraph{Phase 5: Quorum Check and Commit}
+The \texttt{checkAndCommit()} function evaluates whether consensus has been reached. The quorum threshold is computed using the Byzantine Fault Tolerance formula:
+
+\[
+\text{quorum} = \left\lceil \frac{2n + 2}{3} \right\rceil
+\]
+
+where $n$ is the current number of players. This ensures safety with up to $\lfloor (n-1)/3 \rfloor$ Byzantine (malicious or faulty) nodes.
+
+The function counts \texttt{ACCEPT} and \texttt{REJECT} votes and determines the outcome:
+
 \begin{itemize}
-\item Player 0 decrypts the card with their secret key inverse and broadcasts
-\item Player 1 receives, decrypts with their secret key inverse, and broadcasts
-\item This continues for all players except player $j$
-\item Player $j$ finally decrypts with their secret key inverse locally
-\item Player $j$ now knows which card they drew by comparing against their \texttt{cardCollection}
+\item \textbf{Accepts $\geq$ quorum}: The action is legitimate. The consensus node:
+\begin{enumerate}
+\item Calls \texttt{Apply()} on the poker state machine to execute the action and obtain the new game state
+\item Appends a block to the blockchain containing the session state, action, all votes, proposer ID, and quorum threshold
+\item Clears the cached proposal and votes, preparing for the next action
+\end{enumerate}
+
+\item \textbf{Rejects $\geq$ quorum}: The proposal is invalid and the proposer is Byzantine. The consensus node:
+\begin{enumerate}
+\item Calls \texttt{NotifyBan()} on the state machine to create a special BAN action
+\item Appends a block to the blockchain with the ban action, votes, and metadata containing the rejected action details
+\item Removes the banned player from the peer map and recalculates the quorum with $n-1$ players
+\item If the local node is the banned player, it closes its network connections and shuts down gracefully
+\end{enumerate}
+
+\item \textbf{Neither quorum reached}: Insufficient votes have been collected. This occurs during vote collection before all peers respond. The function returns an error, and the node waits for more votes to arrive.
 \end{itemize}
-\item Other players only see the encrypted intermediate values, not the final card
-\end{enumerate}
 
-\paragraph{Revealing a Card}
+\paragraph{Consensus}
+A critical property of this protocol is \textbf{determinism}: all honest nodes reach the same decision because they:
+\begin{itemize}
+\item Process the same signed proposal (guaranteed by broadcast)
+\item Execute the same validation logic (deterministic state machine)
+\item Receive the same set of votes (guaranteed by \texttt{AllToAll} barrier synchronization)
+\item Apply the same quorum threshold calculation
+\end{itemize}
 
-\begin{enumerate}
-\item The player with the card broadcasts the card index/value
-\item All players receive and validate the revealed card
-\item Players can verify the card was legitimately drawn (not fabricated) by checking cryptographic commitments
-\end{enumerate}
+Even if some nodes are Byzantine (sending different votes or proposals), the quorum mechanism ensures that the supermajority of honest nodes drives the consensus outcome. The blockchain records the complete vote set, enabling post-game auditing to identify Byzantine actors.
 
-\paragraph{Game Action Protocol}
+\subsubsection{Network Topology and Message Flow}
 
-\begin{enumerate}
-\item Player $j$ decides on an action (call, raise, fold, etc.)
-\item Player $j$ proposes the action to all players via broadcast
-\item All players vote to approve or reject the action via consensus protocol
-\item If quorum is reached, the action is applied to the game state
-\item The action and votes are recorded in a new blockchain block
-\item All players append the block to their local blockchain copy
-\item Game state transitions to the next phase
-\end{enumerate}
+The system operates in a \textbf{fully-connected peer-to-peer topology}, where each node maintains direct TCP connections to all other nodes. This design choice simplifies the implementation of broadcast and \texttt{AllToAll} primitives, as there are no routing concerns or intermediate hops.
 
-This interaction ensures that all state changes require consensus, preventing individual players from unilaterally modifying the game state.
+Message serialization uses JSON encoding for human readability and debugging convenience. Binary formats could reduce bandwidth in production deployments but were not necessary for local area network operation.
+
+The communication model follows the \textbf{Single Program, Multiple Data (SPMD)} paradigm from parallel computing: all nodes run identical code but make different execution decisions based on their node ID and the current game state. For example, only the node whose turn it is executes \texttt{ProposeAction()}, while others execute \texttt{WaitForProposal()}.
+
+This architecture ensures that the system scales linearly with the number of players in terms of network traffic (each message must be sent to $n-1$ peers), but maintains constant time complexity for consensus rounds (one broadcast and one \texttt{AllToAll} per action).
 
 \subsection{Behaviour}
 
-We can model the poker game behavior as a state machine with the following states:
+We can model the behavior of the poker game as a state machine with the following states:
 
 \begin{itemize}
 \item \textbf{PreFlop}: Initial betting round after dealing hole cards
 \item \textbf{Flop}: Betting round after dealing 3 community cards
-\item \textbf{Turn}: Betting round after dealing 4th community card
-\item \textbf{River}: Betting round after dealing 5th community card
+\item \textbf{Turn}: Betting round after dealing the fourth community card
+\item \textbf{River}: Betting round after dealing the fifth community card
 \item \textbf{Showdown}: Hand evaluation and pot distribution
-\item \textbf{GameOver}: Terminal state when game ends
+\item \textbf{GameOver}: Terminal state when the game ends
 \end{itemize}
 
 \subsubsection{State Transitions}
@@ -580,10 +638,10 @@ Triggered when the betting round completes. Entry action: Deal 1 community card.
 Triggered when the betting round completes. Entry action: Deal 1 community card.
 
 \paragraph{River \(\rightarrow\) Showdown}
-Triggered when the final betting round completes. Entry action: All remaining players reveal their hole cards.
+Triggered when the final betting round is complete. Entry action: All remaining players reveal their hole cards.
 
 \paragraph{Any State \(\rightarrow\) Showdown}
-Triggered when only one player remains (all others folded). The remaining player wins without revealing cards.
+Triggered when only one player remains (all other players have folded). The remaining player wins without revealing cards.
 
 \paragraph{Showdown \(\rightarrow\) PreFlop}
 Triggered when starting a new round with the same players. Entry action: Reset player states, collect antes/blinds, deal new hole cards.
@@ -611,6 +669,7 @@ Individual players also have internal state:
 \item \textbf{Active}: Player is in the current hand
 \item \textbf{Folded}: Player has folded and cannot win the current hand
 \item \textbf{All-in}: Player has bet all chips and cannot make further bets
+\item \textbf{Spectator}: Player has lost all of his chips and is watching the game without influencing it. 
 \end{itemize}
 
 The \texttt{ApplyAction()} method handles state transitions based on player actions, ensuring consistency through consensus validation.
@@ -665,59 +724,6 @@ The codebase is organized into the following Go packages, with their relative te
 \end{itemize}
 \end{itemize}
 
-\subsubsection{Component Diagram}
-
-The architecture follows a layered design:
-
-\begin{verbatim}
-┌─────────────────────────────┐
-│    CLI (cmd/)               │
-├─────────────────────────────┤
-│  Poker Manager              │
-│  (domain/poker)             │
-├──────────────┬──────────────┤
-│  Deck        │  Blockchain  │
-│  (domain/    │  (ledger/)   │
-│   deck)      │              │
-├──────────────┴──────────────┤
-│  Consensus (consensus/)     │
-├─────────────────────────────┤
-│  Network (network/)         │
-└─────────────────────────────┘
-\end{verbatim}
-
-Data flow:
-
-\begin{enumerate}
-\item User interacts with CLI
-\item CLI calls Poker Manager methods
-\item Poker Manager coordinates Deck (for card operations) and Blockchain (for action recording)
-\item Deck and Blockchain use Consensus layer to validate operations
-\item Consensus layer uses Network layer for communication
-\item Network layer handles TCP connections and message passing
-\end{enumerate}
-
-\subsubsection{Deployment Architecture}
-
-The system deploys as a peer-to-peer network:
-
-\begin{verbatim}
-Player 1's Computer         Player 2's Computer
-┌─────────────────┐        ┌─────────────────┐
-│ CLI             │◄──────►│ CLI             │
-│ Poker Manager   │        │ Poker Manager   │
-│ Deck + Ledger   │        │ Deck + Ledger   │
-│ Network Peer    │        │ Network Peer    │
-└─────────────────┘        └─────────────────┘
-         ▲                          ▲
-         │                          │
-         └────────►┌─────────────────┐
-                   │ Player 3's Comp │
-                   │ (same stack)    │
-                   └─────────────────┘
-\end{verbatim}
-
-Each player runs the complete application stack. Network peers connect directly over TCP in a fully connected topology (each player connects to all others).
 
 \subsection{Corner cases}
 
