@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/luca-patrignani/mental-poker/v2/discovery"
+	"github.com/luca-patrignani/mental-poker/v3/discovery"
 )
 
 type Pinger struct {
-	Infos chan Info
+	Infos    chan Info
 	discover *discovery.Discover
-	done chan struct{}
+	done     chan struct{}
 }
 
 type Info struct {
@@ -30,9 +30,9 @@ func NewPinger(info Info, intervalBetweenPings time.Duration) (*Pinger, error) {
 		IntervalBetweenAnnouncements: intervalBetweenPings,
 	}
 	p := Pinger{
-		Infos: make(chan Info),
+		Infos:    make(chan Info),
 		discover: &discover,
-		done: make(chan struct{}),
+		done:     make(chan struct{}),
 	}
 	return &p, nil
 }
@@ -43,18 +43,15 @@ func (p *Pinger) Start() error {
 	}
 	go func() {
 		players := map[Info]time.Time{}
-		for {
-			select {
-			case entry := <- p.discover.Entries:
-				info := Info{}
-				if err := json.Unmarshal(entry.Info, &info); err != nil {
-					fmt.Println(err)
-					continue
-				}
-				if _, ok := players[info]; !ok {
-					p.Infos <- info
-					players[info] = entry.Time
-				}
+		for entry := range p.discover.Entries {
+			info := Info{}
+			if err := json.Unmarshal(entry.Info, &info); err != nil {
+				fmt.Println(err)
+				continue
+			}
+			if _, ok := players[info]; !ok {
+				p.Infos <- info
+				players[info] = entry.Time
 			}
 		}
 	}()

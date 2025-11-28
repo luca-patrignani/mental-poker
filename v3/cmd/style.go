@@ -3,7 +3,7 @@ package main
 import (
 	"strconv"
 
-	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
+	"github.com/luca-patrignani/mental-poker/v3/domain/poker"
 	"github.com/pterm/pterm"
 )
 

@@ -51,5 +51,5 @@ func TestPingerInfos(t *testing.T) {
 		if err := <-fatal; err != nil {
 			t.Fatal(err)
 		}
-	}	
+	}
 }

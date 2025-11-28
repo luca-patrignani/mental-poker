@@ -26,16 +26,18 @@ type Entry struct {
 	Time time.Time
 }
 
-type option func(Discover) Discover
-
 func (d *Discover) Start() error {
 	d.Entries = make(chan Entry, 10)
 	d.key = []byte(fmt.Sprintf("%08x", rand.Uint32()))
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.Port))
+	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", multicastIpAddress, d.Port))
 	if err != nil {
 		return err
 	}
-	d.conn, err = net.ListenMulticastUDP("udp", nil, addr)
+	ifi, err := net.InterfaceByName("wlo1")
+	if err != nil {
+		return err
+	}
+	d.conn, err = net.ListenMulticastUDP("udp4", ifi, addr)
 	if err != nil {
 		return err
 	}
@@ -92,16 +94,6 @@ func (d Discover) startDialer() {
 				panic(err)
 			}
 			time.Sleep(d.IntervalBetweenAnnouncements)
-		}
-	}()
-}
-
-func (d Discover) startDiscardExpiredEntries() {
-	go func() {
-		time.Sleep(d.IntervalBetweenAnnouncements)
-		for {
-			entry := <-d.Entries
-			time.Sleep(time.Now().Sub(entry.Time))
 		}
 	}()
 }

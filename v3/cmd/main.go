@@ -16,10 +16,10 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
 
-	"github.com/luca-patrignani/mental-poker/v2/consensus"
-	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
-	"github.com/luca-patrignani/mental-poker/v2/ledger"
-	"github.com/luca-patrignani/mental-poker/v2/network"
+	"github.com/luca-patrignani/mental-poker/v3/consensus"
+	"github.com/luca-patrignani/mental-poker/v3/domain/poker"
+	"github.com/luca-patrignani/mental-poker/v3/ledger"
+	"github.com/luca-patrignani/mental-poker/v3/network"
 )
 
 var timeout = 30 * time.Second
@@ -96,7 +96,7 @@ func main() {
 
 	pinger, err := NewPinger(
 		Info{
-			Name: name,
+			Name:    name,
 			Address: l.Addr().String(),
 		},
 		time.Second,

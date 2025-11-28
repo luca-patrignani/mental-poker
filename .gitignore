@@ -9,7 +9,7 @@
 *.dylib
 
 # Executables inside cmd/ directories
-cmd/cmd
+v*/cmd/cmd
 
 # Test binary, built with `go test -c`
 *.test

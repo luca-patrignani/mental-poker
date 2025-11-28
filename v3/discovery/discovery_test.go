@@ -1,7 +1,6 @@
 package discovery
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -15,7 +14,7 @@ func TestDiscover(t *testing.T) {
 			discover := Discover{
 				Info:                         []byte(fmt.Sprint(i)),
 				IntervalBetweenAnnouncements: 200 * time.Millisecond,
-				Port:                         53551,
+				Port:                         53552,
 			}
 			if err := discover.Start(); err != nil {
 				fatal <- err
@@ -61,9 +60,8 @@ func TestClose(t *testing.T) {
 		go func() {
 			discover := Discover{
 				Info: []byte(fmt.Sprint(i)),
-				Port: 53551,
+				Port: 53553,
 			}
-			
 			if err := discover.Start(); err != nil {
 				fatal <- err
 				return
@@ -81,23 +79,4 @@ func TestClose(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-}
-
-func workerContext(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(200 * time.Millisecond):
-			panic("this should not happen")
-		}
-	}
-}
-
-func TestMainContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	go workerContext(ctx)
-	go workerContext(ctx)
-	time.Sleep(time.Millisecond)
-	cancel()
 }
