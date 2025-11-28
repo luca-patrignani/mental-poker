@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestPinger(t *testing.T) {
+func TestPingerInfos(t *testing.T) {
 	n := 5
 	fatal := make(chan error)
 	for i := range n {
@@ -25,12 +25,8 @@ func TestPinger(t *testing.T) {
 			}
 			time.Sleep(time.Second)
 			found := map[string]struct{}{}
-			playerStatues := p.PlayersStatus()
-			for info := range playerStatues {
-				if _, ok := found[info.Name]; ok {
-					fatal <- fmt.Errorf("from node %d, duplicated player %s found", i, info.Name)
-					return
-				}
+			for len(found) < n-1 {
+				info := <-p.Infos
 				found[info.Name] = struct{}{}
 			}
 			for j := range n {
@@ -55,5 +51,5 @@ func TestPinger(t *testing.T) {
 		if err := <-fatal; err != nil {
 			t.Fatal(err)
 		}
-	}
+	}	
 }

@@ -9,7 +9,9 @@ import (
 )
 
 type Pinger struct {
+	Infos chan Info
 	discover *discovery.Discover
+	done chan struct{}
 }
 
 type Info struct {
@@ -28,32 +30,35 @@ func NewPinger(info Info, intervalBetweenPings time.Duration) (*Pinger, error) {
 		IntervalBetweenAnnouncements: intervalBetweenPings,
 	}
 	p := Pinger{
+		Infos: make(chan Info),
 		discover: &discover,
+		done: make(chan struct{}),
 	}
 	return &p, nil
 }
 
 func (p *Pinger) Start() error {
-	return p.discover.Start()
-}
-
-func (p *Pinger) PlayersStatus() map[Info]time.Time {
-	playersStatus := make(map[Info]time.Time)
-	errors := 0
-	for {
-		select {
-		case entry := <-p.discover.Entries:
-			info := Info{}
-			if err := json.Unmarshal(entry.Info, &info); err != nil {
-				fmt.Println(err, errors)
-				errors++
-				continue
-			}
-			playersStatus[info] = entry.Time
-		default:
-			return playersStatus
-		}
+	if err := p.discover.Start(); err != nil {
+		return err
 	}
+	go func() {
+		players := map[Info]time.Time{}
+		for {
+			select {
+			case entry := <- p.discover.Entries:
+				info := Info{}
+				if err := json.Unmarshal(entry.Info, &info); err != nil {
+					fmt.Println(err)
+					continue
+				}
+				if _, ok := players[info]; !ok {
+					p.Infos <- info
+					players[info] = entry.Time
+				}
+			}
+		}
+	}()
+	return nil
 }
 
 func (p *Pinger) Close() error {

@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"crypto/ed25519"
 	"flag"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
-	"slices"
 	"sort"
 	"strconv"
 	"sync/atomic"
@@ -106,47 +106,31 @@ func main() {
 	}
 	pinger.Start()
 	addresses := []string{l.Addr().String()}
-	for {
-		addr, _ := pterm.DefaultInteractiveTextInput.
-			WithDefaultText("Enter the last number of the addresses of the players separated by Enter. After that, type done").
-			WithDefaultValue("").Show()
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		for {
+			select {
+			case info := <-pinger.Infos:
+				pterm.Info.Printfln("Discovered player %s at address %s", info.Name, info.Address)
+				addresses = append(addresses, info.Address)
+			case <-ctx.Done():
+				return
+			}
 
-		if addr == "done" {
+		}
+	}()
+	for {
+		done, _ := pterm.DefaultInteractiveConfirm.
+			WithDefaultText("Are all player connected?\n").
+			WithDefaultValue(false).
+			Show()
+		if done {
+			cancel()
 			break
 		}
-		// Print a blank line for better readability
-		pterm.Println()
-		localIp, _, err := net.SplitHostPort(l.Addr().String())
-		if err != nil {
-			panic(err)
-		}
-		ipaddr, port, err := splitHostPort(addr, defaultPort)
-		if err != nil {
-			logger.Error("invalid address format: " + addr + "\n error: " + err.Error())
-			continue
-		}
-
-		guessedAddr, err := guessIpAddress(net.ParseIP(localIp), ipaddr)
-		if err != nil {
-			logger.Error("could not guess address for: " + addr + "\n error: " + err.Error())
-			continue
-		}
-		tcpAddr, err := net.ResolveTCPAddr("tcp", guessedAddr.String()+":"+port)
-		if err != nil {
-			errMsg := "invalid address:" + addr + "\n error: " + err.Error()
-			logger.Error(errMsg)
-			continue
-		}
-		addresses = append(addresses, guessedAddr.String()+":"+strconv.Itoa(tcpAddr.Port))
 	}
 	if err := pinger.Close(); err != nil {
 		panic(err)
-	}
-	for info, lastPing := range pinger.PlayersStatus() {
-		pterm.Info.Printfln("Discovered player %s at address %s at time %s", info.Name, info.Address, lastPing.String())
-		if !slices.Contains(addresses, info.Address) {
-			addresses = append(addresses, info.Address)
-		}
 	}
 	p2p, myRank := createP2P(addresses, l)
 	pterm.Info.Printfln("Your rank is %d\n", myRank)
