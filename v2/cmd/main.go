@@ -24,23 +24,17 @@ import (
 
 var timeout = 30 * time.Second
 
-const defaultPort = 53550
 const discoveryPort = 53551
 
 func main() {
 	timeoutFlag := flag.Uint("timeout", 30, "timeout in seconds")
-	portFlag := flag.Uint("port", defaultPort, "port to listen on")
 	flag.Parse()
-
-	if flag.NArg() != 1 {
-		fmt.Fprintf(os.Stderr, "usage: %s <ip> [OPTIONS] %v\n", os.Args[0], os.Args)
+	if flag.NArg() != 0 {
+		fmt.Fprintf(os.Stderr, "usage: %s [OPTIONS] %v\n", os.Args[0], os.Args)
 		os.Exit(1)
 	}
 
 	timeout = time.Duration(*timeoutFlag) * time.Second
-	port := *portFlag
-
-	ip := flag.Arg(0)
 
 	// Create a new slog handler with the default PTerm logger
 	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
@@ -67,29 +61,10 @@ func main() {
 
 	// Print the user's answer with an info prefix
 	pterm.Info.Printfln("Your username: %s", name)
-	info := "Listening on "
-	localIp := ""
-	l, err := net.Listen("tcp", ip+":"+strconv.Itoa(int(port)))
+	l, err := net.Listen("tcp", "")
 	if err != nil {
-		logger.Warn(err.Error())
-		var fatalErr error
-		l, fatalErr = net.Listen("tcp", ip+":0")
-		if fatalErr != nil {
-			panic(err)
-		}
-		log := fmt.Sprintf("New port choosen for listening: %s", l.Addr().String())
-		logger.Info(log)
-		localIp = l.Addr().String()
-		info += localIp
-	} else {
-		localIp, _, err = net.SplitHostPort(l.Addr().String())
-		if err != nil {
-			panic(err)
-		}
-		info += localIp
+		panic(err)
 	}
-
-	pterm.Info.Println(info)
 
 	// Print two new lines as spacer.
 	pterm.Print("\n")
