@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/luca-patrignani/mental-poker/v2/domain/deck"
-	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
-	"github.com/luca-patrignani/mental-poker/v2/network"
+	"github.com/luca-patrignani/mental-poker/v3/domain/deck"
+	"github.com/luca-patrignani/mental-poker/v3/domain/poker"
+	"github.com/luca-patrignani/mental-poker/v3/network"
 )
 
 type mockBlock struct {

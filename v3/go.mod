@@ -1,4 +1,4 @@
-module github.com/luca-patrignani/mental-poker/v2
+module github.com/luca-patrignani/mental-poker/v3
 
 go 1.23.5
 

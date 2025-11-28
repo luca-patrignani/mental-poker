@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/luca-patrignani/mental-poker/v2/consensus"
-	"github.com/luca-patrignani/mental-poker/v2/domain/poker"
+	"github.com/luca-patrignani/mental-poker/v3/consensus"
+	"github.com/luca-patrignani/mental-poker/v3/domain/poker"
 )
 
 // Blockchain maintains an append-only log of consensus decisions.
