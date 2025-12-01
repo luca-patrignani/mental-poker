@@ -1,12 +1,19 @@
-\documentclass{article}
+\documentclass{scrartcl}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{cleveref} % this must be the last package to be loaded
 
+\newcommand{\emailaddr}[1]{\href{mailto:#1}{\texttt{#1}}}
 \usepackage{style}
 
 % version
 
-\newcommand{\versionmajor}{0}
+\newcommand{\versionmajor}{3}
 
-\newcommand{\versionminor}{1}
+\newcommand{\versionminor}{0}
 
 \newcommand{\versionpatch}{0}
 
@@ -34,7 +41,7 @@ Patrignani Luca \\ \emailaddr{luca.patrignani3@studio.unibo.it}
 \maketitle
 
 \begin{abstract}
-This project implements a decentralized poker game (Texas Hold'em) without requiring a trusted third party. The implementation guarantees fairness even when $k-1$ out of $k$ players form a malicious coalition attempting to rig the game. The system consists of three main components: a cryptographic deck library implementing the Wei \& Wang mental poker protocol, a poker game engine managing game logic and state, and a blockchain-based distributed ledger ensuring non-repudiation of player actions. The architecture follows a peer-to-peer design with broadcast-based communication primitives, enabling fully distributed gameplay over local area networks. The delivered artifacts include two Go libraries (deck and poker) and a command-line interface for playing poker games. Automated testing validates the cryptographic security properties and game mechanics, achieving comprehensive test coverage of core functionalities.
+This project implements a decentralized poker game (Texas Hold'em) without requiring a trusted third party. The implementation guarantees fairness even when $k-1$ out of $k$ players form a malicious coalition attempting to rig the game. The system consists of three main components: a cryptographic deck library implementing the Wei \& Wang mental poker protocol, a poker game engine managing game logic and state, and a blockchain-based distributed ledger ensuring non-repudiation of player actions. The architecture follows a peer-to-peer design with broadcast-based communication primitives, enabling fully distributed gameplay over local area networks. The delivered artifacts include a Go library with all the core functionalities and a command-line interface that exposes this library as a usable application, allowing end-to-end experimentation and gameplay while deliberately minimizing effort on user interface concerns so that the project work could focus more on the distriubuted and cryptographic aspects.
 \end{abstract}
 
 \section{Goal/s of the project}
@@ -60,7 +67,7 @@ The implementation targets local area network gameplay, where players connect di
 
 \subsubsection{Scenario 1: Casual Game Among Friends}
 
-Alice, Bob, and Charlie want to play poker together remotely. They each run the mental poker application on their computers. One player (say Alice) initializes the network and shares connection details with the others. Once all players are connected, they can start a game session. The system handles all cryptographic operations transparently - players simply interact through the command-line interface to make their betting decisions (call, raise, fold). The blockchain ledger maintains a complete history of the game for post-game verification if needed.
+Alice, Bob, and Charlie want to play poker remotely. They each run the mental poker application on their computers. Once all players are connected, they can start a game session. The system handles all cryptographic operations transparently - players simply interact through the command-line interface to make their betting decisions (call, raise, fold). The blockchain ledger maintains a complete history of the game for post-game verification if needed.
 
 \subsubsection{Scenario 2: Tournament Play}
 
@@ -314,7 +321,7 @@ The design process employed a hybrid top-down and bottom-up approach. The high-l
 
 \begin{figure}
 \centering
-\includegraphics[width=1.3\linewidth]{report/figures/package-uml.png}
+\includegraphics[width=1.1\linewidth]{report/figures/package-uml.png}
 \caption{UML class diagram showing the main domain entities and relationships}
 \label{fig:class-diagram}
 \end{figure}
