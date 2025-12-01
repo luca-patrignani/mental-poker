@@ -1,0 +1,64 @@
+@startuml poker-state-machine
+title Poker Game State Machine
+
+[*] --> PreFlop : Deal 2 hole cards\n to each player
+
+state PreFlop {
+  PreFlop : **Invariant:**
+  PreFlop : - Each player has 2 hole cards
+  PreFlop : - No community cards visible
+}
+
+state Flop {
+  Flop : **Invariant:**
+  Flop : - 3 community cards visible
+}
+
+state Turn {
+  Turn : **Invariant:**
+  Turn : - 4 community cards visible
+}
+
+state River {
+  River : **Invariant:**
+  River : - 5 community cards visible
+}
+
+state Showdown {
+
+}
+
+state GameOver {
+  GameOver : **Terminal State**
+  GameOver : Game ended
+}
+
+PreFlop --> Flop : Deal 3 community cards
+Flop --> Turn : Deal 1 community card
+Turn --> River : Deal 1 community card
+River --> Showdown : Reveal remaining cards
+
+PreFlop --> Showdown : Only 1 player remains\n(all others folded)
+Flop --> Showdown : Only 1 player remains\n(all others folded)
+Turn --> Showdown : Only 1 player remains\n(all others folded)
+River --> Showdown : Only 1 player remains\n(all others folded)
+
+Showdown --> PreFlop : Start new round\n/ Reset player states\n/ Collect antes/blinds\n/ Deal new hole cards
+Showdown --> GameOver : End game\n(players leave or\ninsufficient players)
+
+GameOver --> [*]
+
+note left of PreFlop
+  **Player States:**
+  Active, Folded,
+  All-in, Spectator
+end note
+
+note bottom of Showdown
+  Winner determination:
+  • If 1 player: wins without revealing
+  • If 2+ players: best hand wins
+  Pot distributed to winner(s)
+end note
+
+@enduml

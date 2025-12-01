@@ -525,22 +525,20 @@ The consensus protocol ensures that all players agree on the validity of each ac
 The protocol proceeds through five distinct phases:
 
 \paragraph{Phase 1: Action Proposal}
-The player whose turn it is creates a poker action (e.g., BET, FOLD, RAISE) and submits it to their local consensus node. The node generates a unique action ID by combining the player ID, action payload hash, and 128 bits of cryptographic entropy. The action is timestamped and signed with the player's Ed25519 private key. The signed action is then broadcast to all peers using the \texttt{Broadcast} primitive with a 30-second timeout.
+The player whose turn it is creates a poker action (e.g., CHECK, FOLD, RAISE) and submits it. The node generates a unique action ID by combining the player ID, the action payload hash, and 128 bits of cryptographic entropy. The action is timestamped and signed with the player's private key through the elliptic curve cryptography. The signed action is then broadcast to all peers using the \texttt{Broadcast} primitive.
 
-All other players are concurrently executing \texttt{WaitForProposal()}, blocking until they receive the broadcast from the current player. This ensures that all nodes process proposals in the same order, maintaining deterministic state transitions.
+All other players are executing \texttt{WaitForProposal()}, blocking until they receive the broadcast from the current player or the default action in case of timeout.
 
 \paragraph{Phase 2: Proposal Validation}
-Upon receiving a proposal, each consensus node independently validates it:
+Upon receiving a proposal, each consensus node locally validates it:
 
 \begin{enumerate}
-\item \textbf{Signature verification}: The node verifies the Ed25519 signature using the proposer's public key to ensure authenticity and prevent tampering.
+\item \textbf{Signature verification}: The node verifies the signature using the proposer's public key to ensure authenticity and prevent tampering.
 
-\item \textbf{Player eligibility}: The node checks that the proposer is in the current game session and has not been banned.
-
-\item \textbf{Game rule validation}: The proposal is passed to the poker state machine, which validates turn order, action legality (e.g., sufficient chips for a bet), and compliance with Texas Hold'em rules.
+\item \textbf{Game rule validation}: The proposal is passed to the poker manager, which validates turn order, action legality (e.g., sufficient chips for a bet) and compliance with Texas Hold'em rules.
 \end{enumerate}
 
-If any validation check fails, the node prepares to vote \texttt{REJECT} with a descriptive reason (e.g., "out-of-turn", "insufficient-chips", "bad-signature"). Otherwise, the node votes \texttt{ACCEPT} with reason "valid".
+If any validation check fails, the node prepares to vote \texttt{REJECT} with a descriptive reason (e.g., "out-of-turn", "insufficient-chips", "bad-signature"). Otherwise, the node votes with \texttt{ACCEPT}.
 
 \paragraph{Phase 3: Vote Broadcasting}
 Each node creates a \texttt{Vote} struct containing:
@@ -549,7 +547,7 @@ Each node creates a \texttt{Vote} struct containing:
 \item The voter's node ID
 \item The vote value (\texttt{ACCEPT} or \texttt{REJECT})
 \item A human-readable validation reason
-\item An Ed25519 signature over the serialized vote data
+\item A signature on the serialized vote data
 \end{itemize}
 
 All nodes broadcast their votes simultaneously using the \texttt{AllToAll} primitive. This operation blocks until every node has both sent its vote and received votes from all peers, implementing barrier synchronization. The 30-second timeout ensures the protocol progresses even if a peer disconnects.
@@ -599,22 +597,13 @@ The function counts \texttt{ACCEPT} and \texttt{REJECT} votes and determines the
 \item \textbf{Neither quorum reached}: Insufficient votes have been collected. This occurs during vote collection before all peers respond. The function returns an error, and the node waits for more votes to arrive.
 \end{itemize}
 
-\paragraph{Consensus}
-A critical property of this protocol is \textbf{determinism}: all honest nodes reach the same decision because they:
-\begin{itemize}
-\item Process the same signed proposal (guaranteed by broadcast)
-\item Execute the same validation logic (deterministic state machine)
-\item Receive the same set of votes (guaranteed by \texttt{AllToAll} barrier synchronization)
-\item Apply the same quorum threshold calculation
-\end{itemize}
-
-Even if some nodes are Byzantine (sending different votes or proposals), the quorum mechanism ensures that the supermajority of honest nodes drives the consensus outcome. The blockchain records the complete vote set, enabling post-game auditing to identify Byzantine actors.
+Even if some nodes are Byzantine (sending different votes or proposals), the quorum mechanism ensures that the supermajority of honest nodes drives the consensus outcome. The blockchain records the complete set of votes, enabling post-game auditing to identify Byzantine actors.
 
 \subsubsection{Network Topology and Message Flow}
 
 The system operates in a \textbf{fully-connected peer-to-peer topology}, where each node maintains direct TCP connections to all other nodes. This design choice simplifies the implementation of broadcast and \texttt{AllToAll} primitives, as there are no routing concerns or intermediate hops.
 
-Message serialization uses JSON encoding for human readability and debugging convenience. Binary formats could reduce bandwidth in production deployments but were not necessary for local area network operation.
+Message serialization uses JSON encoding for human readability and debugging convenience and then in binary to reduce bandwidth.
 
 The communication model follows the \textbf{Single Program, Multiple Data (SPMD)} paradigm from parallel computing: all nodes run identical code but make different execution decisions based on their node ID and the current game state. For example, only the node whose turn it is executes \texttt{ProposeAction()}, while others execute \texttt{WaitForProposal()}.
 
@@ -667,6 +656,13 @@ Each state maintains specific invariants:
 \item \textbf{River}: Exactly 5 community cards are visible
 \item \textbf{Showdown}: All community cards are visible; remaining players' hole cards are revealed
 \end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth]{report/figures/poker-state-machine.png}
+\caption{Finite state machine of a Texas Hold-em poker game}
+\label{fig:class-diagram}
+\end{figure}
 
 \subsubsection{Player State}
 
