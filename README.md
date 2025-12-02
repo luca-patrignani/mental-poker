@@ -1,37 +1,10 @@
-This project aims to make it possible to play a fair game of  poker Texas hold'em without needing a trusted third party.
-
-# Roadmap
-## Deck
-Create a library for handling a cards' deck without a TTP. It must support the following basic operations:
-- Create a new shuffled deck
-- Deal a faced-down card to a player
-- Reveal a card.
-
-The implementation will be based on Wei & Wang paper [A Fast Mental Poker Protocol](https://www.researchgate.net/publication/220334557_A_Fast_Mental_Poker_Protocol).
-
-## Game mechanics
-Create a library which implements the actual game of poker Texas hold'em.
-
-## User Interface
-Create a simple CLI for playing a game of poker with our friends. 
-
-## Game log
-Integrate the game mechanics' library with some sort of local DLT in order to keep track of players' actions and provide non-repudiability over them.
-
-## Fiches transactions
-Create a library will record fiches transactions between players and players' balances during the game. 
-
-## Technologies involved
-The technologies which are going to be used are
-- Go as the main programming language
-- Some sort of DLT, probably a blockchain over LAN, for storing players' choices during the game
-
-
 # Mental Poker 🃏
 
 **Play Texas Hold'em poker without a dealer - peer-to-peer, decentralized, and cryptographically secure**
 
-[![Latest Release](https://img.shields.io/github/v/release/lhttps://github.com/luca-patrignani/mental-poker.23.5-blue.n
+[![Latest Release](https://img.shields.io/github/v/release/luca-patrignani/mental-poker)](https://github.com/luca-patrignani/mental-poker/releases)
+[![Go Version](https://img.shields.io/badge/Go-1.23.5-blue.svg)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Mental Poker allows you to play fair Texas Hold'em poker games over a network without needing a trusted dealer or server. All players participate equally in shuffling and dealing cards using cryptographic protocols.
 
@@ -74,7 +47,7 @@ chmod +x MentalPoker-*
 ```
 
 #### Windows:
-Simply double-click `MentalPoker-windows-amd64.exe` or run it from the command prompt.
+Simply run `MentalPoker-windows-amd64.exe` from the command prompt.
 
 ### Option 2: Build from Source
 
@@ -257,9 +230,41 @@ Make sure:
 - **Ports**: 53550 (main), 53551 (discovery) - must be available
 - **Players**: 2-10 players minimum/maximum
 
+***
+
+## Roadmap
+
+- [x] **Cryptographic Deck Library** – Wei & Wang protocol implementation
+- [x] **Game Mechanics** – Texas Hold'em rules engine
+- [x] **CLI Interface** – Interactive command-line client
+- [x] **Distributed Ledger** – Blockchain for action logging
+- [x] **Chip Transactions** – Balance and betting system
+- [ ] **GUI Application** – Desktop graphical interface
+- [ ] **Mobile Support** – iOS and Android clients
+- [ ] **Tournament Mode** – Multi-table tournament support
+- [ ] **Advanced Analytics** – Hand history and statistics
+
+## Research & References
+
+This project implements concepts from several academic papers on mental poker:
+
+- Wei & Wang (2012): "A Fast Mental Poker Protocol"[6][5]
+- Shamir, Rivest & Adleman (1981): Original "Mental Poker" paper[7][3]
+- Barnett & Smart (2003): Efficient TTP-free protocols[8]
+
+For a comprehensive bibliography, see the [LibTMCG Mental Poker Bibliography](https://www.nongnu.org/libtmcg/MentalPoker.pdf).[6]
+
+## Technologies
+
+- **Language:** Go 1.23.5
+- **Cryptography:** go.dedis.ch/kyber/v4 (Cryptographic library)
+- **Poker Logic:** github.com/paulhankin/poker
+- **UI Framework:** github.com/pterm/pterm
+- **Networking:** Custom P2P implementation
+
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
 
 ## Authors
 
@@ -268,8 +273,13 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## Acknowledgments
 
-Built using cryptographic protocols from academic research on mental poker, making it possible to play card games without a trusted dealer.
+- Wei & Wang for their fast mental poker protocol design[5]
+- The cryptography research community for foundational work on secure multi-party computation
+- Contributors to the Kyber cryptographic library
 
 ***
+
+**⚠️ Academic Project:** This software is intended for educational and research purposes. While implementing cryptographically sound protocols, it has not undergone professional security auditing required for real-money gambling applications.
+
 
 **🎮 Enjoy the game!**
