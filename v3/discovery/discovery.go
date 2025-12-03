@@ -29,15 +29,11 @@ type Entry struct {
 func (d *Discover) Start() error {
 	d.Entries = make(chan Entry, 10)
 	d.key = []byte(fmt.Sprintf("%08x", rand.Uint32()))
-	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", multicastIpAddress, d.Port))
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", multicastIpAddress, d.Port))
 	if err != nil {
 		return err
 	}
-	ifi, err := net.InterfaceByName("wlo1")
-	if err != nil {
-		return err
-	}
-	d.conn, err = net.ListenMulticastUDP("udp4", ifi, addr)
+	d.conn, err = net.ListenMulticastUDP("udp", nil, addr)
 	if err != nil {
 		return err
 	}
