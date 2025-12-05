@@ -30,6 +30,8 @@ Mental Poker: A Decentralized Implementation \\
 
 \maketitle
 
+\tableofcontents
+
 \begin{abstract}
 This project implements a decentralized poker game (Texas Hold'em) without requiring a trusted third party. The implementation guarantees fairness even when $k-1$ out of $k$ players form a malicious coalition attempting to rig the game. The system consists of three main components: a cryptographic deck library implementing the Wei \& Wang mental poker protocol\cite{Wei-Wang-Protocol}, a poker game engine managing game logic and state, and a blockchain-based distributed ledger ensuring non-repudiation of player actions. The architecture follows a peer-to-peer design with broadcast-based communication primitives, enabling fully distributed gameplay over local area networks. The delivered artifacts include a Go library with all the core functionalities and a command-line interface that exposes this library as a usable application, allowing end-to-end experimentation and gameplay while deliberately minimizing effort on user interface concerns so that the project work could focus more on the distributed and cryptographic aspects.
 \end{abstract}
@@ -263,16 +265,18 @@ The design process employed a hybrid top-down and bottom-up approach. The high-l
 
 \newpage
 
-The solution was designed with four main components:
+The solution was designed with five main components:
 
 \begin{itemize}
 \item \textbf{The Deck}: Cryptographic layer implementing the Wei \& Wang mental poker protocol\cite{Wei-Wang-Protocol}
 
 \item \textbf{The Game Logic}: Poker game mechanics, state management, and rules enforcement
 
-\item \textbf{The DLT (Distributed Ledger Technology)}: event-sourcing blockchain\cite{eventtourcing} to record actions
+\item \textbf{The DLT (Distributed Ledger Technology)}: Event-sourcing blockchain\cite{eventtourcing} to record actions
 
 \item \textbf{The Consensus Node}: Voting mechanisms for action validation\cite{bfttheory}
+
+\item \textbf{The discovery service}: Service for announcing and discovering peers in the local network
 
 \end{itemize}
 
@@ -426,6 +430,9 @@ Both operations include timeout variants and implement barrier synchronization, 
 \paragraph{Peer Implementation}
 
 The \texttt{Peer} struct implements the \texttt{NetworkLayer} interface using TCP sockets. Each peer maintains connections to all other peers in a fully-connected topology. The implementation handles connection management, message serialization/deserialization, and timeout enforcement. The \texttt{p2p.go} wrapper provides stable interfaces for the cryptographic deck operations.
+
+\subsubsection{The discovery service}
+A simple discovery service is implemented using UDP broadcasting to announce and discover peers on the local network. Each instance periodically broadcasts its presence with its IP address and listening port. Peers listen for these broadcasts to build a list of available players before establishing TCP connections for gameplay. 
 
 \subsection{Communication}
 
