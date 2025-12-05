@@ -1,0 +1,85 @@
+@startuml Mental-Poker-UML
+
+' Styling
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+package domain {
+
+    package domain.poker {
+
+    }
+
+    package domain.deck {
+    }
+}
+
+package ledger {
+
+    
+    interface Ledger {
+        + Append(): error
+        + GetLatest(): Block
+        + Verify(): bool
+    }
+    
+    ' Blockchain Entity
+    class BlockChain {
+        - blocks: []Block
+        - mu: sync.Mutex
+        --
+        + NewBlockchain(initialSession: Session): Blockchain
+        + Append(session: Session, action: Action, votes: []Vote): error
+        + GetLatest(): Block
+        + Verify(): bool
+    }
+    
+    ' Block Entity
+    class Block {
+        - Index: int
+        - Timestamp: time.Time
+        - PrevHash: string
+        - Hash: string
+        - Session: Session
+        - Action: Action
+        - Votes: []Vote
+        - Metadata: BlockMetadata
+    }
+    
+    ' BlockMetadata
+    class BlockMetadata {
+        - ProposerID: int
+        - Quorum: int
+        - ExtraData: map[string]interface{}
+    }
+
+}
+
+
+package consensus {
+
+}
+
+package network {
+
+}
+
+
+
+' Relationships
+
+BlockChain "1" *-- "many" Block : contains
+Block --> poker : records
+Block --> consensus : validates with
+Block --> BlockMetadata : contains
+Peer --|> NetworkLayer
+BlockChain --|> Ledger
+
+consensus --> Ledger :uses
+
+
+@enduml

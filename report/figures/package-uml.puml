@@ -1,0 +1,124 @@
+@startuml Mental-Poker-UML2
+
+' Styling
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+left to right direction
+skinparam linetype ortho
+skinparam nodesep 30
+skinparam ranksep 30
+
+' Consensus: top left
+package consensus {
+    class Node {
+        - ID: int
+        - Peer: NetworkLayer
+        - Ledger: Ledger
+        - PokerManager: PokerManager
+        --
+        + ProposeAction(): error
+        + ListenForProposal(): error
+    }
+    class Vote {
+        - PlayerID: int
+        - Signature: []byte
+    }
+}
+
+' Ledger: top right
+package ledger {
+    interface Ledger {
+        + Append(): error
+        + GetLatest(): Block
+        + Verify(): bool
+    }
+    class BlockChain {
+        - blocks: []Block
+        + NewBlockchain(initialSession: Session): Blockchain
+        + Append(action: Action, votes: []Vote): error
+        + GetLatest(): Block
+        + Verify(): bool
+    }
+    class Block {
+        - Index: int
+        - PrevHash: string
+        - Hash: string
+        - Action: Action
+        - Votes: []Vote
+    }
+}
+
+' Domain: bottom right
+package domain {
+}
+package domain.poker {
+    class PokerDeck {
+        - deck: Deck
+        --
+        + DrawCard(drawer: int): Card
+    }
+    class Session {
+        - Board: [5]Card
+        - Players: []Player
+    }
+    class Action {
+        - PlayerID: int
+        - Type: ActionType
+        - Amount: int
+    }
+    class PokerManager {
+        - session: Session
+        - playerID: int
+        --
+        + Apply(pa Action): error
+        + MakeAction(): Action
+    }
+}
+
+package domain.deck {
+    class Deck {
+        - Peer: NetworkLayer
+        --
+        + PrepareDeck(): void
+        + Shuffle(): void
+        + DrawCard(drawer: int): int
+        + OpenCard(player: int, card: int): void
+        + LeaveGame(leaver: int): void
+    }
+}
+
+' Network: bottom left
+package network {
+    interface NetworkLayer {
+        + Broadcast(data: []byte, root: int): error
+        + AllToAll(data: [][]byte): [][]byte
+        + GetRank(): int
+        + GetAddresses(): []string
+        + Close(): void
+    }
+}
+
+' Preserve all relationships, unchanged
+PokerManager --> Session : update
+PokerManager <..> Action : consume
+PokerDeck --> deck
+deck --> network : uses
+BlockChain "1" *-- "many" Block : contains
+Block --> Action : records
+ledger <--> consensus
+BlockChain --|> Ledger
+consensus --> network : uses
+consensus --> PokerManager : communicate
+Node --> Vote : produce
+
+' Layout hints: minimal, just enough to coax main packages into corners
+consensus -[hidden]-> ledger
+ledger -[hidden]-> domain
+domain -[hidden]-> network
+' consensus -[hidden]-> network:   (uncomment for stricter diamond, but can cause arrow crossings)
+
+@enduml

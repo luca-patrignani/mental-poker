@@ -1,0 +1,54 @@
+@startuml
+title Consensus Protocol - Communication Flow
+
+participant "ConsensusNode 1\n(Current Turn)" as CN1
+participant "ConsensusNode 2" as CN2
+participant "ConsensusNode 3" as CN3
+
+== Phase 1: Action Proposal ==
+
+CN1 -> CN1: Create & sign action\n(Raise 100)
+
+CN1 ->> CN2: **Broadcast(action)**
+CN1 ->> CN3: **Broadcast(action)**
+
+CN2 -> CN2: Receive proposal
+CN3 -> CN3: Receive proposal
+
+== Phase 2: Independent Validation ==
+
+CN1 -> CN1: Validate action:\n- Verify signature\n- Check game rules\n→ ACCEPT
+CN2 -> CN2: Validate action:\n- Verify signature\n- Check game rules\n→ ACCEPT
+CN3 -> CN3: Validate action:\n- Verify signature\n- Check game rules\n→ ACCEPT
+
+== Phase 3: Vote Exchange ==
+
+CN1 -> CN1: Create & sign vote
+CN2 -> CN2: Create & sign vote
+CN3 -> CN3: Create & sign vote
+
+CN1 ->> CN2: **AllToAll(vote_1)**
+CN1 ->> CN3: **AllToAll(vote_1)**
+
+CN2 ->> CN1: **AllToAll(vote_2)**
+CN2 ->> CN3: **AllToAll(vote_2)**
+
+CN3 ->> CN1: **AllToAll(vote_3)**
+CN3 ->> CN2: **AllToAll(vote_3)**
+
+== Phase 4: Vote Verification ==
+
+
+CN1 -> CN1: Verify votes:\n- Check signatures\n- Validate eligibility\n→ Cache valid votes
+CN2 -> CN2: Verify votes:\n- Check signatures\n- Validate eligibility\n→ Cache valid votes
+CN3 -> CN3: Verify votes:\n- Check signatures\n- Validate eligibility\n→ Cache valid votes
+
+
+== Phase 5: Consensus Decision ==
+
+CN1 -> CN1: Check quorum & commit:\n- Count votes\n- Apply action\n- Append to blockchain
+CN2 -> CN2: Check quorum & commit:\n- Count votes\n- Apply action\n- Append to blockchain
+CN3 -> CN3: Check quorum & commit:\n- Count votes\n- Apply action\n- Append to blockchain
+
+
+@enduml
