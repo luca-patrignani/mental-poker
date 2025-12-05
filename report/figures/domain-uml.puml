@@ -1,0 +1,131 @@
+@startuml domain-uml
+
+' Styling
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+package domain {
+}
+package domain.poker {
+    class PokerDeck {
+        - deck: Deck
+        --
+        + DrawCard(drawer: int): Card
+    }
+    
+    ' Session Entity
+    class Session {
+        + Board: [5]Card
+        + Players: []Player
+        + Pots: []Pot
+        + HighestBet: int
+        + LastToRaise: int
+        + Dealer: int
+        + CurrentTurn: int
+        + Round: GameRound
+    }
+    
+    ' Player Entity
+    class Player {
+        + Name: string
+        + Id: int
+        + Hand: [2]Card
+        + HasFolded: bool
+        + Bet: int
+        + Pot: int
+    }
+    
+    ' Card Entity
+    class Card {
+        + Rank: int
+        + Suit: CardSuit
+        --
+        + String(): string
+    }
+    
+    ' Pot Entity
+    class Pot {
+        + Amount: int
+        + Eligible: []int
+    }
+    
+    ' Enums
+    enum GameRound {
+        PreFlop
+        Flop
+        Turn
+        River
+        Showdown
+    }
+    
+    enum CardSuit {
+        Hearts
+        Diamonds
+        Clubs
+        Spades
+    }
+    
+    ' Action (placeholder for player actions)
+    class Action {
+        + PlayerID: int
+        + Type: ActionType
+        + Amount: int
+    }
+    
+    enum ActionType {
+        Fold
+        Check
+        Call
+        Raise
+        AllIn
+    }
+    
+    class PokerManager {
+    - session: Session
+    - player: int
+    --
+    + Apply(pa Action): error
+    + MakeAction(): Action
+    + Validate(pa Action) error
+    }
+
+}
+
+package domain.deck {
+' Deck Entity
+}
+
+package consensus{
+}
+package ledger{
+}
+package network {
+}
+
+
+' Relationships
+PokerDeck --* Card : manages
+Session --* Player : contains
+Session --o Card : contains
+Session --* Pot : manages
+Session --> GameRound : has state
+Player --o Card : holds
+Card -right-> CardSuit : has
+Action --> ActionType : has
+Pot ..> Player : tracks eligible (by ID)
+PokerManager --> Session : update
+PokerManager <..> Action : produce / consume
+PokerDeck ..|> deck : implement
+
+deck --> network : uses
+
+ledger --> Action : records
+
+consensus --> PokerManager : communicate
+
+
+@enduml

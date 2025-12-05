@@ -1,0 +1,897 @@
+\documentclass{scrartcl}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{cleveref}
+\newcommand{\emailaddr}[1]{\href{mailto:#1}{\texttt{#1}}}
+\usepackage{style}
+
+% version
+\newcommand{\versionmajor}{3}
+\newcommand{\versionminor}{0}
+\newcommand{\versionpatch}{0}
+\newcommand{\version}{\versionmajor.\versionminor.\versionpatch}
+\title{\LARGE
+Mental Poker: A Decentralized Implementation \\
+\large Version \version}
+
+% Consider watching:
+% https://www.youtube.com/watch?v=ihxSUsJB_14
+% https://www.youtube.com/watch?v=XTFWaV55uDo
+
+\author{Galeri Marco \\ \emailaddr{marco.galeri@studio.unibo.it}
+\and Patrignani Luca \\ \emailaddr{luca.patrignani3@studio.unibo.it}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\newpage
+
+\tableofcontents
+
+\newpage
+
+\begin{abstract}
+This project implements a decentralized poker game (Texas Hold'em) without requiring a trusted third party. The implementation guarantees fairness even when $k-1$ out of $k$ players form a malicious coalition attempting to rig the game. The system consists of three main components: a cryptographic deck library implementing the Wei \& Wang mental poker protocol\cite{Wei-Wang-Protocol}, a poker game engine managing game logic and state, and a blockchain-based distributed ledger ensuring non-repudiation of player actions. The architecture follows a peer-to-peer design with broadcast-based communication primitives, enabling fully distributed gameplay over local area networks. The delivered artifacts include a Go library with all the core functionalities and a command-line interface that exposes this library as a usable application, allowing end-to-end experimentation and gameplay while deliberately minimizing effort on user interface concerns so that the project work could focus more on the distributed and cryptographic aspects.
+\end{abstract}
+
+\newpage
+
+\section{Goals of the project}
+
+The project's goal is to implement a decentralized poker game without a trusted third party. In particular, our implementation guarantees that given $k$ players, an adversary cannot manipulate the game even when controlling $k-1$ players.
+
+\subsection{Detailed Description}
+
+Mental poker is a classic problem in cryptographic protocol design, first formulated by Shamir, Rivest, and Adleman in 1979\cite{sra1979}. The challenge is to enable multiple distrustful parties to play a fair card game remotely without requiring a trusted dealer or central authority. Traditional online poker platforms rely on a centralized server that acts as the trusted dealer, shuffling cards and dealing them to players. However, this approach requires players to trust the server operator.
+
+Our implementation addresses this trust problem by distributing the dealer's responsibilities among all players using cryptographic protocols. Each player participates in deck preparation, shuffling, and card dealing operations. The system ensures that:
+
+\begin{itemize}
+\item No single player or coalition of $k-1$ players can determine the order of cards in the deck
+\item Players cannot see cards dealt to others until those cards are revealed
+\item All players can verify that cards shown by others are legitimate and were not fabricated
+\item Player actions (bets, raises, folds) are immutably recorded and cannot be repudiated
+\end{itemize}
+
+The implementation targets local area network gameplay, where players connect directly to each other in a peer-to-peer fashion. This use case is particularly relevant for casual games among friends or small tournaments where players want to ensure fairness without relying on external services.
+
+\subsection{Usage scenarios}
+
+\subsubsection{Scenario 1: Casual Game Among Friends}
+
+Alice, Bob, and Charlie want to play poker remotely. They each run the mental poker application on their computers. Once all players are connected, they can start a game session. The system handles all cryptographic operations transparently - players simply interact through the command-line interface to make their betting decisions (call, raise, fold). The blockchain ledger maintains a complete history of the game for post-game verification if needed.
+
+\subsubsection{Scenario 2: Tournament Play}
+
+A group of players organizes a small poker tournament. Multiple game sessions run concurrently with different player groups. The decentralized architecture ensures that no central authority can manipulate outcomes. Players can verify the integrity of their specific games by examining the blockchain ledger. The absence of a central server eliminates single points of failure and potential manipulation.
+
+\subsubsection{Scenario 3: Educational Demonstration}
+
+Computer science students learning about cryptographic protocols use the mental poker implementation as a practical example. They can examine the source code to understand how the Wei \& Wang protocol works\cite{Wei-Wang-Protocol}, run games while monitoring network traffic to see the cryptographic operations, and modify the code to experiment with different protocol parameters or attack scenarios (demonstrating security guarantees when attempting to cheat).
+
+\subsection{Definition of done}
+
+The delivered artifacts are:
+
+\begin{itemize}
+\item A golang library (\texttt{domain/deck}) which implements a decentralized deck and operations such as shuffling, dealing face-down cards, and revealing cards. The implementation follows the paper by Wei and Wang~\cite{Wei-Wang-Protocol}.
+
+\item A golang library (\texttt{domain/poker}) which implements the actual game of poker, including game state management, betting rounds, hand evaluation, and winner determination.
+
+\item A golang library (\texttt{ledger}) implementing a blockchain-based distributed ledger for recording player actions with consensus voting mechanisms\cite{eventtourcing}.
+
+\item A golang library (\texttt{network}) providing peer-to-peer communication primitives (broadcast and all-to-all operations) over TCP.
+
+\item A command-line interface (\texttt{cmd/}) for playing poker games with a text-based user interface.
+
+\end{itemize}
+
+The functionalities are tested automatically with comprehensive unit tests for each component. Integration tests validate the end-to-end workflow of complete poker games with multiple players.
+
+\section{Background and link to the theory}
+
+\subsection{Architectural Styles}
+
+The project employs a \textbf{peer-to-peer (P2P) architectural style}\cite{p2p-networks}, where all nodes (players) have equal responsibilities and capabilities. Unlike client-server architectures, there is no central coordinator or privileged node. Each player runs identical software and participates equally in all cryptographic protocols.
+
+This choice aligns with the project requirements for decentralization and fault tolerance. A centralized architecture would introduce a trusted third party, contradicting the fundamental goal. The P2P style ensures that:
+
+\begin{itemize}
+\item No player has privileged access or control
+\item Security properties hold even with $k-1$ malicious players
+\end{itemize}
+
+\subsection{Interaction Patterns}
+
+The implementation uses \textbf{broadcast-based communication patterns} inspired by high-performance computing frameworks, specifically the Message Passing Interface (MPI)~\cite{mpi41}. Two primary communication primitives are employed:
+
+\begin{enumerate}
+\item \textbf{Broadcast (one-to-all)}: A single player sends data to all other players. This is analogous to \texttt{MPI\_BCAST} in MPI. Used when one player needs to share information with the group (e.g., broadcasting encrypted cards during shuffling).
+
+\item \textbf{All-to-all (all-to-all)}: Every player sends data to every other player simultaneously. Analogous to \texttt{MPI\_ALLTOALL}. Used when all players must contribute information (e.g., generating random elements for card initialization).
+\end{enumerate}
+
+Both primitives implement \textbf{barrier synchronization}, blocking until all players complete the operation. This ensures consistent state across all nodes and simplifies reasoning about protocol correctness.
+
+The communication model follows the \textbf{Single Program, Multiple Data (SPMD)} paradigm~\cite{spmd}, commonly used in parallel programming. All nodes execute the same program (protocol logic), but each operates on different data (its own secret key, hand, etc.) and may take different execution paths based on its player ID.
+
+\subsection{Cryptographic Frameworks}
+
+The project uses \textbf{Kyber}\cite{kyberlib}, a Go cryptography library providing elliptic curve operations. Specifically, the Ed25519 curve suite\cite{ed25519} is used for:
+
+\begin{itemize}
+\item \textbf{Scalar operations}: Secret key generation and manipulation
+\item \textbf{Point operations}: Card representation as curve points, encryption through scalar multiplication
+\item \textbf{Homomorphic properties}: Enabling multiple players to collectively encrypt the deck without revealing individual secret keys\cite{homomorphic-encryption}
+\end{itemize}
+
+The Wei \& Wang protocol leverages the discrete logarithm problem on elliptic curves to provide computational security guarantees\cite{discrete-log-problem}.
+
+\section{Requirements Analysis}
+
+\label{sec:requirements}
+
+\subsection{Functional requirements}
+
+The player is able to play a game of Texas Hold'em poker following standard rules\cite{texasholdem}:
+
+\begin{enumerate}
+\item \textbf{Initial Deal}: The player receives two private cards (hole cards), which are not visible to any other players.
+
+\item \textbf{Betting Actions}: When it is the player's turn, they can perform one of the following actions:
+
+\begin{itemize}
+\item \textbf{Call}: Match the current highest bet
+\item \textbf{Raise}: Increase the current bet amount
+\item \textbf{Fold}: Exit the current hand, forfeiting any bets made
+\item \textbf{Check}: Pass without betting (only when no bet has been made)
+\item \textbf{All-in}: Bet all remaining chips
+\end{itemize}
+
+\item \textbf{Flop Phase}: When the initial betting round completes (big blind checks or all players call the raise), three community cards are dealt face-up on the board.
+
+\item \textbf{Turn Phase}: After the flop betting round completes, one additional community card is dealt face-up.
+
+\item \textbf{River Phase}: After the turn betting round completes, a final community card is dealt face-up.
+
+\item \textbf{Showdown}: After the river betting round completes, all remaining players reveal their hole cards. The winner is determined by the best five-card poker hand using any combination of hole cards and community cards.
+
+\item \textbf{Early Termination}: If only one player remains in the game (all others have folded), that player wins immediately without proceeding to showdown.
+
+\item \textbf{Pot Distribution}: The winner(s) receive the pot. In cases of all-in scenarios, side pots are calculated and distributed appropriately to eligible players.
+
+\end{enumerate}
+
+\subsection{Non functional requirements}
+
+\subsubsection{Deck's requirements}
+
+Each of the following requirements must be satisfied even when a coalition of $k-1$ players (out of $k$ total) attempts to manipulate the game without the remaining player detecting the manipulation:
+
+\begin{itemize}
+\item \textbf{Shuffle Fairness}: When shuffling the deck, no player or coalition can control the final order of the cards. The order must be uniformly random from the perspective of any player.
+
+\item \textbf{Shuffle Privacy}: After the deck is shuffled, no player knows the order of the cards (beyond their own influence on the randomization).
+
+\item \textbf{Deck Completeness}: All 52 cards are present in the deck exactly once. No cards are missing, duplicated, or fabricated.
+
+\item \textbf{Card Privacy}: When a card is dealt to a player face-down, no other player can determine which card it is. The card remains private until the owning player chooses to reveal it.
+
+\item \textbf{Card Verifiability}: When a player reveals a card, other players can verify that the player is not lying about which card they hold. The revealed card must be provably one of the cards from the shuffled deck.
+
+\item \textbf{Cryptographic Security}: The protocols provide computational security based on the discrete logarithm problem\cite{discrete-log-problem}. Breaking the security would require solving computationally infeasible problems.
+
+\end{itemize}
+
+\subsubsection{Poker game's requirements}
+
+\begin{itemize}
+\item \textbf{Fair Deck Usage}: The game uses a deck which meets all the cryptographic security requirements described above.
+
+\item \textbf{Action Non-repudiation}: When a player makes a move (call, raise, fold, check), they cannot later deny or repudiate that choice. All actions are recorded immutably in the blockchain ledger with consensus verification.
+
+\item \textbf{State Consistency}: All players maintain a consistent view of the game state (current round, pot size, player positions, community cards). Consensus mechanisms ensure agreement on state transitions.
+
+\item \textbf{Byzantine Fault Tolerance}: The game continues correctly even when some players behave maliciously (within the $\frac{2}{3} k$ coalition limit)\cite{bfttheory}.
+
+\item \textbf{Liveness}: The game makes progress as long as a sufficient number of honest players remain active. Malicious players cannot indefinitely stall the game.
+
+\item \textbf{Auditability}: Complete game history is recorded in the blockchain, enabling post-game verification and dispute resolution.
+
+\end{itemize}
+
+\subsection{Top-down analysis}
+
+\subsubsection{Deck implementation}
+
+Due to the decentralized nature of the project, every communication is modeled as a \textit{broadcast}, where a player communicates with all other players simultaneously by sending identical information to everyone. This constraint arises from the requirement that no player can have private communication channels with subsets of players, which could enable collusion.
+
+The \textbf{broadcast communication model} has several implications for the architecture:
+
+\begin{itemize}
+\item \textbf{Symmetry}: All players observe the same messages in the same order, ensuring consistent state.
+\item \textbf{Transparency}: All protocol steps are visible to all participants, enabling verification but also requiring careful cryptographic design to protect privacy.
+\item \textbf{Simplicity}: The communication topology is fully connected, simplifying protocol design compared to partial network graphs.
+\item \textbf{Scalability limits}: Broadcast overhead grows with player count, making the approach most suitable for small to medium-sized games (up to 10-20 players).
+\end{itemize}
+
+\subsubsection{Interaction pattern selection}
+
+The \textbf{MPI-inspired broadcast primitives}\cite{mpi41} were chosen because:
+
+\begin{itemize}
+\item \textbf{Protocol compatibility}: The Wei \& Wang paper\cite{Wei-Wang-Protocol} describes operations that naturally map to broadcast and all-to-all patterns.
+
+\item \textbf{Barrier synchronization}: Built-in synchronization simplifies protocol implementation and reasoning about correctness.
+
+\item \textbf{Proven model}: MPI is a well-studied standard with decades of use in high-performance computing, providing confidence in the design.
+
+\item \textbf{Composability}: Complex protocols can be built from these simple primitives.
+\end{itemize}
+
+\subsubsection{Technology framework selection}
+
+\textbf{Go (Golang)}\cite{golang} was selected as the implementation language because:
+
+\begin{itemize}
+\item \textbf{Concurrency}: Built-in goroutines and channels simplify concurrent network communication.
+\item \textbf{Performance}: Compiled language with performance suitable for cryptographic operations.
+\item \textbf{Networking}: Excellent standard library support for TCP/IP networking.
+\item \textbf{Cryptography}: Rich ecosystem of cryptographic libraries, including Kyber for elliptic curve operations.
+\item \textbf{Testing}: Strong testing framework and tooling for verification.
+\item \textbf{Simplicity}: Clear syntax and design facilitate collaboration and maintainability.
+\end{itemize}
+
+The \textbf{Kyber cryptography library}\cite{kyberlib} (Dedis Advanced Crypto Library for Go) provides:
+
+\begin{itemize}
+\item \textbf{Homomorphic cryptography}: Kyber supports various suites of homomorphic cryptographic encryptions such as curve operations\cite{ed25519} required by the Wei \& Wang protocol.
+\item \textbf{Security}: Well-audited, academically-developed library from EPFL.
+\item \textbf{Abstraction}: Clean API for scalar and point operations.
+\end{itemize}
+
+\section{Design}
+
+\label{sec:design}
+
+The design process employed a hybrid top-down and bottom-up approach. The high-level architecture was determined by the requirements for decentralization and cryptographic security (top-down), while specific implementation details emerged from practical constraints and library capabilities (bottom-up).
+
+\begin{figure}
+\centering
+\includegraphics[width=1.1\linewidth]{figures//package-uml.png}
+\caption{UML class diagram showing the main domain entities and relationships}
+\label{fig:class-diagram}
+\end{figure}
+
+\newpage
+
+The solution was designed with four main components:
+
+\begin{itemize}
+\item \textbf{The Deck}: Cryptographic layer implementing the Wei \& Wang mental poker protocol\cite{Wei-Wang-Protocol}
+
+\item \textbf{The Game Logic}: Poker game mechanics, state management, and rules enforcement
+
+\item \textbf{The DLT (Distributed Ledger Technology)}: Event-sourcing blockchain\cite{eventtourcing} to record actions
+
+\item \textbf{The Consensus Node}: Voting mechanisms for action validation\cite{bfttheory}
+
+\end{itemize}
+
+Additionally, supporting components provide:
+
+\begin{itemize}
+  \item \textbf{Network Layer}: Peer-to-peer communication primitives
+  \item \textbf{User Interface}: Command-line interface for player interaction (not shown here)
+  \item \textbf{Discovery Service}: Service for announcing and discovering peers in the local network
+\end{itemize}
+
+\subsection{Components}
+
+\subsubsection{Domain: Deck Component}
+
+The Deck component implements the cryptographic layer based on the Wei \& Wang mental poker protocol\cite{Wei-Wang-Protocol}. It ensures that no player can control or predict the card order, and that cards dealt face-down remain private until revealed.
+
+\paragraph{Deck Entity}
+
+The \texttt{Deck} struct is the core cryptographic abstraction representing a secure card deck. Each player maintains their own Deck instance, participating in collective protocols for shuffling, dealing, and revealing cards. The deck uses elliptic curve cryptography (Ed25519)\cite{ed25519} through the Kyber library\cite{kyberlib}, where each card is represented as a point on the curve. Cards are encrypted with each player's secret key during the shuffle protocol, ensuring that the final deck order incorporates randomness from all participants.
+
+Key operations include:
+
+\begin{itemize}
+\item \texttt{PrepareDeck()}: Initializes $n$ cards as cryptographic points using distributed random element generation
+\item \texttt{Shuffle()}: Sequential protocol where each player encrypts the entire deck with their secret key
+\item \texttt{DrawCard(drawer)}: Collective decryption allowing only the specified player to learn the card value
+\item \texttt{OpenCard(player, card)}: Broadcasts and verifies a player's revealed card
+\item \texttt{LeaveGame(leaver)}: Removes a disconnected player's encryption layer from the deck
+\end{itemize}
+
+\subsubsection{Domain: Poker Component}
+
+The Poker component manages game state, enforces Texas Hold'em rules\cite{texasholdem}, and evaluates hand strengths. It operates independently of the cryptographic deck, focusing purely on game mechanics.
+
+\paragraph{Session Entity}
+
+The \texttt{Session} struct maintains the complete game state at any point in time. It tracks community cards on the board, player states, pot distributions, betting information, and the current game phase (PreFlop, Flop, Turn, River, Showdown). The session serves as the single source of truth for game state.
+
+Critical methods handle state transitions:
+
+\begin{itemize}
+\item \texttt{ApplyAction()}: Executes validated player actions (fold, bet, raise, call, check, all-in)
+\item \texttt{recalculatePots()}: Manages main and side pots for all-in scenarios
+\item \texttt{advanceRound()}: Transitions between betting rounds when all players have acted
+\item \texttt{winnerEval()}: Determines winner(s) at showdown using hand evaluation
+\end{itemize}
+
+\paragraph{Player Entity}
+
+Each \texttt{Player} represents a participant with their hole cards, chip count, current bet, and fold status. The poker manager coordinates player turns and validates that actions are taken by the correct player.
+
+\paragraph{Card and Hand Evaluation}
+
+The \texttt{Card} struct represents standard playing cards with rank and suit. The \texttt{Evaluator} module implements poker hand ranking algorithms\cite{texasholdem}, comparing hands to determine winners according to standard Texas Hold'em rules (Royal Flush through High Card).
+
+\paragraph{Action Entity}
+
+The \texttt{Action} struct represents a proposed poker move with a unique ID, player ID, poker action payload, timestamp, and Ed25519 signature\cite{ed25519}.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.9\linewidth]{figures//domain-uml.png}
+\caption{UML class diagram showing the package poker details}
+\label{fig:class-diagram}
+\end{figure}
+
+\newpage
+
+\subsubsection{Ledger Component}
+
+The Ledger component implements an event-sourced\cite{eventtourcing}, blockchain-based replicated log ensuring immutability and non-repudiation of all game actions. 
+
+\paragraph{Blockchain Entity}
+
+The \texttt{Blockchain} struct maintains an append-only chain of blocks, each cryptographically linked to its predecessor via SHA-256 hashing\cite{sha256}. The genesis block records the initial game state with all players and starting chip counts. Each subsequent block contains a player action, the resulting game state, consensus votes, and metadata.
+
+The blockchain provides:
+
+\begin{itemize}
+\item \texttt{Append()}: Validates and adds consensus-approved actions with quorum votes
+\item \texttt{Verify()}: Checks the entire chain integrity by validating hashes and vote counts
+\item \texttt{GetLatest()}: Retrieves the current game state from the most recent block
+\end{itemize}
+
+\paragraph{Block Structure}
+
+Each \texttt{Block} is self-contained and includes:
+
+\begin{itemize}
+\item Sequential index and timestamp
+\item Cryptographic hash of the previous block (forming the chain)
+\item The \texttt{PokerAction} that caused the state transition
+\item Consensus \texttt{Votes} from all players (with signatures)
+\item Metadata including proposer ID, quorum threshold, and optional extra data (e.g., ban reasons)
+\end{itemize}
+
+This structure enables post-game auditing, dispute resolution, and verification that all state transitions received proper consensus approval.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\linewidth]{figures//ledger-uml.png}
+\caption{UML class diagram showing the detail of the ledger component}
+\label{fig:class-diagram}
+\end{figure}
+
+\newpage
+
+\subsubsection{Consensus Component}
+
+The Consensus component implements a Byzantine Fault Tolerant (BFT) voting protocol\cite{bfttheory} ensuring that all players agree on action validity before state changes occur.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth]{figures//consensus-uml.png}
+\caption{UML class diagram showing the consensus component details}
+\label{fig:class-diagram}
+\end{figure}
+
+\paragraph{Node Entity}
+
+The \texttt{ConsensusNode} manages the distributed consensus protocol for each player. It maintains cryptographic key pairs (Ed25519)\cite{ed25519} for signing and verifying messages, tracks peer public keys, calculates quorum thresholds using the BFT formula\cite{bfttheory} $\lceil\frac{2n+2}{3}\rceil$, and coordinates with the poker state machine and blockchain ledger.
+
+The consensus workflow follows a propose-vote-commit pattern:
+
+\begin{itemize}
+\item \texttt{ProposeAction()}: The current player broadcasts a signed action proposal
+\item \texttt{WaitForProposal()}: Other players receive and validate the proposal
+\item Vote broadcasting: Each player broadcasts ACCEPT or REJECT with signature
+\item \texttt{checkAndCommit()}: If quorum accepts, the action is applied and recorded; if quorum rejects, the proposer is banned
+\end{itemize}
+
+\paragraph{Vote Entity}
+
+The \texttt{Vote} struct contains the voter's decision (ACCEPT/REJECT), validation reason, and cryptographic signature\cite{ed25519}. All signatures are verified using the voter's public key to prevent forgery.
+
+\subsubsection{Network Component}
+
+The Network component provides peer-to-peer communication primitives\cite{p2p-networks} abstracting the underlying TCP connections.
+
+\paragraph{NetworkLayer Interface}
+
+The \texttt{NetworkLayer} interface defines two fundamental communication patterns inspired by MPI\cite{mpi41}:
+
+\begin{itemize}
+\item \texttt{Broadcast(data, root)}: One player sends identical data to all peers (analogous to \texttt{MPI\_BCAST})
+\item \texttt{AllToAll(data)}: Every player sends data to every other player simultaneously (analogous to \texttt{MPI\_ALLTOALL})
+\end{itemize}
+
+Both operations include timeout variants and implement barrier synchronization, blocking until all participants complete the communication. This ensures consistent ordering of messages and simplifies protocol implementation.
+
+\paragraph{Peer Implementation}
+
+The \texttt{Peer} struct implements the \texttt{NetworkLayer} interface using TCP sockets. Each peer maintains connections to all other peers in a fully-connected topology. The implementation handles connection management, message serialization/deserialization, and timeout enforcement. The \texttt{p2p.go} wrapper provides stable interfaces for the cryptographic deck operations.
+
+\subsubsection{The discovery service}
+A simple discovery service is implemented using UDP broadcasting to announce and discover peers on the local network. Each instance periodically broadcasts its presence with its IP address and listening port. Peers listen for these broadcasts to build a list of available players before establishing TCP connections for gameplay. 
+
+\subsection{Communication}
+
+As previously mentioned, each player communicates only via two primitives\cite{mpi41}:
+
+\begin{itemize}
+\item \texttt{broadcast}: A player sends information to all other players
+\item \texttt{all-to-all broadcast}: Every player sends information to every other player
+\end{itemize}
+
+Both operations implicitly behave as barrier synchronizations, blocking thread execution until all nodes complete the communication. This design decision was made while studying the Wei and Wang paper~\cite{Wei-Wang-Protocol}, whose protocols exclusively use these primitives.
+
+\subsubsection{The high performance computing similarity}
+
+The communication primitives are inspired by the \textit{Message Passing Interface}\cite{mpi41}, an open library standard for distributed memory parallelization widely used in high-performance computing. For those familiar with MPI, our primitives correspond to:
+
+\begin{itemize}
+\item \texttt{broadcast} $\leftrightarrow$ \texttt{MPI\_BCAST}
+\item \texttt{all-to-all broadcast} $\leftrightarrow$ \texttt{MPI\_ALLTOALL}
+\end{itemize}
+
+We observed that the Wei \& Wang protocols are executed by all nodes identically. This resembles the \textit{Single Program, Multiple Data (SPMD)} computational model~\cite{spmd}, the most widely used paradigm in parallel programming. SPMD states that all nodes run the same program, but each node may choose different execution paths based on its ID.
+
+We believe this model extends naturally to decentralized systems like ours, where:
+
+\begin{itemize}
+\item All players run identical protocol code
+\item Each player uses its unique ID to determine its role in each protocol step
+\item Different execution paths are taken based on player ID (e.g., ``if GetRank() == dealer'')
+\end{itemize}
+
+This insight guided our architectural decisions and simplified implementation by enabling code reuse across all nodes.
+
+\subsubsection{Consensus Protocol Sequence}
+
+The consensus protocol ensures that all players agree on the validity of each action before it modifies the game state. Figure~\ref{fig:consensus-sequence} illustrates the complete message flow for a successful action proposal.
+
+\clearpage
+
+\begin{figure}[p]
+\vspace*{-2cm}
+\centering
+\includegraphics[width=1.3\textwidth,height=1.1\textheight,keepaspectratio]{figures//consensus-protocol-sequence.png}
+\caption{Sequence diagram of the consensus protocol showing the five-phase distributed workflow}
+\label{fig:consensus-sequence}
+\end{figure}
+
+\clearpage
+
+The protocol proceeds through five distinct phases:
+
+\paragraph{Phase 1: Action Proposal}
+
+The player whose turn it is creates a poker action (e.g., CHECK, FOLD, RAISE) and submits it. The node generates a unique action ID by combining the player ID, the action payload hash, and 128 bits of cryptographic entropy. The action is timestamped and signed with the player's private key through the elliptic curve cryptography\cite{ed25519}. The signed action is then broadcast to all peers using the \texttt{Broadcast} primitive.
+
+All other players are executing \texttt{WaitForProposal()}, blocking until they receive the broadcast from the current player or the default action in case of timeout.
+
+\paragraph{Phase 2: Proposal Validation}
+
+Upon receiving a proposal, each consensus node locally validates it:
+
+\begin{enumerate}
+\item \textbf{Signature verification}: The node verifies the signature using the proposer's public key to ensure authenticity and prevent tampering.
+\item \textbf{Game rule validation}: The proposal is passed to the poker manager, which validates turn order, action legality (e.g., sufficient chips for a bet) and compliance with Texas Hold'em rules\cite{texasholdem}.
+\end{enumerate}
+
+If any validation check fails, the node prepares to vote \texttt{REJECT} with a descriptive reason (e.g., ``out-of-turn'', ``insufficient-chips'', ``bad-signature''). Otherwise, the node votes with \texttt{ACCEPT}.
+
+\paragraph{Phase 3: Vote Broadcasting}
+
+Each node creates a \texttt{Vote} struct containing:
+
+\begin{itemize}
+\item The action ID being voted on
+\item The voter's node ID
+\item The vote value (\texttt{ACCEPT} or \texttt{REJECT})
+\item A human-readable validation reason
+\item A signature on the serialized vote data
+\end{itemize}
+
+All nodes broadcast their votes simultaneously using the \texttt{AllToAll} primitive. This operation blocks until every node has both sent its vote and received votes from all peers, implementing barrier synchronization. The 30-second timeout ensures the protocol progresses even if a peer disconnects.
+
+\paragraph{Phase 4: Vote Collection and Verification}
+
+Each node receives the vote array from the \texttt{AllToAll} operation and processes it through \texttt{onReceiveVotes()}:
+
+\begin{enumerate}
+\item \textbf{Proposal consistency}: Verify that all votes reference the same action ID.
+\item \textbf{Signature verification}: For each vote, verify the Ed25519 signature\cite{ed25519} using the voter's public key from the peer map.
+\item \textbf{Voter eligibility}: Ensure the voter is a current player in the session and has not been banned.
+\item \textbf{Vote caching}: Store valid votes in a local map indexed by voter ID.
+\end{enumerate}
+
+Malformed votes or votes with invalid signatures are logged but do not halt the protocol, providing resilience against Byzantine failures.
+
+\paragraph{Phase 5: Quorum Check and Commit}
+
+The \texttt{checkAndCommit()} function evaluates whether consensus has been reached. The quorum threshold is computed using the Byzantine Fault Tolerance formula\cite{bfttheory}:
+
+\[
+\text{quorum} = \left\lceil \frac{2n + 2}{3} \right\rceil
+\]
+
+where $n$ is the current number of players. This ensures safety with up to $\lfloor (n-1)/3 \rfloor$ Byzantine (malicious or faulty) nodes.
+
+The function counts \texttt{ACCEPT} and \texttt{REJECT} votes and determines the outcome:
+
+\begin{itemize}
+\item \textbf{Accepts $\geq$ quorum}: The action is legitimate. The consensus node applies the action to the poker state machine, appends a block to the blockchain\cite{eventtourcing}, and clears cached proposal and votes.
+
+\item \textbf{Rejects $\geq$ quorum}: The proposal is invalid and the proposer is Byzantine. The consensus node bans the player, records the ban action in the blockchain\cite{eventtourcing}, and recalculates quorum.
+
+\item \textbf{Neither quorum reached}: Insufficient votes have been collected. The function returns an error, and the node waits for more votes to arrive.
+\end{itemize}
+
+Even if some nodes are Byzantine (sending different votes or proposals), the quorum mechanism ensures that the supermajority of honest nodes drives the consensus outcome\cite{bfttheory}. The blockchain records the complete set of votes, enabling post-game auditing to identify Byzantine actors.
+
+\subsubsection{Network Topology and Message Flow}
+
+The system operates in a \textbf{fully-connected peer-to-peer topology}, where each node maintains direct TCP connections to all other nodes. This design choice simplifies the implementation of broadcast and \texttt{AllToAll} primitives, as there are no routing concerns or intermediate hops.
+
+Message serialization uses JSON encoding for human readability and debugging convenience and then in binary to reduce bandwidth. The communication model follows the \textbf{Single Program, Multiple Data (SPMD)} paradigm\cite{spmd} from parallel computing: all nodes run identical code but make different execution decisions based on their node ID and the current game state. For example, only the node whose turn it is executes \texttt{ProposeAction()}, while others execute \texttt{WaitForProposal()}.
+
+This architecture ensures that the system scales linearly with the number of players in terms of network traffic (each message must be sent to $n-1$ peers), but maintains constant time complexity for consensus rounds (one broadcast and one \texttt{AllToAll} per action).
+
+\subsection{Behaviour}
+
+We can model the behavior of the poker game as a state machine with the following states:
+
+\begin{itemize}
+\item \textbf{PreFlop}: Initial betting round after dealing hole cards
+\item \textbf{Flop}: Betting round after dealing 3 community cards
+\item \textbf{Turn}: Betting round after dealing the fourth community card
+\item \textbf{River}: Betting round after dealing the fifth community card
+\item \textbf{Showdown}: Hand evaluation and pot distribution
+\item \textbf{GameOver}: Terminal state when the game ends
+\end{itemize}
+
+\subsubsection{State Transitions}
+
+\paragraph{PreFlop $\rightarrow$ Flop}
+
+Triggered when the betting round completes (all active players have called the current bet or checked). Entry action: Deal 3 community cards.
+
+\paragraph{Flop $\rightarrow$ Turn}
+
+Triggered when the betting round completes. Entry action: Deal 1 community card.
+
+\paragraph{Turn $\rightarrow$ River}
+
+Triggered when the betting round completes. Entry action: Deal 1 community card.
+
+\paragraph{River $\rightarrow$ Showdown}
+
+Triggered when the final betting round is complete. Entry action: All remaining players reveal their hole cards.
+
+\paragraph{Any State $\rightarrow$ Showdown}
+
+Triggered when only one player remains (all other players have folded). The remaining player wins without revealing cards.
+
+\paragraph{Showdown $\rightarrow$ PreFlop}
+
+Triggered when starting a new round with the same players. Entry action: Reset player states, collect antes/blinds, deal new hole cards.
+
+\paragraph{Showdown $\rightarrow$ GameOver}
+
+Triggered when players choose to end the game or insufficient players remain.
+
+\subsubsection{State Invariants}
+
+Each state maintains specific invariants:
+
+\begin{itemize}
+\item \textbf{PreFlop}: Each player has exactly 2 hole cards; no community cards are visible
+\item \textbf{Flop}: Exactly 3 community cards are visible on the board
+\item \textbf{Turn}: Exactly 4 community cards are visible
+\item \textbf{River}: Exactly 5 community cards are visible
+\item \textbf{Showdown}: All community cards are visible; remaining players' hole cards are revealed
+\end{itemize}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\linewidth]{figures//poker-state-machine.png}
+\caption{Finite state machine of a Texas Hold-em poker game}
+\label{fig:class-diagram}
+\end{figure}
+
+\subsubsection{Player State}
+
+Individual players also have internal state:
+
+\begin{itemize}
+\item \textbf{Active}: Player is in the current hand
+\item \textbf{Folded}: Player has folded and cannot win the current hand
+\item \textbf{All-in}: Player has bet all chips and cannot make further bets
+\item \textbf{Spectator}: Player has lost all of his chips and is watching the game without influencing it.
+\end{itemize}
+
+The \texttt{ApplyAction()} method handles state transitions based on player actions, ensuring consistency through consensus validation.
+
+\subsection{Distributed Ledger Technology}
+The system employs a \textbf{permissioned blockchain} as a distributed ledger to record all game actions immutably. This ensures transparency, auditability, and non-repudiation of player actions. Since the set of players is known and controlled, a permissioned model is appropriate.
+A \textbf{replicated log} similar to a \textit{blockchain} data structure keeps track of the state of the game in an \textbf{event sourcing} fashion\cite{eventtourcing}, recording all game actions with consensus verification. Each block contains\cite{sha256}:
+
+\begin{itemize}
+\item Player action (type, amount)
+\item Consensus votes from all players
+\item Cryptographic hash linking to the previous block
+\end{itemize}
+
+This provides \textbf{non-repudiation}, so players cannot deny actions they performed, as all actions are cryptographically signed and verified by the group\cite{bfttheory}. The replicated log also enables post-game auditing and dispute resolution.
+
+\subsection{Corner cases}
+
+\subsubsection{Faults detection}
+
+The system detects several types of faults:
+
+\begin{itemize}
+\item \textbf{Malicious Stalling}: Timeouts on broadcast/all-to-all operations detect stalling players
+\item \textbf{Invalid cryptographic operations}: Card verification failures detect attempts to reveal fake cards
+\item \textbf{Consensus violations}: Actions without sufficient votes are rejected\cite{bfttheory}
+\item \textbf{Blockchain integrity violations}: \texttt{Verify()} method detects tampered history\cite{sha256}
+\item \textbf{Protocol violations}: Invalid game actions are rejected
+\end{itemize}
+
+\subsubsection{Recovery strategies}
+
+Recovery mechanisms include:
+
+\begin{itemize}
+\item \textbf{Detected cheating}: Malicious player is banned via consensus vote\cite{bfttheory}
+\item \textbf{Blockchain fork}: Not applicable - no forks possible with consensus-based append-only design
+\item \textbf{State inconsistency}: Detected via consensus; inconsistent players must resync or are excluded
+\end{itemize}
+
+\subsubsection{Graceful shutdown}
+
+The system supports graceful shutdown:
+
+\begin{enumerate}
+\item Player signals intent to leave (via CLI)
+\item The current hand completes if in progress
+\item The Player's \texttt{LeaveGame()} method is called
+\item The Player's encryption is removed from the deck
+\item Network connections are closed
+\item Application exits cleanly
+\end{enumerate}
+
+\section{Salient implementation details}
+
+This section highlights key implementation details extracted from the actual codebase, demonstrating how theoretical protocols are realized in Go\cite{golang}.
+
+\subsection{Cryptographic Deck Implementation}
+
+The deck uses Kyber's\cite{kyberlib} Ed25519 elliptic curve suite\cite{ed25519}. Each card is represented as a cryptographic point, with randomness contributed by all players to prevent manipulation.
+
+\begin{lstlisting}[language=Go, caption=Distributed random element generation from deck.go]
+func (d *Deck) generateRandomElement() (kyber.Point, error) {
+  // initialize random generator of cyclic group G
+  gj := suite.Point().Mul(suite.Scalar().Pick(
+    suite.RandomStream()), nil)
+  hj := suite.Point().Mul(suite.Scalar().Pick(
+    suite.RandomStream()), nil)
+  for gj.Equal(hj) {
+    hj = suite.Point().Mul(suite.Scalar().Pick(
+      suite.RandomStream()), nil)
+  }
+  
+  lambda := suite.Scalar().Pick(suite.RandomStream())
+  gPrime := suite.Point().Mul(lambda, gj)
+  _, err := d.allToAllSingle(gj)
+  if err != nil {
+    return nil, err
+  }
+  _, err = d.allToAllSingle(gPrime)
+  if err != nil {
+    return nil, err
+  }
+  _, err = d.allToAllSingle(hj)
+  if err != nil {
+    return nil, err
+  }
+  
+  hPrime := suite.Point().Mul(lambda, hj)
+  hArray, err := d.allToAllSingle(hPrime)
+  if err != nil {
+    return nil, err
+  }
+  
+  hResult := hArray[0]
+  for i := 1; i < len(hArray); i++ {
+    hResult.Add(hResult, hArray[i])
+  }
+  return hResult, nil
+}
+\end{lstlisting}
+
+The \texttt{generateRandomElement()} method implements Protocol 2 from the Wei \& Wang paper\cite{Wei-Wang-Protocol}. Each player contributes randomness through \texttt{AllToAll}\cite{mpi41} exchanges of cryptographic points, ensuring that no single player can predict or control the final card values.
+
+\subsection{Shuffle Protocol}
+
+The shuffle implementation follows Protocol 3 from the Wei \& Wang paper\cite{Wei-Wang-Protocol}, where each player sequentially encrypts and permutes the deck.
+
+\subsection{Card Drawing Protocol}
+
+Drawing a card requires collective decryption, allowing only the designated player to learn the card value using Ed25519 elliptic curve cryptography\cite{ed25519}.
+
+\subsection{Documentation}
+
+Comprehensive GoDoc documentation\cite{golang} is provided for all public APIs. Examples:
+
+\begin{itemize}
+\item Package-level documentation in \texttt{doc.go} files
+\item Function-level documentation with parameter and return descriptions
+\item Example usage in test files
+\end{itemize}
+
+The documentation can be found on the official go module \href{https://pkg.go.dev/github.com/luca-patrignani/mental-poker/v3}{site}.
+
+\section{Validation}
+
+\subsection{Testing Strategy}
+
+The testing strategy employs automated testing for \textbf{Unit tests}
+
+\subsection{Test Coverage}
+
+The test coverage statistics can be found in the CodeCov page of the project \href{https://app.codecov.io/gh/luca-patrignani/mental-poker/tree/dev/v3}{here}.
+
+Coverage is measured with:
+\begin{verbatim}
+go test -coverprofile=coverage ./...
+go tool cover -html=coverage
+\end{verbatim}
+
+\subsection{Manual Testing}
+
+Manual testing scenarios:
+
+\begin{enumerate}
+\item \textbf{3-player game}: Alice, Bob, Charlie play a complete game. Verify all betting rounds, community cards, showdown.
+
+\item \textbf{Network disruption}: Verify graceful termination handling.
+
+\item \textbf{Malicious stalling}: Verify timeout default action works properly.
+
+\end{enumerate}
+
+\section{Deployment Instructions}
+
+\subsection{Download Prebuilt Binaries}
+Prebuilt binaries for end user are available for download in the release section of the GitHub repository:
+\begin{verbatim}
+    https://github.com/luca-patrignani/mental-poker/releases
+\end{verbatim}
+
+\subsection{Build from source}
+\subsubsection{Prerequisites}
+
+\begin{itemize}
+\item \textbf{Go}: Version 1.21 or later
+\begin{verbatim}
+# Verify Go installation
+go version
+\end{verbatim}
+
+\item \textbf{Git}: For cloning the repository
+\begin{verbatim}
+git --version
+\end{verbatim}
+
+\item \textbf{Network}: All players must be on the same local network or have direct connectivity
+\end{itemize}
+
+\subsubsection{Installation Steps}
+
+\begin{enumerate}
+\item Clone the repository:
+\begin{verbatim}
+git clone https://github.com/luca-patrignani/mental-poker.git
+cd mental-poker/v*
+\end{verbatim}
+
+\item Install dependencies:
+\begin{verbatim}
+go mod download
+go mod verify
+\end{verbatim}
+
+\item Build the executable:
+\begin{verbatim}
+go build -o mental-poker ./cmd
+\end{verbatim}
+\end{enumerate}
+
+This creates a \texttt{mental-poker} executable in the current directory.
+
+\subsection{Network Setup}
+
+For each player, determine their network address:
+
+\begin{verbatim}
+# On Linux/Mac
+ip addr show
+ifconfig
+
+# On Windows
+ipconfig
+\end{verbatim}
+
+Note that all players must be on the same local network (LAN) or have direct connectivity to each other. The application does not support NAT traversal or internet play. Furthermore the application uses multicast UDP address 239.0.0.1 at port 53551 for UDP discovery, so firewall must be configured to allow traffic on this  address and port.
+\subsubsection{Running the Application}
+
+\textbf{Default startup}:
+\begin{verbatim}
+./mental-poker <Your IP address>
+\end{verbatim}
+
+This starts the application and displays connection information for other players with the default timeout.
+
+\textbf{Specified Timeout}:
+\begin{verbatim}
+./mental-poker -t <TIMEOUT> <Your IP address>
+\end{verbatim}
+
+This starts the application and displays connection information for other players with the specified timeout.
+
+\section{Conclusions}
+
+This project successfully implemented a decentralized poker game meeting all specified security and functionality requirements using the Wei \& Wang mental poker protocol\cite{Wei-Wang-Protocol}, Byzantine Fault Tolerant consensus\cite{bfttheory}, blockchain-based event sourcing\cite{eventtourcing}, and Go programming language\cite{golang}.
+
+\subsection{Achievements}
+
+The system enables trustless poker gameplay among multiple players without requiring a central authority, with all cryptographic primitives\cite{ed25519} properly implemented and validated.
+
+\subsection{Future Works}
+
+Several extensions could enhance the system:
+
+\begin{itemize}
+\item \textbf{Graphical user interface}: A web-based or desktop GUI would improve usability
+\item \textbf{Chip transactions}: A cryptocurrency or token system for real-money betting
+\item \textbf{Zero-knowledge proofs}: More efficient card verification\cite{homomorphic-encryption}
+\item \textbf{Tournament management}: Support for multi-table tournaments
+\item \textbf{Reputation system}: Tracking player behavior to identify cheaters\cite{bfttheory}
+\end{itemize}
+
+\subsection{Personal Consideration}
+
+This project provided valuable experience in cryptography\cite{ed25519}\cite{discrete-log-problem}, distributed systems\cite{spmd}\cite{mpi41}, blockchain technology\cite{eventtourcing}, and software engineering practices. The successful implementation demonstrates that complex theoretical concepts can be realized as practical, working systems\cite{Wei-Wang-Protocol}\cite{bfttheory}.
+
+\nocite{*}
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

@@ -1,0 +1,63 @@
+@startuml consensus-uml
+
+' Styling
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+package domain {
+
+package domain.poker {
+
+}
+
+}
+
+package ledger {
+
+  
+}
+
+
+package consensus {
+
+    class Node {
+        - ID: int
+        - Peer: NetworkLayer
+        - Ledger: Ledger
+        - PokerManager: PokerManager
+        --
+        + ProposeAction(action: Action): error
+        + ListenForProposal(): error
+    }
+    
+    
+    ' Vote (placeholder for consensus)
+    class Vote {
+        - PlayerID: int
+        - Signature: []byte
+    }
+    
+
+}
+
+package network {
+
+}
+
+
+
+' Relationships
+
+Node --> network : uses
+Node --> ledger :uses
+Node --> poker : communicate
+
+
+
+
+
+@enduml

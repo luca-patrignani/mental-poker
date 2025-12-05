@@ -1,0 +1,248 @@
+@startuml Mental-Poker-UML
+
+' Styling
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+package domain {
+}
+package domain.poker {
+    class PokerDeck {
+    
+    }
+    
+    ' Session Entity
+    class Session {
+        - Board: [5]Card
+        - Players: []Player
+        - Pots: []Pot
+        - HighestBet: int
+        - LastToRaise: int
+        - Dealer: int
+        - CurrentTurn: int
+        - Round: GameRound
+        --
+    }
+    
+    ' Player Entity
+    class Player {
+        - Name: string
+        - Id: int
+        - Hand: [2]Card
+        - HasFolded: bool
+        - Bet: int
+        - Pot: int
+    }
+    
+    ' Card Entity
+    class Card {
+        - Rank: int
+        - Suit: CardSuit
+        --
+        + String(): string
+    }
+    
+    ' Pot Entity
+    class Pot {
+        - Amount: int
+        - Eligible: []int
+    }
+    
+    ' Enums
+    enum GameRound {
+        PreFlop
+        Flop
+        Turn
+        River
+        Showdown
+    }
+    
+    enum CardSuit {
+        Hearts
+        Diamonds
+        Clubs
+        Spades
+    }
+    
+    ' Action (placeholder for player actions)
+    class Action {
+        - PlayerID: int
+        - Type: ActionType
+        - Amount: int
+    }
+    
+    enum ActionType {
+        Fold
+        Check
+        Call
+        Raise
+        AllIn
+    }
+    
+    class PokerManager {
+    }
+    
+    note top of Session
+        Maintains current poker game state.
+        Handles betting rounds, pot calculation,
+        and game phase transitions.
+    end note
+
+}
+
+package domain.deck {
+' Deck Entity
+    class Deck {
+        - DeckSize: int
+        - Peer: NetworkLayer
+        - cardCollection: []kyber.Point
+        - encryptedDeck: []EncryptedCard
+        - secretKey: kyber.Scalar
+        - lastDrawnCard: int
+        --
+        + PrepareDeck(): void
+        + Shuffle(): void
+        + DrawCard(drawer: int): Card
+        + OpenCard(player: int, card: int): void
+        + LeaveGame(leaver: int): void
+    }
+    
+    note top of Deck
+        Represents cryptographic card deck
+        for distributed poker protocol.
+        Uses kyber cryptography for
+        secure shuffling and drawing.
+    end note
+}
+
+package ledger {
+
+    
+    interface Ledger {
+        + Append(): error
+        + GetLatest(): Block
+        + Verify(): bool
+    }
+    
+    ' Blockchain Entity
+    class BlockChain {
+        - blocks: []Block
+        - mu: sync.Mutex
+        --
+        + NewBlockchain(initialSession: Session): Blockchain
+        + Append(session: Session, action: Action, votes: []Vote): error
+        + GetLatest(): Block
+        + Verify(): bool
+    }
+    
+    ' Block Entity
+    class Block {
+        - Index: int
+        - Timestamp: time.Time
+        - PrevHash: string
+        - Hash: string
+        - Session: Session
+        - Action: Action
+        - Votes: []Vote
+        - Metadata: BlockMetadata
+    }
+    
+    ' BlockMetadata
+    class BlockMetadata {
+        - ProposerID: int
+        - Quorum: int
+        - ExtraData: map[string]interface{}
+    }
+
+    note bottom of BlockChain
+      Immutable ledger for game actions.
+      Provides consensus and audit trail
+      for distributed poker game.
+    end note
+}
+
+
+package consensus {
+
+    class Node {
+        - ID: int
+        - Peer: NetworkLayer
+        - Ledger: Ledger
+        - PokerManager: PokerManager
+        --
+        + ProposeAction(action: Action): error
+        + ListenForProposal(): error
+    }
+    
+    
+    ' Vote (placeholder for consensus)
+    class Vote {
+        - PlayerID: int
+        - Signature: []byte
+    }
+    
+
+}
+
+package network {
+
+    ' NetworkLayer Interface
+    interface NetworkLayer {
+        + Broadcast(data: []byte, root: int): error
+        + AllToAll(data: [][]byte): [][]byte
+        + GetRank(): int
+        + GetAddresses(): []string
+        + Close(): void
+    }
+    
+    class Peer {
+        + Broadcast(data: []byte, root: int): error
+        + AllToAll(data: [][]byte): [][]byte
+        + Close(): void
+    }
+    
+    note top of NetworkLayer
+      Abstraction for communication.
+      Enables dependency injection
+      and simplified testing with mocks.
+    end note
+}
+
+
+
+' Relationships
+PokerDeck --> Card : manages
+Session --> Player : contains
+Session --> Card : uses (Board)
+Session --> Pot : manages
+Session --> GameRound : has state
+Player --> Card : holds (Hand)
+Card --> CardSuit : has
+Action --> ActionType : has
+Pot --> Player : tracks eligible (by ID)
+PokerManager --> Session : update
+PokerManager <..> Action : produce / consume
+PokerDeck --> Deck
+
+Deck --> NetworkLayer : uses
+
+BlockChain "1" *-- "many" Block : contains
+Block --> Action : records
+Block --> Vote : validates with
+Block --> BlockMetadata : contains
+Peer --|> NetworkLayer
+BlockChain --|> Ledger
+
+Node --> NetworkLayer : uses
+Node --> Ledger :uses
+Node --> PokerManager : communicate
+
+
+
+
+
+@enduml
