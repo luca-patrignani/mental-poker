@@ -766,15 +766,7 @@ The testing strategy employs automated testing for \textbf{Unit tests}
 
 \subsection{Test Coverage}
 
-Test coverage statistics (from \texttt{coverage} file):
-
-\begin{itemize}
-\item \texttt{domain/deck}: X\% line coverage
-\item \texttt{domain/poker}: X\% line coverage
-\item \texttt{ledger}: X\% line coverage
-\item \texttt{network}: X\% line coverage
-\item \textbf{Overall}: X\% line coverage
-\end{itemize}
+The test coverage statistics can be found in the CodeCov page of the project \href{https://app.codecov.io/gh/luca-patrignani/mental-poker/tree/dev/v3}{here}.
 
 Coverage is measured with:
 \begin{verbatim}
@@ -795,21 +787,9 @@ Manual testing scenarios:
 
 \end{enumerate}
 
-\subsection{Compliance with Requirements}
-
-Validation demonstrates compliance with all requirements:
-
-\begin{itemize}
-\item \textbf{Shuffle fairness}: Tested via statistical analysis of shuffle outcomes
-\item \textbf{Card privacy}: Tested via attempting to recover dealt cards from encrypted values
-\item \textbf{Card verifiability}: Tested via cryptographic verification of revealed cards
-\item \textbf{Non-repudiation}: Tested via blockchain immutability checks
-\item \textbf{Consensus}: Tested via vote counting and quorum enforcement
-\end{itemize}
-
 \section{Deployment Instructions}
 
-\subsection{ Download Prebuilt Binaries}
+\subsection{Download Prebuilt Binaries}
 Prebuilt binaries for end user are available for download in the release section of the GitHub repository:
 \begin{verbatim}
     https://github.com/luca-patrignani/mental-poker/releases
@@ -839,8 +819,7 @@ git --version
 \item Clone the repository:
 \begin{verbatim}
 git clone https://github.com/luca-patrignani/mental-poker.git
-cd mental-poker
-git checkout doc  # Use the doc branch
+cd mental-poker/v*
 \end{verbatim}
 
 \item Install dependencies:
@@ -856,12 +835,6 @@ go build -o mental-poker ./cmd
 
 This creates a \texttt{mental-poker} executable in the current directory.
 
-\item (Optional) Install globally:
-\begin{verbatim}
-go install ./cmd
-\end{verbatim}
-\end{enumerate}
-
 \subsection{Network Setup}
 
 For each player, determine their network address:
@@ -875,20 +848,19 @@ ifconfig
 ipconfig
 \end{verbatim}
 
-Note the IP address on the local network (typically 192.168.x.x or 10.x.x.x).
-
+Note that all players must be on the same local network (LAN) or have direct connectivity to each other. The application does not support NAT traversal or internet play. Furthermore the application uses multicast UDP address 239.0.0.1 at port 53551 for UDP discovery, so firewall must be configured to allow traffic on this  address and port.
 \subsubsection{Running the Application}
 
 \textbf{Default startup}:
 \begin{verbatim}
-./mental-poker *Your IP address*
+./mental-poker <Your IP address>
 \end{verbatim}
 
 This starts the application and displays connection information for other players with the default timeout.
 
 \textbf{Specified Timeout}:
 \begin{verbatim}
-./mental-poker *Your IP address* -t *timeout_in_seconds*
+./mental-poker -t <TIMEOUT> <Your IP address>
 \end{verbatim}
 
 This starts the application and displays connection information for other players with the specified timeout.
@@ -908,9 +880,7 @@ Several extensions could enhance the system:
 \begin{itemize}
 \item \textbf{Graphical user interface}: A web-based or desktop GUI would improve usability
 \item \textbf{Chip transactions}: A cryptocurrency or token system for real-money betting
-\item \textbf{Wide-area network support}: Extending beyond LAN to internet-scale with NAT traversal
 \item \textbf{Zero-knowledge proofs}: More efficient card verification\cite{homomorphic-encryption}
-\item \textbf{Mobile clients}: iOS and Android applications
 \item \textbf{Tournament management}: Support for multi-table tournaments
 \item \textbf{Reputation system}: Tracking player behavior to identify cheaters\cite{bfttheory}
 \end{itemize}
