@@ -4,6 +4,7 @@
 \usepackage{url}
 \usepackage{natbib}
 \usepackage{graphicx}
+\usepackage{amsmath}
 \usepackage{cleveref}
 \newcommand{\emailaddr}[1]{\href{mailto:#1}{\texttt{#1}}}
 \usepackage{style}
@@ -255,7 +256,7 @@ The design process employed a hybrid top-down and bottom-up approach. The high-l
 
 \begin{figure}
 \centering
-\includegraphics[width=1.1\linewidth]{report/figures/package-uml.png}
+\includegraphics[width=1.1\linewidth]{figures//package-uml.png}
 \caption{UML class diagram showing the main domain entities and relationships}
 \label{fig:class-diagram}
 \end{figure}
@@ -333,7 +334,7 @@ The \texttt{Action} struct represents a proposed poker move with a unique ID, pl
 
 \begin{figure}
 \centering
-\includegraphics[width=0.9\linewidth]{report/figures/domain-uml.png}
+\includegraphics[width=0.9\linewidth]{figures//domain-uml.png}
 \caption{UML class diagram showing the package poker details}
 \label{fig:class-diagram}
 \end{figure}
@@ -372,7 +373,7 @@ This structure enables post-game auditing, dispute resolution, and verification 
 
 \begin{figure}
 \centering
-\includegraphics[width=0.7\linewidth]{report/figures/ledger-uml.png}
+\includegraphics[width=0.7\linewidth]{figures//ledger-uml.png}
 \caption{UML class diagram showing the detail of the ledger component}
 \label{fig:class-diagram}
 \end{figure}
@@ -385,7 +386,7 @@ The Consensus component implements a Byzantine Fault Tolerant (BFT) voting proto
 
 \begin{figure}
 \centering
-\includegraphics[width=0.8\linewidth]{report/figures/consensus-uml.png}
+\includegraphics[width=0.8\linewidth]{figures//consensus-uml.png}
 \caption{UML class diagram showing the consensus component details}
 \label{fig:class-diagram}
 \end{figure}
@@ -467,7 +468,7 @@ The consensus protocol ensures that all players agree on the validity of each ac
 \begin{figure}[p]
 \vspace*{-2cm}
 \centering
-\includegraphics[width=1.3\textwidth,height=1.1\textheight,keepaspectratio]{report/figures/consensus-protocol-sequence.png}
+\includegraphics[width=1.3\textwidth,height=1.1\textheight,keepaspectratio]{figures//consensus-protocol-sequence.png}
 \caption{Sequence diagram of the consensus protocol showing the five-phase distributed workflow}
 \label{fig:consensus-sequence}
 \end{figure}
@@ -607,7 +608,7 @@ Each state maintains specific invariants:
 
 \begin{figure}
 \centering
-\includegraphics[width=1\linewidth]{report/figures/poker-state-machine.png}
+\includegraphics[width=1\linewidth]{figures//poker-state-machine.png}
 \caption{Finite state machine of a Texas Hold-em poker game}
 \label{fig:class-diagram}
 \end{figure}
