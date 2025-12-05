@@ -1,4 +1,5 @@
 //go:build !fw_friendly
+
 package main
 
 import (
