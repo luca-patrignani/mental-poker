@@ -30,11 +30,17 @@ Mental Poker: A Decentralized Implementation \\
 
 \maketitle
 
+\newpage
+
 \tableofcontents
+
+\newpage
 
 \begin{abstract}
 This project implements a decentralized poker game (Texas Hold'em) without requiring a trusted third party. The implementation guarantees fairness even when $k-1$ out of $k$ players form a malicious coalition attempting to rig the game. The system consists of three main components: a cryptographic deck library implementing the Wei \& Wang mental poker protocol\cite{Wei-Wang-Protocol}, a poker game engine managing game logic and state, and a blockchain-based distributed ledger ensuring non-repudiation of player actions. The architecture follows a peer-to-peer design with broadcast-based communication primitives, enabling fully distributed gameplay over local area networks. The delivered artifacts include a Go library with all the core functionalities and a command-line interface that exposes this library as a usable application, allowing end-to-end experimentation and gameplay while deliberately minimizing effort on user interface concerns so that the project work could focus more on the distributed and cryptographic aspects.
 \end{abstract}
+
+\newpage
 
 \section{Goals of the project}
 
@@ -245,7 +251,7 @@ The \textbf{MPI-inspired broadcast primitives}\cite{mpi41} were chosen because:
 The \textbf{Kyber cryptography library}\cite{kyberlib} (Dedis Advanced Crypto Library for Go) provides:
 
 \begin{itemize}
-\item \textbf{Elliptic curve support}: Ed25519 curve operations\cite{ed25519} required by the Wei \& Wang protocol.
+\item \textbf{Homomorphic cryptography}: Kyber supports various suites of homomorphic cryptographic encryptions such as curve operations\cite{ed25519} required by the Wei \& Wang protocol.
 \item \textbf{Security}: Well-audited, academically-developed library from EPFL.
 \item \textbf{Abstraction}: Clean API for scalar and point operations.
 \end{itemize}
@@ -265,7 +271,7 @@ The design process employed a hybrid top-down and bottom-up approach. The high-l
 
 \newpage
 
-The solution was designed with five main components:
+The solution was designed with four main components:
 
 \begin{itemize}
 \item \textbf{The Deck}: Cryptographic layer implementing the Wei \& Wang mental poker protocol\cite{Wei-Wang-Protocol}
@@ -276,15 +282,14 @@ The solution was designed with five main components:
 
 \item \textbf{The Consensus Node}: Voting mechanisms for action validation\cite{bfttheory}
 
-\item \textbf{The discovery service}: Service for announcing and discovering peers in the local network
-
 \end{itemize}
 
 Additionally, supporting components provide:
 
 \begin{itemize}
-\item \textbf{Network Layer}: Peer-to-peer communication primitives
-\item \textbf{User Interface}: Command-line interface for player interaction (not shown here)
+  \item \textbf{Network Layer}: Peer-to-peer communication primitives
+  \item \textbf{User Interface}: Command-line interface for player interaction (not shown here)
+  \item \textbf{Discovery Service}: Service for announcing and discovering peers in the local network
 \end{itemize}
 
 \subsection{Components}
@@ -300,7 +305,7 @@ The \texttt{Deck} struct is the core cryptographic abstraction representing a se
 Key operations include:
 
 \begin{itemize}
-\item \texttt{PrepareDeck()}: Initializes 52 cards as cryptographic points using distributed random element generation
+\item \texttt{PrepareDeck()}: Initializes $n$ cards as cryptographic points using distributed random element generation
 \item \texttt{Shuffle()}: Sequential protocol where each player encrypts the entire deck with their secret key
 \item \texttt{DrawCard(drawer)}: Collective decryption allowing only the specified player to learn the card value
 \item \texttt{OpenCard(player, card)}: Broadcasts and verifies a player's revealed card
@@ -313,7 +318,7 @@ The Poker component manages game state, enforces Texas Hold'em rules\cite{texash
 
 \paragraph{Session Entity}
 
-The \texttt{Session} struct maintains the complete game state at any point in time. It tracks community cards on the board, player states, pot distributions, betting information, and the current game phase (PreFlop, Flop, Turn, River, Showdown). The session serves as the single source of truth for game state, recorded in the blockchain after each consensus-approved action.
+The \texttt{Session} struct maintains the complete game state at any point in time. It tracks community cards on the board, player states, pot distributions, betting information, and the current game phase (PreFlop, Flop, Turn, River, Showdown). The session serves as the single source of truth for game state.
 
 Critical methods handle state transitions:
 
@@ -347,7 +352,7 @@ The \texttt{Action} struct represents a proposed poker move with a unique ID, pl
 
 \subsubsection{Ledger Component}
 
-The Ledger component implements an event-sourced\cite{eventtourcing}, blockchain-based replicated log ensuring immutability and non-repudiation of all game actions.
+The Ledger component implements an event-sourced\cite{eventtourcing}, blockchain-based replicated log ensuring immutability and non-repudiation of all game actions. 
 
 \paragraph{Blockchain Entity}
 
@@ -634,7 +639,7 @@ Individual players also have internal state:
 The \texttt{ApplyAction()} method handles state transitions based on player actions, ensuring consistency through consensus validation.
 
 \subsection{Distributed Ledger Technology}
-
+The system employs a \textbf{permissioned blockchain} as a distributed ledger to record all game actions immutably. This ensures transparency, auditability, and non-repudiation of player actions. Since the set of players is known and controlled, a permissioned model is appropriate.
 A \textbf{replicated log} similar to a \textit{blockchain} data structure keeps track of the state of the game in an \textbf{event sourcing} fashion\cite{eventtourcing}, recording all game actions with consensus verification. Each block contains\cite{sha256}:
 
 \begin{itemize}
@@ -644,21 +649,6 @@ A \textbf{replicated log} similar to a \textit{blockchain} data structure keeps 
 \end{itemize}
 
 This provides \textbf{non-repudiation}, so players cannot deny actions they performed, as all actions are cryptographically signed and verified by the group\cite{bfttheory}. The replicated log also enables post-game auditing and dispute resolution.
-
-\subsubsection{RESTful Architecture Characteristics}
-
-The system architecture exhibits some \textbf{RESTful attributes} through its state-based design, making a transition to HTTP-based APIs trivial. The replicated log structure naturally aligns with REST principles:
-
-\begin{itemize}
-\item \textbf{Stateless transitions}: Each action transforms one complete game state into another, making the system naturally stateless between actions.
-\item \textbf{Uniform interface}: All state transitions follow the same consensus-vote-append pattern.
-\item \textbf{Self-descriptive messages}: Each block in the replicated log is self-contained.
-\item \textbf{Hypermedia as the engine of application state (HATEOAS)}: The blockchain structure naturally implements this principle - each block links to the previous block via hash.
-\end{itemize}
-
-\subsubsection{Possible Transition to HTTP-based Implementation}
-
-The current peer-to-peer implementation could be adapted to a RESTful HTTP API without fundamental architectural changes.
 
 \subsection{Corner cases}
 
@@ -766,13 +756,13 @@ Comprehensive GoDoc documentation\cite{golang} is provided for all public APIs. 
 \item Example usage in test files
 \end{itemize}
 
-The documentation can be found on the official go module site.
+The documentation can be found on the official go module \href{https://pkg.go.dev/github.com/luca-patrignani/mental-poker/v3}{site}.
 
 \section{Validation}
 
 \subsection{Testing Strategy}
 
-The validation strategy employs automated testing for unit tests and integration testing.
+The testing strategy employs automated testing for unit tests and integration testing.
 
 \subsection{Test Coverage}
 
