@@ -762,52 +762,136 @@ The documentation can be found on the official go module \href{https://pkg.go.de
 
 \subsection{Testing Strategy}
 
-The testing strategy employs automated testing for unit tests and integration testing.
+The testing strategy employs automated testing for \textbf{Unit tests}
 
 \subsection{Test Coverage}
 
-Test coverage statistics demonstrate comprehensive validation across all components.
+Test coverage statistics (from \texttt{coverage} file):
+
+\begin{itemize}
+\item \texttt{domain/deck}: X\% line coverage
+\item \texttt{domain/poker}: X\% line coverage
+\item \texttt{ledger}: X\% line coverage
+\item \texttt{network}: X\% line coverage
+\item \textbf{Overall}: X\% line coverage
+\end{itemize}
+
+Coverage is measured with:
+\begin{verbatim}
+go test -coverprofile=coverage ./...
+go tool cover -html=coverage
+\end{verbatim}
 
 \subsection{Manual Testing}
 
-Manual testing scenarios include 3-player games, exiting games, and malicious stalling scenarios.
+Manual testing scenarios:
+
+\begin{enumerate}
+\item \textbf{3-player game}: Alice, Bob, Charlie play a complete game. Verify all betting rounds, community cards, showdown.
+
+\item \textbf{Network disruption}: Verify graceful termination handling.
+
+\item \textbf{Malicious stalling}: Verify timeout default action works properly.
+
+\end{enumerate}
 
 \subsection{Compliance with Requirements}
 
-Validation demonstrates compliance with all requirements\cite{Wei-Wang-Protocol}\cite{bfttheory}:
+Validation demonstrates compliance with all requirements:
 
 \begin{itemize}
 \item \textbf{Shuffle fairness}: Tested via statistical analysis of shuffle outcomes
-\item \textbf{Card privacy}: Tested via cryptographic verification
-\item \textbf{Card verifiability}: Tested via verification of revealed cards
-\item \textbf{Non-repudiation}: Tested via blockchain immutability checks\cite{sha256}
-\item \textbf{Consensus}: Tested via vote counting and quorum enforcement\cite{bfttheory}
+\item \textbf{Card privacy}: Tested via attempting to recover dealt cards from encrypted values
+\item \textbf{Card verifiability}: Tested via cryptographic verification of revealed cards
+\item \textbf{Non-repudiation}: Tested via blockchain immutability checks
+\item \textbf{Consensus}: Tested via vote counting and quorum enforcement
 \end{itemize}
 
 \section{Deployment Instructions}
 
-\subsection{Download Prebuilt Binaries}
-
-Prebuilt binaries for end users are available for download in the release section of the GitHub repository.
+\subsection{ Download Prebuilt Binaries}
+Prebuilt binaries for end user are available for download in the release section of the GitHub repository:
+\begin{verbatim}
+    https://github.com/luca-patrignani/mental-poker/releases
+\end{verbatim}
 
 \subsection{Build from source}
-
 \subsubsection{Prerequisites}
 
 \begin{itemize}
-\item \textbf{Go}\cite{golang}: Version 1.23.5 or later
+\item \textbf{Go}: Version 1.21 or later
+\begin{verbatim}
+# Verify Go installation
+go version
+\end{verbatim}
+
 \item \textbf{Git}: For cloning the repository
-\item \textbf{Network}: All players must be on the same local network
+\begin{verbatim}
+git --version
+\end{verbatim}
+
+\item \textbf{Network}: All players must be on the same local network or have direct connectivity
 \end{itemize}
 
 \subsubsection{Installation Steps}
 
 \begin{enumerate}
-\item Clone the repository
-\item Install dependencies: \texttt{go mod download}
-\item Build the executable: \texttt{go build -o mental-poker ./cmd}
-\item (Optional) Install globally: \texttt{go install ./cmd}
+\item Clone the repository:
+\begin{verbatim}
+git clone https://github.com/luca-patrignani/mental-poker.git
+cd mental-poker
+git checkout doc  # Use the doc branch
+\end{verbatim}
+
+\item Install dependencies:
+\begin{verbatim}
+go mod download
+go mod verify
+\end{verbatim}
+
+\item Build the executable:
+\begin{verbatim}
+go build -o mental-poker ./cmd
+\end{verbatim}
+
+This creates a \texttt{mental-poker} executable in the current directory.
+
+\item (Optional) Install globally:
+\begin{verbatim}
+go install ./cmd
+\end{verbatim}
 \end{enumerate}
+
+\subsection{Network Setup}
+
+For each player, determine their network address:
+
+\begin{verbatim}
+# On Linux/Mac
+ip addr show
+ifconfig
+
+# On Windows
+ipconfig
+\end{verbatim}
+
+Note the IP address on the local network (typically 192.168.x.x or 10.x.x.x).
+
+\subsubsection{Running the Application}
+
+\textbf{Default startup}:
+\begin{verbatim}
+./mental-poker *Your IP address*
+\end{verbatim}
+
+This starts the application and displays connection information for other players with the default timeout.
+
+\textbf{Specified Timeout}:
+\begin{verbatim}
+./mental-poker *Your IP address* -t *timeout_in_seconds*
+\end{verbatim}
+
+This starts the application and displays connection information for other players with the specified timeout.
 
 \section{Conclusions}
 
