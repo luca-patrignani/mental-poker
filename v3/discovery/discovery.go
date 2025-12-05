@@ -11,6 +11,10 @@ import (
 
 const multicastIpAddress = "239.0.0.1"
 
+// Discover represents a discovery instance that announces and listens for service information.
+// Before calling Start, configure Info (the payload to announce), Port (UDP port), and
+// IntervalBetweenAnnouncements (frequency of announcements). After Start succeeds,
+// discovered entries are received on the Entries channel.
 type Discover struct {
 	Info                         []byte
 	Port                         uint16
@@ -21,11 +25,17 @@ type Discover struct {
 	key                          []byte
 }
 
+// Entry represents a single discovery announcement received from a peer.
+// Info contains the service information payload and Time is when it was received.
 type Entry struct {
 	Info []byte
 	Time time.Time
 }
 
+// Start initializes the discovery mechanism: joins the multicast group, creates
+// network connections, and starts background goroutines for listening and announcing.
+// Returns an error if network setup fails. On success, the Entries channel will
+// receive discovered entries from other peers.
 func (d *Discover) Start() error {
 	d.Entries = make(chan Entry, 10)
 	d.key = []byte(fmt.Sprintf("%08x", rand.Uint32()))
@@ -47,6 +57,8 @@ func (d *Discover) Start() error {
 	return nil
 }
 
+// Close stops the discovery mechanism and closes the underlying UDP connections.
+// Returns a combined error if either connection closure fails.
 func (d *Discover) Close() error {
 	err1 := d.conn.Close()
 	err2 := d.sendConn.Close()
